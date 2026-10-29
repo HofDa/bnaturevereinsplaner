@@ -30,7 +30,12 @@ export default defineConfig({
       url: 'http://localhost:3002/api/v1/health',
       reuseExistingServer: false,
       timeout: 60_000,
-      env: { NODE_ENV: 'test', APP_URL: 'http://localhost:5174', PORT: '3002' },
+      env: {
+        NODE_ENV: 'test',
+        APP_URL: 'http://localhost:5174',
+        PORT: '3002',
+        DOCUMENT_STORAGE_DIR: 'test-results/e2e-documents',
+      },
     },
     {
       command:

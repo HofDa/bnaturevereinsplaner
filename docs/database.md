@@ -24,6 +24,8 @@ PostgreSQL 17, Drizzle ORM, UUID-Primärschlüssel und Zeitpunkte als `timestamp
 | cashbook_entries                            | Unveränderliche, je Jahr nummerierte Buchungen; Storno als negatives Gegenstück mit Verweis; höchstens eine Buchung je Zahlung                                                                    |
 | payment_reversals                           | Storno einer Zahlung; Zuordnungen stornierter Zahlungen zählen nicht mehr                                                                                                                         |
 | finance_report_templates                    | Vereinseigene Berichtsvorlagen als fortlaufende unveränderliche Versionen                                                                                                                         |
+| documents                                   | Dokumentmetadaten mit Kategorie, Archivstatus, optionalem Kassabuch-/Mitgliedsbezug (zusammengesetzte FKs) und Version; nicht löschbar (Migration `0003`)                                         |
+| document_versions                           | Unveränderliche, fortlaufend nummerierte Dateiversionen mit Dateiname, Typ, Größe, SHA-256 und serverseitigem Speicherschlüssel                                                                   |
 
 Es gibt keine gemeinsam genutzten Personensätze zwischen Organisationen. E-Mail-Adressen von Personen sind fachlich nicht zwingend eindeutig (z. B. Familienadresse). Leere optionale Textfelder werden als leere Zeichenfolge normalisiert; nicht bekannte Datumswerte sind `null`. `fiscal_code` von Personen wird auf 16 alphanumerische Zeichen geprüft, aber nicht auf amtliche Gültigkeit oder Prüfziffer zertifiziert.
 

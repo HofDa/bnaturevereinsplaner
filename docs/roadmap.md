@@ -8,7 +8,7 @@ Vor größerem produktivem Rollout: unabhängige Sicherheits-/Barrierefreiheitsp
 
 ## Beiträge und Finanzen
 
-Sprint 2.1 implementiert: Beitragstarife, Forderungen, Zahlungen mit Zuordnungen, Idempotenz, PDF-Bestätigungen, Erinnerungsentwürfe und CSV-Exporte ([Umsetzung](sprints/2.1-implementation.md), [ADR 0002](decisions/0002-membership-fees.md)). Sprint 2.2a ergänzt Konten, Geschäftsjahre, Kassabuch, Storno und Jahresberichte ([Umsetzung](sprints/2.2-implementation.md), [ADR 0003](decisions/0003-ledger.md)). Offen sind private Belegdokumente (S22-04), validierte ETS-Vorlagen und gegebenenfalls doppelte Buchführung. Die folgende Zielskizze gilt für die verbleibenden Teile:
+Sprint 2.1 implementiert: Beitragstarife, Forderungen, Zahlungen mit Zuordnungen, Idempotenz, PDF-Bestätigungen, Erinnerungsentwürfe und CSV-Exporte ([Umsetzung](sprints/2.1-implementation.md), [ADR 0002](decisions/0002-membership-fees.md)). Sprint 2.2a ergänzt Konten, Geschäftsjahre, Kassabuch, Storno und Jahresberichte ([Umsetzung](sprints/2.2-implementation.md), [ADR 0003](decisions/0003-ledger.md)). Sprint 2.2b ergänzt die private Dokumentablage. Offen sind validierte ETS-Vorlagen und gegebenenfalls doppelte Buchführung. Die folgende Zielskizze gilt für die verbleibenden Teile:
 
 Eigenes Modul mit `contribution_tariffs`, `contribution_years`, `receivables`, `payments`, `payment_allocations`, `cashbook_entries`, `receipts`, `fiscal_years` und `closing_versions`, jeweils mit Organisation. Geldwerte als exakte Dezimalbeträge bzw. Minor Units plus Währung, nie JavaScript-Fließkomma als Buchungswahrheit. Teilzahlungen als Zuordnung zwischen Forderung und Zahlung; Buchungen nach Abschluss nicht überschreiben, sondern korrigierend stornieren. Transaktionen und eindeutige Referenzen sichern Zahlungszuordnung. ETS-Modelle D/E erst nach fachlicher und rechtlicher Validierung der jeweils geltenden Vorgaben implementieren.
 
@@ -17,6 +17,8 @@ Eigenes Modul mit `contribution_tariffs`, `contribution_years`, `receivables`, `
 `events`, `recurrence_rules`, `registrations`, `waitlist_entries`, `attendance_records`. Kapazitätsprüfungen und Wartelisten sind transaktional, konkurrierende Anmeldungen dürfen das Limit nicht überschreiten. Wiederholungen erhalten Zeitzone und explizite Ausnahmen. Offline-Anwesenheit besitzt eine eng begrenzte verschlüsselte lokale Projektion; vor Freigabe sind Schlüsselspeicherung, Geräteverlust, Rollenentzug und Datenbereinigung zu lösen.
 
 ## Dokumente
+
+Sprint 2.2b implementiert private, versionierte Dokumente mit Signatur- und Hashprüfung, Archivstatus und Kassabuch-/Mitgliedsbezug ([Umsetzung](sprints/2.2-implementation.md#22b--private-dokumente-s22-04)). Offen: Malware-Prüfung, feingranulare Dokumentrechte, Speicherquoten, protokolliertes endgültiges Löschen nach Aufbewahrungsfrist, Abgleich verwaister Dateien und Veranstaltungsbezüge (2.3). Ursprüngliche Zielskizze:
 
 `documents`, unveränderliche `document_versions`, `document_permissions`, Blob-IDs und Inhalts-Hashes. Dateien außerhalb öffentlicher Webroots in selbst gehostetem Storage; Download nur über Autorisierungsprüfung und kurzlebigen Zugriff. Uploadlimits, MIME-/Signaturprüfung, Malware-Prüfung und gesicherte PDF-Verarbeitung gehören zum Modul. Kein freier Dateipfad aus Nutzereingaben. Metadaten und Dateien müssen gemeinsam wiederherstellbar sein.
 

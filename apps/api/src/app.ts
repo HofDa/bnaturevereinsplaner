@@ -60,6 +60,8 @@ export async function createApp(db: Database, config: Config) {
           403: errorSchema,
           404: errorSchema,
           409: errorSchema,
+          413: errorSchema,
+          415: errorSchema,
           422: errorSchema,
           429: errorSchema,
           500: errorSchema,
@@ -159,7 +161,7 @@ export async function createApp(db: Database, config: Config) {
       error.statusCode < 500
     ) {
       status = error.statusCode;
-      code = status === 429 ? 'RATE_LIMITED' : 'BAD_REQUEST';
+      code = status === 429 ? 'RATE_LIMITED' : status === 413 ? 'PAYLOAD_TOO_LARGE' : 'BAD_REQUEST';
       message =
         status === 429 ? 'Zu viele Anfragen. Bitte später erneut versuchen.' : 'Ungültige Anfrage.';
     } else {

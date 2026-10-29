@@ -1,6 +1,6 @@
 # Testbare Sprint-Tickets
 
-Sprint 2.1 und Sprint 2.2a (S22-01, -02, -03, -05) sind umgesetzt. Die übrigen Tickets sind ein Backlog und keine zugesagten fertigen Funktionen.
+Sprint 2.1 und Sprint 2.2 (S22-01 bis S22-05) sind umgesetzt. Die übrigen Tickets sind ein Backlog und keine zugesagten fertigen Funktionen.
 
 ## Sprint 2.1 – Beiträge und Zahlungszuordnung
 
@@ -15,7 +15,7 @@ Sprint 2.1 und Sprint 2.2a (S22-01, -02, -03, -05) sind umgesetzt. Die übrigen 
 | S21-07 Belege und Rückstände       | Autorisierte PDF-Zahlungsbestätigung in DE/IT, offene/überfällige Forderungen, Erinnerung als herunterladbarer Entwurf ohne automatischen Versand, gefilterte CSV-Exporte. Keine rechtliche Zertifizierung behaupten.                                              |
 | S21-08 Oberfläche und Regression   | Responsive Finanzansicht mit Tarifen, Forderungen und Zahlungen; alle Texte DE/IT, Lade-/Fehler-/Leer-/Erfolgszustände. Unit-, echte PostgreSQL-, Berechtigungs- und Browserprüfungen plus Phase-1-Regression und Produktionsbuild bestehen.                       |
 
-## Sprint 2.2 – Kassabuch und Dokumente (2.2a umgesetzt, S22-04 offen)
+## Sprint 2.2 – Kassabuch und Dokumente (umgesetzt)
 
 Umsetzung: [2.2-implementation.md](2.2-implementation.md).
 

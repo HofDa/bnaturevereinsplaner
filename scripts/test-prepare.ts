@@ -1,3 +1,4 @@
+import { rm } from 'node:fs/promises';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { sql } from 'drizzle-orm';
 import { createDatabase, schema as s } from '../packages/db/src';
@@ -11,6 +12,9 @@ const { db, pool } = createDatabase(config.DATABASE_URL);
 try {
   await migrate(db, { migrationsFolder: 'packages/db/migrations' });
   await db.execute(sql`truncate table organizations, users cascade`);
+  // Stored files belong to the truncated rows; only the disposable test directory is cleared.
+  if (config.DOCUMENT_STORAGE_DIR.startsWith('test-results/'))
+    await rm(config.DOCUMENT_STORAGE_DIR, { recursive: true, force: true });
   const result = await bootstrap(db, config, {
     name: 'E2E Administrator',
     email: 'e2e@example.test',

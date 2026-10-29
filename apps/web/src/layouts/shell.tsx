@@ -15,6 +15,7 @@ import {
   ArrowUpRight,
   Globe2,
   ChevronDown,
+  FileText,
 } from 'lucide-react';
 import type { Permission } from '@bnature/contracts';
 import { useSession } from '../app/session';
@@ -37,6 +38,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   ] as const;
   const secondary = [
     { to: '/organization', key: 'organization', icon: Building2, permission: 'organization:read' },
+    { to: '/documents', key: 'documents', icon: FileText, permission: 'documents:read' },
     { to: '/users', key: 'users', icon: Users, permission: 'users:manage' },
     { to: '/audit', key: 'audit', icon: ScrollText, permission: 'audit:read' },
     { to: '/settings', key: 'settings', icon: Settings2 },

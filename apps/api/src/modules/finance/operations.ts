@@ -41,7 +41,7 @@ export async function financialOperation<T extends Record<string, unknown>>(
         ),
       );
     if (!role || !can(role.role, permission))
-      throw new HttpError(403, 'FORBIDDEN', 'Keine Finanzberechtigung.');
+      throw new HttpError(403, 'FORBIDDEN', 'Keine Berechtigung für diese Aktion.');
     const [previous] = await tx
       .select()
       .from(s.financeOperations)

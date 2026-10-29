@@ -98,6 +98,11 @@ export function errorMessage(error: unknown) {
       BOOKING_CATEGORY_INVALID: 'ledgerBookingCategoryInvalid',
       TEMPLATE_CATEGORY_INVALID: 'ledgerTemplateCategoryInvalid',
       TEMPLATE_NOT_VALID_FOR_YEAR: 'ledgerTemplateNotValid',
+      EMPTY_FILE: 'documentFileEmpty',
+      PAYLOAD_TOO_LARGE: 'documentTooLarge',
+      FILE_TYPE_MISMATCH: 'documentTypeInvalid',
+      DOCUMENT_ARCHIVED: 'documentArchivedLocked',
+      DOCUMENT_STORAGE_ERROR: 'documentStorageError',
     };
     return i18n.t(keys[error.code] ?? 'serverError');
   }

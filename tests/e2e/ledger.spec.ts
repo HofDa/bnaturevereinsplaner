@@ -108,6 +108,21 @@ test('sets up the ledger, books, reverses, reports and closes a fiscal year', as
   await expect(page.getByRole('button', { name: /^Buchung stornieren: 2026\/2$/ })).toHaveCount(0);
   await checkAccessibility(page);
   await noHorizontalScroll(page);
+  await page.getByRole('button', { name: 'Belege: 2026/1', exact: true }).click();
+  dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('Zu dieser Buchung ist noch kein Beleg abgelegt.')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Beleg hochladen', exact: true }).click();
+  await dialog.getByLabel('Datei *', { exact: true }).setInputFiles({
+    name: 'quittung-papier.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from('%PDF-1.4\n% Quittung\n%%EOF\n'),
+  });
+  await expect(dialog.getByLabel('Titel *', { exact: true })).toHaveValue('Druckerpapier');
+  await checkAccessibility(page);
+  await dialog.getByRole('button', { name: 'Anlegen', exact: true }).click();
+  await expect(dialog.getByRole('row').filter({ hasText: 'quittung-papier.pdf' })).toBeVisible();
+  await dialog.getByRole('button', { name: /^Schließen/ }).click();
+  await expect(dialog).not.toBeVisible();
   const csv = page.waitForEvent('download');
   await page.getByRole('button', { name: 'CSV exportieren', exact: true }).click();
   expect((await csv).suggestedFilename()).toBe('bnature-cashbook-2026.csv');

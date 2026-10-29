@@ -1,6 +1,6 @@
 # b*nature Vereinsplattform
 
-Selbst gehostete, zweisprachige PWA für die Vereinsverwaltung. Phase 1 enthält Anmeldung, Rollenrechte, Dashboard, Mitglieder, Gruppen und Zuordnungen, Vorstand mit Amtszeiten, Vereinsprofil, Benutzerverwaltung, persönliches Profil und Audit-Protokoll. Personen können ohne Benutzerkonto existieren. Sprint 2.1 ergänzt Mitgliedsbeiträge: Tarife, Forderungen, Zahlungen mit Zuordnung, PDF-Bestätigungen und Erinnerungsentwürfe ([Sprint 2.1](docs/sprints/2.1-implementation.md)). Sprint 2.2 ergänzt Konten, Geschäftsjahre, ein unveränderliches Kassabuch mit Storno, die Verbuchung und das Storno von Beitragszahlungen sowie Jahresberichte mit vereinseigenen Berichtsvorlagen ([Sprint 2.2](docs/sprints/2.2-implementation.md)).
+Selbst gehostete, zweisprachige PWA für die Vereinsverwaltung. Phase 1 enthält Anmeldung, Rollenrechte, Dashboard, Mitglieder, Gruppen und Zuordnungen, Vorstand mit Amtszeiten, Vereinsprofil, Benutzerverwaltung, persönliches Profil und Audit-Protokoll. Personen können ohne Benutzerkonto existieren. Sprint 2.1 ergänzt Mitgliedsbeiträge: Tarife, Forderungen, Zahlungen mit Zuordnung, PDF-Bestätigungen und Erinnerungsentwürfe ([Sprint 2.1](docs/sprints/2.1-implementation.md)). Sprint 2.2 ergänzt Konten, Geschäftsjahre, ein unveränderliches Kassabuch mit Storno, die Verbuchung und das Storno von Beitragszahlungen sowie Jahresberichte mit vereinseigenen Berichtsvorlagen und eine private, versionierte Dokumentablage für Belege, Verträge und Protokolle ([Sprint 2.2](docs/sprints/2.2-implementation.md)).
 
 ## Lokal starten
 
@@ -54,7 +54,7 @@ Integrationstests und E2E-Tests verwenden ausschließlich die Datenbank **bnatur
 
 5. Caddy liefert die PWA und leitet `/api/*` intern an Fastify weiter; Zertifikate werden automatisch verwaltet. `APP_URL` muss genau dem öffentlichen Ursprung entsprechen. `TRUST_PROXY=true` ist nur hinter dem eigenen Caddy vorgesehen.
 
-Die Containerkonfiguration enthält sichere Cookies unter HTTPS, Security-Header, Origin-Prüfung und Rate-Limits. Produktionsdaten und Secrets gehören weder ins Repository noch in Images. Für regelmäßige verschlüsselte Backups und getestete Wiederherstellung siehe [Betrieb](docs/operations.md). Ein öffentlicher Produktivserver wurde durch diese Entwicklung nicht eingerichtet.
+Die Containerkonfiguration enthält sichere Cookies unter HTTPS, Security-Header, Origin-Prüfung und Rate-Limits. Produktionsdaten und Secrets gehören weder ins Repository noch in Images. Für regelmäßige verschlüsselte Backups von Datenbank **und** Dokumentvolume sowie getestete Wiederherstellung siehe [Betrieb](docs/operations.md). Ein öffentlicher Produktivserver wurde durch diese Entwicklung nicht eingerichtet.
 
 ## Architektur und Grenzen
 
@@ -67,6 +67,6 @@ In Phase 1 speichert die PWA ausschließlich statische App-Dateien und nichtpers
 
 CSV-Import: UTF-8, Kopfzeile mit technischen Feldnamen, Komma oder Semikolon, maximal 1.000 Zeilen / 2 MB. Vorlage in der Oberfläche herunterladen. Vorschau und Bestätigung sind verpflichtend. Gültige Zeilen werden einzeln transaktional angelegt, erfolgreiche Zeilen bei einem Wiederholungsversuch innerhalb desselben Dialogs übersprungen. Der Import ist nicht als Gesamtdatei atomar; Fehler und bereits gespeicherte Zeilen werden angezeigt. Wiederholter Import derselben Mitgliedsnummer wird durch die Datenbank abgewiesen.
 
-Private Dokumente, Termine, Freiwilligenregister und Compliance sind als Erweiterungen (Sprints 2.2b–2.4) dokumentiert und noch nicht implementiert. Erfasste Zahlungen und Buchungen werden nie bearbeitet, sondern ausschließlich storniert. Das Kassabuch ist eine Einnahmen-/Ausgabenrechnung, keine doppelte Buchführung. Die Anwendung stellt keine rechtliche Zertifizierung aus. Anforderungen an ETS-Rechnungslegung, Register, Aufbewahrung und RUNTS müssen vor produktiver Verwendung der jeweiligen Erweiterung gesondert validiert werden. WCAG 2.2 AA ist das Entwicklungsziel; automatisierte Prüfungen ersetzen keine vollständige Prüfung mit assistiven Technologien.
+Termine, Freiwilligenregister und Compliance sind als Erweiterungen (Sprints 2.3–2.4) dokumentiert und noch nicht implementiert. Erfasste Zahlungen und Buchungen werden nie bearbeitet, sondern ausschließlich storniert. Das Kassabuch ist eine Einnahmen-/Ausgabenrechnung, keine doppelte Buchführung. Die Anwendung stellt keine rechtliche Zertifizierung aus. Anforderungen an ETS-Rechnungslegung, Register, Aufbewahrung und RUNTS müssen vor produktiver Verwendung der jeweiligen Erweiterung gesondert validiert werden. WCAG 2.2 AA ist das Entwicklungsziel; automatisierte Prüfungen ersetzen keine vollständige Prüfung mit assistiven Technologien.
 
 Die Umsetzung ist eigenständig. AlpsPlanner dient ausschließlich als vom Auftraggeber genannter fachlicher Vergleich; proprietärer Quellcode, Designs oder interne APIs werden nicht verwendet.

@@ -9,6 +9,7 @@ import {
 export * from './common';
 export * from './finance';
 export * from './ledger';
+export * from './documents';
 
 export const roles = ['admin', 'board', 'treasurer', 'project_lead', 'member'] as const;
 export const roleSchema = z.enum(roles);
@@ -28,6 +29,8 @@ export const permissions = [
   'finance:write',
   'finance:plans',
   'finance:close',
+  'documents:read',
+  'documents:write',
 ] as const;
 export type Permission = (typeof permissions)[number];
 const grants: Record<Role, readonly Permission[]> = {
@@ -42,6 +45,8 @@ const grants: Record<Role, readonly Permission[]> = {
     'board:read',
     'board:write',
     'audit:read',
+    'documents:read',
+    'documents:write',
   ],
   treasurer: [
     'members:read',
@@ -50,6 +55,8 @@ const grants: Record<Role, readonly Permission[]> = {
     'board:read',
     'finance:read',
     'finance:write',
+    'documents:read',
+    'documents:write',
   ],
   project_lead: ['groups:read', 'groups:write', 'organization:read', 'board:read'],
   member: ['groups:read', 'organization:read', 'board:read'],

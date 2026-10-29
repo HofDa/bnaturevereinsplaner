@@ -27,6 +27,14 @@ mkdir -p .local/backups
 docker compose exec -T postgres pg_dump -U bnature -d bnature -Fc > .local/backups/bnature.dump
 ```
 
+Das Volume `documents_data` (Produktions-Compose, im Container `/var/lib/bnature/documents`) enthält die privaten Dokumentdateien und muss **im selben Sicherungslauf** wie die Datenbank gesichert werden, z. B.:
+
+```sh
+docker run --rm -v bnature_documents_data:/data:ro -v "$PWD/.local/backups:/backup" alpine tar -czf /backup/documents.tar.gz -C /data .
+```
+
+Datenbank ohne Dateien oder Dateien ohne Datenbank sind unvollständig; Downloads prüfen den gespeicherten SHA-256 und liefern abweichende Dateien nicht aus. Wiederherstellung beider Teile gemeinsam testen.
+
 Dump verschlüsselt auf einem getrennten System aufbewahren; Zugriff und Aufbewahrung begrenzen. `.local` ist nur eine lokale Arbeitsablage, kein Backupkonzept. Regelmäßig Wiederherstellung in einer isolierten Datenbank testen, Datensatzanzahlen und Anmeldung prüfen. Das Rückspielen überschreibt Daten und wird deshalb nicht als automatischer Standardstart ausgeführt. `pg_restore` nur nach Auswahl der richtigen Zielinstanz und geplanter Sicherung anwenden. Auch Serverkonfiguration, Secrets und Caddy-Daten gehören in ein getrennt gesichertes Betriebskonzept.
 
 ## Überwachung

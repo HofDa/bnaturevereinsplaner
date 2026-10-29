@@ -11,6 +11,7 @@ import {
   Building2,
   Users,
   ScrollText,
+  FileText,
 } from 'lucide-react';
 import { useSession } from '../app/session';
 import { PageHeading } from '../components/ui';
@@ -31,6 +32,7 @@ export function Settings() {
   const links = [
     { to: '/profile', label: 'profile', icon: UserRound },
     { to: '/organization', label: 'organization', icon: Building2 },
+    { to: '/documents', label: 'documents', icon: FileText, permission: 'documents:read' },
     { to: '/users', label: 'users', icon: Users, permission: 'users:manage' },
     { to: '/audit', label: 'audit', icon: ScrollText, permission: 'audit:read' },
   ];

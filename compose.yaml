@@ -57,7 +57,10 @@ services:
       HOST: 0.0.0.0
       PORT: 3000
       TRUST_PROXY: 'true'
+      DOCUMENT_STORAGE_DIR: /var/lib/bnature/documents
     expose: ['3000']
+    volumes:
+      - documents_data:/var/lib/bnature/documents
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -81,5 +84,6 @@ services:
     restart: unless-stopped
 volumes:
   postgres_data:
+  documents_data:
   caddy_data:
   caddy_config:

@@ -35,8 +35,14 @@ Fastify begrenzt Anfragen pro IP auf 150/Minute, Auth-Endpunkte auf 20/Minute un
 | Beitragstarife verwalten                  | ja    | nein     | nein    | nein           | nein     |
 | Kassabuch, Konten, Berichte, Storno       | ja    | nein     | ja      | nein           | nein     |
 | Geschäftsjahr abschließen                 | ja    | nein     | nein    | nein           | nein     |
+| Dokumente lesen / hochladen / archivieren | ja    | ja       | ja      | nein           | nein     |
+| Belege zu Kassabuchbuchungen              | ja    | nein     | ja      | nein           | nein     |
 
 Gruppenlisten für normale Mitglieder zeigen nur die Anzahl, keine fremden Personendatensätze. Namen im Vorstand sind bewusst für angemeldete Vereinsangehörige sichtbar. Das eigene Profil nutzt ausschließlich eine serverseitig ermittelte Personenverknüpfung; es akzeptiert keine frei wählbare Person-ID. Kein Benutzer kann sich über die Profil-API eine Rolle geben. Der letzte Administrator ist gegen Herabstufung geschützt. Finanzrechte (`finance:read`, `finance:write`, `finance:plans`, `finance:close`) werden bei Schreiboperationen zusätzlich innerhalb der gesperrten Transaktion erneut geprüft; Details in [Sprint 2.1](sprints/2.1-implementation.md#berechtigungen-und-datenschutz).
+
+## Dokumente
+
+Uploads sind auf PDF, PNG und JPEG bis 10 MiB begrenzt; der Typ wird anhand der Dateisignatur geprüft, nicht anhand von Name oder Header allein. Dateinamen werden bereinigt; Speicherpfade bestehen ausschließlich aus serverseitig erzeugten UUIDs außerhalb jedes Webroots. Downloads laufen nur über autorisierte API-Routen mit `no-store`, `nosniff`, `attachment` und einer `sandbox`-CSP; der gespeicherte SHA-256 wird vor der Auslieferung geprüft. Es gibt keine öffentlichen oder signierten Direkt-URLs. Eine Malware-Prüfung findet nicht statt; heruntergeladene Dateien sind wie andere externe Dateien zu behandeln. Details: [Sprint 2.2](sprints/2.2-implementation.md#22b--private-dokumente-s22-04).
 
 ## Mandantentrennung und Datenminimierung
 

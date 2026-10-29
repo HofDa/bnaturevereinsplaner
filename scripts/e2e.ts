@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 // Each suite gets the real rate limits and a fresh API process; fast synthetic sessions do not share IP counters.
 for (const project of ['desktop', 'mobile']) {
-  for (const suite of ['platform', 'finance', 'ledger']) {
+  for (const suite of ['platform', 'finance', 'ledger', 'documents']) {
     console.log(`\nBrowser suite: ${suite} / ${project}`);
     const child = spawn(
       'bun',

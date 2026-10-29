@@ -2424,3 +2424,18 @@ dd {
     grid-row: auto;
   }
 }
+/* Sprint 2.2b – private documents */
+.document-version-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 6px 0 18px;
+}
+.document-version-form .field {
+  flex: 1;
+  min-width: 220px;
+}
+.document-actions {
+  margin-top: 14px;
+}

@@ -7,6 +7,8 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   HOST: z.string().default('0.0.0.0'),
   TRUST_PROXY: z.enum(['false', 'true']).default('false'),
+  // Private file storage outside any web root; must be on persistent, backed-up storage.
+  DOCUMENT_STORAGE_DIR: z.string().min(1).default('.local/documents'),
 });
 export type Config = z.infer<typeof envSchema>;
 export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {

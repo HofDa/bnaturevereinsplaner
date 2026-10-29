@@ -1,7 +1,17 @@
 import { useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Plus, Download, Pencil, Undo2, Lock, Trash2, TriangleAlert } from 'lucide-react';
+import {
+  Plus,
+  Download,
+  Pencil,
+  Undo2,
+  Lock,
+  Trash2,
+  TriangleAlert,
+  Paperclip,
+} from 'lucide-react';
+import { EntryDocuments } from '../documents';
 import { z } from 'zod';
 import {
   formatMoney,
@@ -98,13 +108,17 @@ const entryFormSchema = z
   .omit({ amountCents: true })
   .extend({ amount: moneyTextSchema })
   .transform(({ amount, ...rest }) => ({ ...rest, amountCents: parseEuroCents(amount) }));
-type CashbookEditor = { type: 'new' } | { type: 'reverse'; entry: CashbookEntry };
+type CashbookEditor =
+  | { type: 'new' }
+  | { type: 'reverse'; entry: CashbookEntry }
+  | { type: 'documents'; entry: CashbookEntry };
 function Cashbook() {
   const { t, i18n } = useTranslation(),
     { me } = useSession(),
     write = useFinancialWrite(),
     basics = useLedgerBasics(),
-    canWrite = me.permissions.includes('finance:write');
+    canWrite = me.permissions.includes('finance:write'),
+    canDocuments = me.permissions.includes('documents:read');
   const [year, setYear] = useState(''),
     [account, setAccount] = useState(''),
     [category, setCategory] = useState(''),
@@ -282,7 +296,7 @@ function Cashbook() {
                   <th>{t('ledgerCategory')}</th>
                   <th>{t('ledgerAccount')}</th>
                   <th className="align-right">{t('financeAmount')}</th>
-                  {canWrite && <th>{t('actions')}</th>}
+                  {canDocuments && <th>{t('actions')}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -316,17 +330,29 @@ function Cashbook() {
                     <td className="align-right">
                       <Amount cents={entry.amountCents} direction={entry.direction} />
                     </td>
-                    {canWrite && (
+                    {canDocuments && (
                       <td>
-                        {!entry.reversesEntryId && !entry.reversedByEntryId && !entry.paymentId && (
+                        <div className="finance-row-actions">
                           <Button
                             variant="ghost"
-                            aria-label={`${t('ledgerReverse')}: ${entry.fiscalYear}/${entry.entryNumber}`}
-                            onClick={() => setEditor({ type: 'reverse', entry })}
+                            aria-label={`${t('documentReceipts')}: ${entry.fiscalYear}/${entry.entryNumber}`}
+                            onClick={() => setEditor({ type: 'documents', entry })}
                           >
-                            <Undo2 size={17} />
+                            <Paperclip size={17} />
                           </Button>
-                        )}
+                          {canWrite &&
+                            !entry.reversesEntryId &&
+                            !entry.reversedByEntryId &&
+                            !entry.paymentId && (
+                              <Button
+                                variant="ghost"
+                                aria-label={`${t('ledgerReverse')}: ${entry.fiscalYear}/${entry.entryNumber}`}
+                                onClick={() => setEditor({ type: 'reverse', entry })}
+                              >
+                                <Undo2 size={17} />
+                              </Button>
+                            )}
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -352,10 +378,20 @@ function Cashbook() {
       {editor && (
         <Modal
           wide
-          title={t(editor.type === 'new' ? 'ledgerAddEntry' : 'ledgerReverse')}
+          title={
+            editor.type === 'documents'
+              ? `${t('documentReceipts')} ${editor.entry.fiscalYear}/${editor.entry.entryNumber}`
+              : t(editor.type === 'new' ? 'ledgerAddEntry' : 'ledgerReverse')
+          }
           onClose={() => setEditor(null)}
         >
-          {editor.type === 'new' ? (
+          {editor.type === 'documents' ? (
+            <EntryDocuments
+              entryId={editor.entry.id}
+              title={editor.entry.description}
+              canWrite={canWrite && me.permissions.includes('documents:write')}
+            />
+          ) : editor.type === 'new' ? (
             !accounts.some((a) => a.active) ||
             !categories.some((c) => c.active && c.classification !== 'membership_fee') ? (
               <Empty description={t('ledgerSetupFirst')} />

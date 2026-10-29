@@ -69,6 +69,11 @@ it('upgrades a real Phase-1 database without losing existing persons or membersh
       sql`select tgname from pg_trigger where tgname in ('cashbook_entry_insert_guard','payment_reversal_balanced_after_insert','payment_reference_guard')`,
     );
     expect(ledgerTriggers.rowCount).toBe(3);
+    expect(await upgraded.db.select().from(s.documents)).toEqual([]);
+    const documentTriggers = await upgraded.db.execute(
+      sql`select tgname from pg_trigger where tgname in ('document_versions_immutable','document_update_guard','document_version_insert_guard')`,
+    );
+    expect(documentTriggers.rowCount).toBe(3);
   } finally {
     await upgraded?.pool.end();
     if (created) await admin.pool.query(`DROP DATABASE "${databaseName}" WITH (FORCE)`);
