@@ -1,0 +1,66 @@
+{
+  "name": "bnature",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.14",
+  "engines": {
+    "bun": "1.3.14",
+    "node": ">=22.12.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun --env-file=.env run --parallel --filter '@bnature/api' --filter '@bnature/web' dev",
+    "dev:web": "bun run --filter @bnature/web dev",
+    "dev:api": "bun --env-file=.env apps/api/src/server.ts",
+    "build": "bun run --filter @bnature/web build && bun build apps/api/src/server.ts --target=node --external pg --external drizzle-orm --external better-auth --external fastify --external @fastify/* --external fastify-type-provider-zod --external zod --outdir=apps/api/dist",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:integration": "bun --env-file=.env.test run vitest run --config vitest.integration.config.ts",
+    "test:e2e": "bun --env-file=.env.test run playwright test --project=desktop --output=test-results/desktop && bun --env-file=.env.test run playwright test --project=mobile --output=test-results/mobile",
+    "db:generate": "drizzle-kit generate --config packages/db/drizzle.config.ts",
+    "db:migrate": "bun --env-file=.env packages/db/src/migrate.ts",
+    "bootstrap": "bun --env-file=.env apps/api/src/services/bootstrap.ts",
+    "openapi": "bun scripts/openapi.ts",
+    "setup": "bun scripts/setup.ts",
+    "icons": "bun scripts/icons.ts",
+    "test:node": "bun scripts/node-smoke.ts"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.1",
+    "@tanstack/react-query": "5.105.0",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.8",
+    "@types/node": "26.6.6",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "drizzle-kit": "0.31.11",
+    "drizzle-orm": "0.45.4",
+    "eslint": "10.13.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.13.0",
+    "jsdom": "30.1.3",
+    "prettier": "3.9.10",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-router": "8.5.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.1",
+    "vite": "8.3.5",
+    "vite-plugin-pwa": "2.0.0",
+    "vitest": "5.0.5"
+  },
+  "overrides": {
+    "esbuild": "0.25.12"
+  }
+}

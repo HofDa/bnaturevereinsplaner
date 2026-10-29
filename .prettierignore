@@ -1,0 +1,8 @@
+bun.lock
+node_modules
+dist
+coverage
+test-results
+playwright-report
+packages/db/migrations/meta
+docs/api/openapi.json

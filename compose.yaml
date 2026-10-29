@@ -1,0 +1,85 @@
+name: bnature
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: bnature
+      POSTGRES_USER: bnature
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-55439}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U bnature -d bnature']
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+  postgres-test:
+    image: postgres:17-alpine
+    profiles: [test]
+    environment:
+      POSTGRES_DB: bnature_test
+      POSTGRES_USER: bnature_test
+      POSTGRES_PASSWORD: ${TEST_POSTGRES_PASSWORD:?Set TEST_POSTGRES_PASSWORD in .env}
+    ports:
+      - '127.0.0.1:55440:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U bnature_test -d bnature_test']
+      interval: 3s
+      timeout: 5s
+      retries: 15
+  migrate:
+    profiles: [production]
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    environment:
+      DATABASE_URL: postgres://bnature:${POSTGRES_PASSWORD}@postgres:5432/bnature
+    command: [bun, packages/db/src/migrate.ts]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+  api:
+    profiles: [production]
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://bnature:${POSTGRES_PASSWORD}@postgres:5432/bnature
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env}
+      APP_URL: https://${DOMAIN:-localhost}
+      HOST: 0.0.0.0
+      PORT: 3000
+      TRUST_PROXY: 'true'
+    expose: ['3000']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+  caddy:
+    profiles: [production]
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports: ['80:80', '443:443', '443:443/udp']
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api]
+    restart: unless-stopped
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

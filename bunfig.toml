@@ -1,0 +1,3 @@
+[install]
+exact = true
+cache.dir = "/tmp/bnature-bun-cache"
