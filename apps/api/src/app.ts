@@ -73,7 +73,7 @@ export async function createApp(db: Database, config: Config) {
     openapi: {
       info: {
         title: 'b*nature API',
-        version: '1.0.0',
+        version: '1.1.0',
         description:
           'Organization-scoped REST API. Cookie session required except health. Set X-Organization-Id to select an authorized organization.',
       },
@@ -93,6 +93,24 @@ export async function createApp(db: Database, config: Config) {
       security: [{ cookieSession: [] }],
     },
     transform: jsonSchemaTransform,
+    transformObject: (document) => {
+      if (!('openapiObject' in document)) return document.swaggerObject;
+      const api = document.openapiObject;
+      // Binary success responses still use the shared JSON error contract.
+      for (const path of Object.values(api.paths ?? {})) {
+        if (!path) continue;
+        for (const method of ['get', 'post', 'patch', 'put', 'delete'] as const) {
+          const operation = path[method];
+          if (!operation) continue;
+          for (const [status, response] of Object.entries(operation.responses ?? {})) {
+            if (status.startsWith('2') || '$ref' in response) continue;
+            if (response.content?.['application/pdf'])
+              response.content = { 'application/json': response.content['application/pdf'] };
+          }
+        }
+      }
+      return api;
+    },
   });
   if (config.NODE_ENV !== 'production') await app.register(swaggerUI, { routePrefix: '/api/docs' });
   app.addHook('onRequest', async (req, reply) => {

@@ -12,6 +12,7 @@ export type FormField = {
   nullable?: boolean;
   autoComplete?: string;
   minLength?: number;
+  inputMode?: 'text' | 'numeric' | 'decimal';
 };
 export function DataForm({
   schema,
@@ -101,6 +102,7 @@ export function DataForm({
               <input
                 name={field.name}
                 type={field.type ?? 'text'}
+                inputMode={field.inputMode}
                 required={field.required}
                 minLength={field.minLength}
                 autoComplete={

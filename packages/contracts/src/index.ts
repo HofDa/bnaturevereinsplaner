@@ -1,4 +1,13 @@
 import { z } from 'zod';
+import {
+  idSchema,
+  languageSchema,
+  membershipTypeSchema,
+  statusSchema,
+  patchSchema,
+} from './common';
+export * from './common';
+export * from './finance';
 
 export const roles = ['admin', 'board', 'treasurer', 'project_lead', 'member'] as const;
 export const roleSchema = z.enum(roles);
@@ -14,6 +23,9 @@ export const permissions = [
   'board:write',
   'audit:read',
   'users:manage',
+  'finance:read',
+  'finance:write',
+  'finance:plans',
 ] as const;
 export type Permission = (typeof permissions)[number];
 const grants: Record<Role, readonly Permission[]> = {
@@ -29,18 +41,20 @@ const grants: Record<Role, readonly Permission[]> = {
     'board:write',
     'audit:read',
   ],
-  treasurer: ['members:read', 'groups:read', 'organization:read', 'board:read'],
+  treasurer: [
+    'members:read',
+    'groups:read',
+    'organization:read',
+    'board:read',
+    'finance:read',
+    'finance:write',
+  ],
   project_lead: ['groups:read', 'groups:write', 'organization:read', 'board:read'],
   member: ['groups:read', 'organization:read', 'board:read'],
 };
 export function can(role: Role, permission: Permission) {
   return grants[role].includes(permission);
 }
-export const idSchema = z.uuid();
-export const idParams = z.object({ id: idSchema });
-export const languageSchema = z.enum(['de', 'it']);
-export const statusSchema = z.enum(['active', 'pending', 'inactive', 'resigned']);
-export const membershipTypeSchema = z.enum(['ordinary', 'supporting', 'honorary']);
 const date = z.iso.date();
 const optionalText = (max = 200) => z.string().trim().max(max).default('');
 export const personSchema = z
@@ -83,15 +97,6 @@ export const memberInputSchema = personSchema
     if (value.dateOfBirth && value.dateOfBirth > value.joinedAt)
       ctx.addIssue({ code: 'custom', path: ['dateOfBirth'], message: 'birthAfterJoining' });
   });
-export function patchSchema<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
-  const shape = Object.fromEntries(
-    Object.entries(schema.shape).map(([key, field]) => [
-      key,
-      field instanceof z.ZodDefault ? field.removeDefault() : field,
-    ]),
-  ) as T;
-  return z.object(shape).strict().partial();
-}
 export const memberPatchSchema = patchSchema(memberInputSchema);
 export type MemberInput = z.infer<typeof memberInputSchema>;
 export type Member = MemberInput & {

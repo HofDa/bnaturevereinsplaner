@@ -1,6 +1,6 @@
 # b*nature Vereinsplattform
 
-Selbst gehostete, zweisprachige PWA für die Vereinsverwaltung. Phase 1 enthält Anmeldung, Rollenrechte, Dashboard, Mitglieder, Gruppen und Zuordnungen, Vorstand mit Amtszeiten, Vereinsprofil, Benutzerverwaltung, persönliches Profil und Audit-Protokoll. Personen können ohne Benutzerkonto existieren.
+Selbst gehostete, zweisprachige PWA für die Vereinsverwaltung. Phase 1 enthält Anmeldung, Rollenrechte, Dashboard, Mitglieder, Gruppen und Zuordnungen, Vorstand mit Amtszeiten, Vereinsprofil, Benutzerverwaltung, persönliches Profil und Audit-Protokoll. Personen können ohne Benutzerkonto existieren. Sprint 2.1 ergänzt Mitgliedsbeiträge: Tarife, Forderungen, Zahlungen mit Zuordnung, PDF-Bestätigungen und Erinnerungsentwürfe ([Sprint 2.1](docs/sprints/2.1-implementation.md)).
 
 ## Lokal starten
 
@@ -60,13 +60,13 @@ Die Containerkonfiguration enthält sichere Cookies unter HTTPS, Security-Header
 
 - [Architektur](docs/architecture.md), [Datenmodell](docs/database.md), [Sicherheit und Rollen](docs/security.md)
 - [OpenAPI](docs/api/openapi.json), [API-Konventionen](docs/api/README.md)
-- [Roadmap](docs/roadmap.md), [Entscheidungen](docs/decisions/0001-foundation.md)
+- [Roadmap](docs/roadmap.md), [Tickets](docs/sprints/tickets.md), Entscheidungen [0001](docs/decisions/0001-foundation.md) und [0002](docs/decisions/0002-membership-fees.md)
 - [Prüfnachweise](docs/verification.md)
 
 In Phase 1 speichert die PWA ausschließlich statische App-Dateien und nichtpersonenbezogene Shell-Metadaten dauerhaft. Mitglieder- und Sitzungsdaten werden weder in Service-Worker-Caches noch in IndexedDB persistiert. Für die Administration ist eine Verbindung zum Server notwendig. CSV-Exporte enthalten personenbezogene Daten und werden bewusst als Datei heruntergeladen.
 
 CSV-Import: UTF-8, Kopfzeile mit technischen Feldnamen, Komma oder Semikolon, maximal 1.000 Zeilen / 2 MB. Vorlage in der Oberfläche herunterladen. Vorschau und Bestätigung sind verpflichtend. Gültige Zeilen werden einzeln transaktional angelegt, erfolgreiche Zeilen bei einem Wiederholungsversuch innerhalb desselben Dialogs übersprungen. Der Import ist nicht als Gesamtdatei atomar; Fehler und bereits gespeicherte Zeilen werden angezeigt. Wiederholter Import derselben Mitgliedsnummer wird durch die Datenbank abgewiesen.
 
-Finanzen, Termine, Dokumente, Freiwilligenregister und Compliance sind als Erweiterungen dokumentiert und noch nicht implementiert. Die Anwendung stellt keine rechtliche Zertifizierung aus. Anforderungen an ETS-Rechnungslegung, Register, Aufbewahrung und RUNTS müssen vor produktiver Verwendung der jeweiligen Erweiterung gesondert validiert werden. WCAG 2.2 AA ist das Entwicklungsziel; automatisierte Prüfungen ersetzen keine vollständige Prüfung mit assistiven Technologien.
+Kassabuch, Konten, Jahresabschluss, Zahlungsstorno, Termine, Dokumente, Freiwilligenregister und Compliance sind als Erweiterungen (Sprints 2.2–2.4) dokumentiert und noch nicht implementiert. Erfasste Zahlungen können in Sprint 2.1 weder bearbeitet noch storniert werden. Die Anwendung stellt keine rechtliche Zertifizierung aus. Anforderungen an ETS-Rechnungslegung, Register, Aufbewahrung und RUNTS müssen vor produktiver Verwendung der jeweiligen Erweiterung gesondert validiert werden. WCAG 2.2 AA ist das Entwicklungsziel; automatisierte Prüfungen ersetzen keine vollständige Prüfung mit assistiven Technologien.
 
 Die Umsetzung ist eigenständig. AlpsPlanner dient ausschließlich als vom Auftraggeber genannter fachlicher Vergleich; proprietärer Quellcode, Designs oder interne APIs werden nicht verwendet.

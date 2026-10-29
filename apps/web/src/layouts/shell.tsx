@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
+  Wallet,
   Users,
   Layers,
   ShieldCheck,
@@ -30,6 +31,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   const primary = [
     { to: '/', key: 'overview', icon: LayoutDashboard },
     { to: '/members', key: 'members', icon: Users, permission: 'members:read' },
+    { to: '/finance', key: 'finance', icon: Wallet, permission: 'finance:read' },
     { to: '/groups', key: 'groups', icon: Layers },
     { to: '/board', key: 'board', icon: ShieldCheck },
   ] as const;

@@ -2020,3 +2020,227 @@ dd {
     margin: 0 10px;
   }
 }
+
+.finance-year-row {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin: 0 0 22px;
+}
+.finance-year-row p {
+  color: var(--muted);
+  font-size: 11px;
+  max-width: 560px;
+}
+.finance-year-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.finance-stats .stat-card > strong {
+  font-size: clamp(20px, 2vw, 30px);
+  letter-spacing: -0.7px;
+  white-space: nowrap;
+}
+.finance-tabs {
+  display: flex;
+  gap: 5px;
+  padding: 10px 14px 0;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+.finance-tabs button {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  min-height: 48px;
+  padding: 12px 17px;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.finance-tabs button[aria-selected='true'] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.finance-name-link {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 5px 0;
+  min-height: 40px;
+}
+.finance-name-link:hover strong {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.finance-name-link small,
+.finance-cell-note {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 4px;
+}
+.finance-cell-note {
+  max-width: 250px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.finance-money {
+  font-variant-numeric: tabular-nums;
+}
+.finance-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.finance-row-actions .button {
+  font-size: 11px;
+  padding: 8px 10px;
+}
+.finance-status-pair {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.finance-status-open {
+  background: var(--surface-subtle);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.finance-status-partial {
+  background: #f8f1df;
+  color: #7c6329;
+}
+.finance-status-paid,
+.finance-status-exempt {
+  background: #eaf1e5;
+  color: #46613d;
+}
+.dark .finance-status-partial {
+  background: #4d4225;
+  color: #e6cd8b;
+}
+.dark .finance-status-paid,
+.dark .finance-status-exempt {
+  background: #334a32;
+  color: #c3d9b8;
+}
+.finance-overdue-label {
+  font-size: 10px;
+  color: var(--danger);
+}
+.finance-footnote,
+.finance-form-help {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 19px 0;
+  line-height: 1.7;
+}
+.modal > .finance-form-help {
+  margin: 20px 24px;
+}
+.finance-allocation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+.finance-allocation {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr) 42px;
+  gap: 12px;
+  align-items: end;
+}
+.finance-allocation .field select {
+  width: 100%;
+}
+.finance-payment-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 17px;
+  background: var(--accent-soft);
+  border-radius: 8px;
+  margin: 23px 0;
+  font-size: 13px;
+}
+.finance-payment-total strong {
+  font-size: 22px;
+  white-space: nowrap;
+}
+.finance-detail {
+  margin: 23px 24px;
+}
+.finance-detail > p {
+  color: var(--muted);
+  margin: 7px 0 15px;
+}
+.finance-allocation-history {
+  list-style: none;
+  margin: 15px 0 25px;
+  padding: 0;
+}
+.finance-allocation-history li {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.finance-allocation-history li strong {
+  white-space: nowrap;
+}
+@media (max-width: 700px) {
+  .finance-year-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .finance-stats .stat-card {
+    padding: 15px 13px;
+  }
+  .finance-stats .stat-card > strong {
+    font-size: 22px;
+  }
+  .finance-tabs {
+    padding-inline: 7px;
+    gap: 0;
+  }
+  .finance-tabs button {
+    font-size: 12px;
+    padding: 13px 11px;
+  }
+  .finance-allocation {
+    grid-template-columns: minmax(0, 1fr) 42px;
+    padding: 15px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .finance-allocation > .field:first-child {
+    grid-column: 1/-1;
+  }
+  .finance-detail {
+    margin: 20px 18px;
+  }
+  .finance-payment-total {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .bottom-nav .nav-link span {
+    line-height: 1.3;
+  }
+}

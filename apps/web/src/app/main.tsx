@@ -19,6 +19,7 @@ import { OrganizationPage } from '../features/organization';
 import { UsersPage } from '../features/users';
 import { Profile } from '../features/profile';
 import { Audit } from '../features/audit';
+import { Finance } from '../features/finance';
 import { Empty, ErrorState, Loading } from '../components/ui';
 import { shellDatabase } from '../lib/offline';
 applyTheme((localStorage.getItem('bnature-theme') as Theme) || 'system');
@@ -105,6 +106,14 @@ function App() {
             element={
               <Guard permission="members:read">
                 <MemberDetail />
+              </Guard>
+            }
+          />
+          <Route
+            path="finance"
+            element={
+              <Guard permission="finance:read">
+                <Finance />
               </Guard>
             }
           />

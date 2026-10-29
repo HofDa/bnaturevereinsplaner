@@ -24,7 +24,7 @@ export class ApiError extends Error {
     super(code);
   }
 }
-export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function apiResponse(path: string, options: RequestInit = {}): Promise<Response> {
   const response = await fetch(`/api/v1${path}`, {
     ...options,
     credentials: 'same-origin',
@@ -43,7 +43,19 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     }
     throw new ApiError(response.status, body.error?.code ?? 'INTERNAL_ERROR', body.error?.fields);
   }
-  return response.json() as Promise<T>;
+  return response;
+}
+export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  return (await apiResponse(path, options)).json() as Promise<T>;
+}
+export async function downloadPrivateFile(path: string, filename: string): Promise<void> {
+  const response = await apiResponse(path);
+  const url = URL.createObjectURL(await response.blob()),
+    link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export function errorMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -57,6 +69,17 @@ export function errorMessage(error: unknown) {
       LAST_ADMIN: 'lastAdmin',
       RATE_LIMITED: 'rateLimited',
       NOT_FOUND: 'notFound',
+      FEE_PLAN_EXISTS: 'financePlanExists',
+      OVERPAYMENT: 'financeOverpayment',
+      IDEMPOTENCY_MISMATCH: 'financeIdempotencyMismatch',
+      STALE_VERSION: 'financeStaleVersion',
+      PLAN_IN_USE: 'financePlanInUse',
+      PLAN_INACTIVE: 'financePlanInactive',
+      FEE_CATEGORY_MISMATCH: 'financeCategoryMismatch',
+      INVALID_REDUCTION: 'financeInvalidReduction',
+      ASSESSMENT_EXISTS: 'financeAssessmentExists',
+      PAYMENT_REFERENCE_EXISTS: 'financeReferenceExists',
+      REMINDER_NOT_DUE: 'financeReminderNotDue',
     };
     return i18n.t(keys[error.code] ?? 'serverError');
   }

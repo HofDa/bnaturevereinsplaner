@@ -1,4 +1,6 @@
+import finance from './finance-de';
 export default {
+  ...finance,
   membershipNumber: 'Mitgliedsnummer',
   joinedAt: 'Eintrittsdatum',
   preferredLanguage: 'Bevorzugte Sprache',

@@ -1,6 +1,6 @@
 # Prüfnachweise
 
-Stand: 29.10.2026. Alle Angaben beziehen sich auf den lokal implementierten Phase-1-Stand. Eine Veröffentlichung auf einem öffentlichen Server oder Zertifizierung ist damit nicht verbunden.
+Stand: 29.10.2026. Alle Angaben beziehen sich auf den lokal implementierten Stand von Phase 1 und Sprint 2.1. Eine Veröffentlichung auf einem öffentlichen Server oder Zertifizierung ist damit nicht verbunden.
 
 | Prüfung                | Ergebnis                                                                                                                                                                         |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -8,12 +8,12 @@ Stand: 29.10.2026. Alle Angaben beziehen sich auf den lokal implementierten Phas
 | TypeScript Strict Mode | bestanden                                                                                                                                                                        |
 | ESLint                 | bestanden                                                                                                                                                                        |
 | Prettier               | bestanden                                                                                                                                                                        |
-| Unit-/UI-Tests         | **33 bestanden**                                                                                                                                                                 |
-| PostgreSQL-Integration | **29 bestanden**, echte PostgreSQL-17-Datenbank und Better-Auth-Sessions                                                                                                         |
-| Playwright Desktop     | **5 bestanden**, Produktionsbuild in Chrome                                                                                                                                      |
-| Playwright Mobilformat | **5 bestanden**, Chromium mit iPhone-13-Viewport und Touch-Emulation                                                                                                             |
+| Unit-/UI-Tests         | **57 bestanden**                                                                                                                                                                 |
+| PostgreSQL-Integration | **67 bestanden**, echte PostgreSQL-17-Datenbank und Better-Auth-Sessions, inklusive Upgrade-Test der Migration                                                                   |
+| Playwright Desktop     | **7 bestanden** (5 Plattform, 2 Finanzen), Produktionsbuild in Chrome                                                                                                            |
+| Playwright Mobilformat | **7 bestanden** (5 Plattform, 2 Finanzen), Chromium mit iPhone-13-Viewport und Touch-Emulation                                                                                   |
 | Produktionsbuild       | Web-PWA und Node-kompatibles API-Bundle bestanden                                                                                                                                |
-| Migrationen            | initiales Schema angewendet; erneute Generierung ohne Schemaänderung                                                                                                             |
+| Migrationen            | `0000` und additive `0001_membership_fees` angewendet; erneute Generierung ohne Schemaänderung                                                                                   |
 | OpenAPI                | aus den registrierten Routen generiert                                                                                                                                           |
 | Node-Runtime           | Health mit Datenbank, anonymer Zugriffsschutz und No-Store-Header bestanden                                                                                                      |
 | Docker                 | API-/Migrations-/Web-Images gebaut; API-Container gegen PostgreSQL erfolgreich geprüft                                                                                           |
@@ -29,6 +29,8 @@ CSV: BOM, Komma-/Semikolon, Quotes, doppelte Quotes, mehrzeilige Felder, fehlerh
 Datenbank: Anonyme Requests, echte Anmeldung, Passwort-Hash statt Klartext, Cookieattribute einschließlich Secure in Produktion, gesperrte Registrierung, falsche Origins, Bootstrap-Wiederholung, fremde Organisationskontexte, fremde Mitglieds-IDs bei Lesen und Schreiben, Datenbank-FKs über Organisationsgrenzen, Vorstands-/Gruppen-/Personenbeziehungen, Audit-Filter, Rollenrechte und Schutz des letzten Administrators. Duplicate-Insert und ungültige Statusänderung verändern keinen unvollständigen Datensatz. Mehrfache Anmeldefehler erreichen ein aktives Rate-Limit.
 
 Browser: Anmeldung, Anlage/Bearbeitung/Suche eines Mitglieds, CSV-Download, Gruppenanlage und Zuordnung, Amtszeit, persistiertes Vereinsprofil, DE/IT, Hell/Dunkel, Abmeldung und Cache-Leerung auch im zweiten Tab. Der Service Worker wird tatsächlich registriert und kontrolliert die Seite; der Test prüft Cache-Inhalte und Wiederöffnung der statischen App-Shell ohne Netz, dann Online-Wiederherstellung. Es werden keine API-Antworten gecacht.
+
+Finanzen: Cent-Parsing ohne Rundung, BigInt-Summen, Zahlungsstände, Überfälligkeit in der Organisationszeitzone und Rollenmatrix. Gegen PostgreSQL: Tarifversionen und Periodizitätssperre, Wiederholungssperre für Forderungen, begründete Anpassungen, Teil- und Mehrfachzuordnungen, Überzuordnung und unvollständige Zuordnung per Trigger, Unveränderlichkeit, Idempotenz-Replay und 409 bei abweichendem Inhalt, parallele Zahlungen ohne Überschreitung, Rücknahme ohne Teilbuchung, eindeutige Bankreferenz, fremde Organisationen und IDs inklusive PDF-Routen sowie Audit in derselben Transaktion. Ein Upgrade-Test migriert eine Datenbank mit Phase-1-Bestandsdaten auf `0001` und prüft deren Erhalt. Der Browserablauf legt Tarif und Forderungen an, erfasst Teil- und Vollzahlungen als Kassier, lädt echte PDFs und prüft, dass Vorstand und normale Mitglieder Finanzansichten weder sehen noch öffnen können.
 
 Axe prüft Dashboard, Mitgliederliste, Mitgliederdialog und Einstellungen einschließlich dunkler Darstellung und italienischer Sprache gegen WCAG-2-/2.1-/2.2-A/AA-Regeln. Die geprüften Ansichten haben dabei keine gemeldeten Verstöße. Das ist keine vollständige manuelle WCAG-Konformitätsbewertung.
 
