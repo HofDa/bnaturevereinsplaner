@@ -8,6 +8,7 @@ import {
 } from './common';
 export * from './common';
 export * from './finance';
+export * from './ledger';
 
 export const roles = ['admin', 'board', 'treasurer', 'project_lead', 'member'] as const;
 export const roleSchema = z.enum(roles);
@@ -26,6 +27,7 @@ export const permissions = [
   'finance:read',
   'finance:write',
   'finance:plans',
+  'finance:close',
 ] as const;
 export type Permission = (typeof permissions)[number];
 const grants: Record<Role, readonly Permission[]> = {

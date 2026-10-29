@@ -1,4 +1,4 @@
-import { and, eq, sql, asc, desc, count, ilike, or, gte, lt, type SQL } from 'drizzle-orm';
+import { and, eq, sql, asc, desc, count, ilike, or, gte, lt, isNull, type SQL } from 'drizzle-orm';
 import { schema as s, type Database, type Executor } from '@bnature/db';
 import {
   feePlanResponseSchema,
@@ -22,6 +22,7 @@ import { audit } from '../../services/audit';
 import { wire } from '../responses';
 import { escapeLike } from '../members';
 import { financialOperation } from './operations';
+import { bookPayment } from './ledger';
 
 export async function businessDate(
   db: Executor,
@@ -43,7 +44,10 @@ export async function businessDate(
   return `${part('year')}-${part('month')}-${part('day')}`;
 }
 const a = s.membershipFeeAssessments;
-const paid = sql<number>`coalesce((select sum(pa.amount_cents) from payment_allocations pa where pa.organization_id="membership_fee_assessments"."organization_id" and pa.assessment_id="membership_fee_assessments"."id"),0)::integer`;
+// Allocations of reversed payments no longer settle an assessment.
+const paid = sql<number>`coalesce((select sum(pa.amount_cents) from payment_allocations pa where pa.organization_id="membership_fee_assessments"."organization_id" and pa.assessment_id="membership_fee_assessments"."id" and not exists(select 1 from payment_reversals pr where pr.organization_id=pa.organization_id and pr.payment_id=pa.payment_id)),0)::integer`;
+const reversed = (payment: typeof s.payments) =>
+  sql<boolean>`exists(select 1 from payment_reversals pr where pr.organization_id=${payment.organizationId} and pr.payment_id=${payment.id})`;
 const open = sql<number>`${a.amountCents}-${paid}`;
 const assessmentSelect = {
   id: a.id,
@@ -130,6 +134,7 @@ export async function getAssessmentDetail(db: Database, org: string, id: string)
           paidOn: s.payments.paidOn,
           method: s.payments.method,
           amountCents: s.paymentAllocations.amountCents,
+          reversed: reversed(s.payments),
         })
         .from(s.paymentAllocations)
         .innerJoin(
@@ -451,6 +456,24 @@ export async function getPayment(db: Executor, org: string, id: string): Promise
     .from(s.payments)
     .where(and(eq(s.payments.organizationId, org), eq(s.payments.id, id)));
   if (!payment) throw new HttpError(404, 'NOT_FOUND', 'Zahlung nicht gefunden.');
+  const [reversal] = await db
+    .select({
+      reversedOn: s.paymentReversals.reversedOn,
+      reason: s.paymentReversals.reason,
+      createdAt: s.paymentReversals.createdAt,
+    })
+    .from(s.paymentReversals)
+    .where(and(eq(s.paymentReversals.organizationId, org), eq(s.paymentReversals.paymentId, id)));
+  const [entry] = await db
+    .select({ id: s.cashbookEntries.id })
+    .from(s.cashbookEntries)
+    .where(
+      and(
+        eq(s.cashbookEntries.organizationId, org),
+        eq(s.cashbookEntries.paymentId, id),
+        isNull(s.cashbookEntries.reversesEntryId),
+      ),
+    );
   const allocations = await db
     .select({
       assessmentId: s.paymentAllocations.assessmentId,
@@ -472,7 +495,13 @@ export async function getPayment(db: Executor, org: string, id: string): Promise
       and(eq(s.paymentAllocations.organizationId, org), eq(s.paymentAllocations.paymentId, id)),
     )
     .orderBy(asc(a.id));
-  return paymentResponseSchema.parse({ ...wire(payment), allocations });
+  return paymentResponseSchema.parse({
+    ...wire(payment),
+    allocations,
+    status: reversal ? 'reversed' : 'posted',
+    reversal: reversal ? wire(reversal) : null,
+    cashbookEntryId: entry?.id ?? null,
+  });
 }
 export async function listPayments(
   db: Database,
@@ -522,8 +551,11 @@ export async function listPayments(
   );
 }
 export function createPayment(db: Database, access: Access, key: string, input: PaymentInput) {
+  // Requests without booking hash exactly like Sprint 2.1 requests did.
+  const { booking, ...rest } = input;
   const normalized = {
-    ...input,
+    ...rest,
+    ...(booking ? { booking } : {}),
     allocations: [...input.allocations].sort((a, b) =>
       a.assessmentId.localeCompare(b.assessmentId),
     ),
@@ -555,6 +587,7 @@ export function createPayment(db: Database, access: Access, key: string, input: 
               eq(s.payments.organizationId, access.organizationId),
               eq(s.payments.method, 'bank_transfer'),
               eq(s.payments.reference, input.reference),
+              sql`not ${reversed(s.payments)}`,
             ),
           );
         if (duplicate)
@@ -568,7 +601,9 @@ export function createPayment(db: Database, access: Access, key: string, input: 
         .select({ next: sql<number>`coalesce(max(${s.payments.receiptNumber}),0)+1` })
         .from(s.payments)
         .where(eq(s.payments.organizationId, access.organizationId));
-      const { allocations, ...payment } = normalized;
+      const { allocations } = normalized,
+        { payerName, paidOn, method, reference, notes, amountCents } = rest,
+        payment = { payerName, paidOn, method, reference, notes, amountCents };
       const [row] = await tx
         .insert(s.payments)
         .values({
@@ -594,6 +629,7 @@ export function createPayment(db: Database, access: Access, key: string, input: 
         'notes',
         'allocations',
       ]);
+      if (booking) await bookPayment(tx, access, row!.id, booking);
       return getPayment(tx, access.organizationId, row!.id);
     },
   );

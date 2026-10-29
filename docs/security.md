@@ -33,8 +33,10 @@ Fastify begrenzt Anfragen pro IP auf 150/Minute, Auth-Endpunkte auf 20/Minute un
 | Beiträge / Zahlungen lesen, PDF, CSV      | ja    | nein     | ja      | nein           | nein     |
 | Forderungen, Zahlungen, Erinnerungen      | ja    | nein     | ja      | nein           | nein     |
 | Beitragstarife verwalten                  | ja    | nein     | nein    | nein           | nein     |
+| Kassabuch, Konten, Berichte, Storno       | ja    | nein     | ja      | nein           | nein     |
+| Geschäftsjahr abschließen                 | ja    | nein     | nein    | nein           | nein     |
 
-Gruppenlisten für normale Mitglieder zeigen nur die Anzahl, keine fremden Personendatensätze. Namen im Vorstand sind bewusst für angemeldete Vereinsangehörige sichtbar. Das eigene Profil nutzt ausschließlich eine serverseitig ermittelte Personenverknüpfung; es akzeptiert keine frei wählbare Person-ID. Kein Benutzer kann sich über die Profil-API eine Rolle geben. Der letzte Administrator ist gegen Herabstufung geschützt. Finanzrechte (`finance:read`, `finance:write`, `finance:plans`) werden bei Schreiboperationen zusätzlich innerhalb der gesperrten Transaktion erneut geprüft; Details in [Sprint 2.1](sprints/2.1-implementation.md#berechtigungen-und-datenschutz).
+Gruppenlisten für normale Mitglieder zeigen nur die Anzahl, keine fremden Personendatensätze. Namen im Vorstand sind bewusst für angemeldete Vereinsangehörige sichtbar. Das eigene Profil nutzt ausschließlich eine serverseitig ermittelte Personenverknüpfung; es akzeptiert keine frei wählbare Person-ID. Kein Benutzer kann sich über die Profil-API eine Rolle geben. Der letzte Administrator ist gegen Herabstufung geschützt. Finanzrechte (`finance:read`, `finance:write`, `finance:plans`, `finance:close`) werden bei Schreiboperationen zusätzlich innerhalb der gesperrten Transaktion erneut geprüft; Details in [Sprint 2.1](sprints/2.1-implementation.md#berechtigungen-und-datenschutz).
 
 ## Mandantentrennung und Datenminimierung
 

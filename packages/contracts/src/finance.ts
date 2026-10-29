@@ -92,6 +92,8 @@ export type FeeAssessment = z.infer<typeof assessmentResponseSchema>;
 export const allocationInputSchema = z
   .object({ assessmentId: idSchema, amountCents: positiveCentsSchema })
   .strict();
+export const bookingInputSchema = z.object({ accountId: idSchema, categoryId: idSchema }).strict();
+export type BookingInput = z.infer<typeof bookingInputSchema>;
 export const paymentInputSchema = z
   .object({
     payerName: z.string().trim().min(1).max(160),
@@ -101,6 +103,8 @@ export const paymentInputSchema = z
     notes: z.string().trim().max(500).default(''),
     amountCents: positiveCentsSchema,
     allocations: z.array(allocationInputSchema).min(1).max(100),
+    // Optional cashbook booking in the same transaction (Sprint 2.2).
+    booking: bookingInputSchema.nullable().default(null),
   })
   .strict()
   .superRefine((v, ctx) => {
@@ -134,6 +138,11 @@ export const paymentResponseSchema = z.object({
   currency: z.literal('EUR'),
   createdAt: z.string(),
   allocations: z.array(allocationResponseSchema),
+  status: z.enum(['posted', 'reversed']),
+  reversal: z
+    .object({ reversedOn: z.iso.date(), reason: z.string(), createdAt: z.string() })
+    .nullable(),
+  cashbookEntryId: idSchema.nullable(),
 });
 export type Payment = z.infer<typeof paymentResponseSchema>;
 export const assessmentDetailSchema = assessmentResponseSchema.extend({
@@ -144,6 +153,7 @@ export const assessmentDetailSchema = assessmentResponseSchema.extend({
       paidOn: z.iso.date(),
       method: paymentMethodSchema,
       amountCents: positiveCentsSchema,
+      reversed: z.boolean(),
     }),
   ),
 });

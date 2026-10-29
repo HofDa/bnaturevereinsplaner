@@ -11,6 +11,8 @@ import {
   Coins,
   Wallet,
   Clock3,
+  BookCheck,
+  Undo2,
 } from 'lucide-react';
 import {
   formatMoney,
@@ -40,8 +42,18 @@ import { useSession } from '../../app/session';
 import { useDebounced } from '../../hooks/use-debounced';
 import { PlanForm, AssessmentForm, PaymentForm } from './forms';
 import { useFinancialWrite } from './client';
+import { LedgerTab, type LedgerTabName } from './ledger';
+import { BookingForm, PaymentReversalForm } from './forms';
 
-type Tab = 'assessments' | 'plans' | 'payments';
+type Tab = 'assessments' | 'plans' | 'payments' | LedgerTabName;
+const tabLabels: Record<Tab, string> = {
+  assessments: 'financeAssessments',
+  plans: 'financePlans',
+  payments: 'financePayments',
+  cashbook: 'ledgerCashbook',
+  setup: 'ledgerSetup',
+  reports: 'ledgerReports',
+};
 type Editor =
   | { type: 'plan'; plan?: FeePlan }
   | { type: 'assessment' }
@@ -245,38 +257,41 @@ export function Finance() {
       setBusy(false);
     }
   }
-  const current = tab === 'assessments' ? assessments : tab === 'plans' ? plans : payments;
+  const current = tab === 'assessments' ? assessments : tab === 'plans' ? plans : payments,
+    ledger = tab === 'cashbook' || tab === 'setup' || tab === 'reports';
   return (
     <>
       <PageHeading
         title={t('finance')}
         description={t('financeIntro')}
         actions={
-          <>
-            {tab !== 'plans' && (
-              <Button variant="secondary" disabled={busy} onClick={() => void exportCsv()}>
-                <Download size={16} />
-                {t(busy ? 'financeExporting' : 'financeExport')}
-              </Button>
-            )}
-            {tab === 'plans'
-              ? canPlans && (
-                  <Button onClick={() => setEditor({ type: 'plan' })}>
-                    <Plus size={17} />
-                    {t('financeAddPlan')}
-                  </Button>
-                )
-              : canWrite && (
-                  <Button
-                    onClick={() =>
-                      setEditor({ type: tab === 'assessments' ? 'assessment' : 'payment' })
-                    }
-                  >
-                    <Plus size={17} />
-                    {t(tab === 'assessments' ? 'financeAddAssessment' : 'financeAddPayment')}
-                  </Button>
-                )}
-          </>
+          !ledger && (
+            <>
+              {tab !== 'plans' && (
+                <Button variant="secondary" disabled={busy} onClick={() => void exportCsv()}>
+                  <Download size={16} />
+                  {t(busy ? 'financeExporting' : 'financeExport')}
+                </Button>
+              )}
+              {tab === 'plans'
+                ? canPlans && (
+                    <Button onClick={() => setEditor({ type: 'plan' })}>
+                      <Plus size={17} />
+                      {t('financeAddPlan')}
+                    </Button>
+                  )
+                : canWrite && (
+                    <Button
+                      onClick={() =>
+                        setEditor({ type: tab === 'assessments' ? 'assessment' : 'payment' })
+                      }
+                    >
+                      <Plus size={17} />
+                      {t(tab === 'assessments' ? 'financeAddAssessment' : 'financeAddPayment')}
+                    </Button>
+                  )}
+            </>
+          )
         }
       />
       {notice && (
@@ -290,52 +305,56 @@ export function Finance() {
         </Notice>
       )}
       {error && <Notice error>{error}</Notice>}
-      <div className="finance-year-row">
-        <label className="finance-year-filter">
-          <span>{t(tab === 'payments' ? 'financePaymentYear' : 'financeYear')}</span>
-          <select
-            value={year}
-            onChange={(event) => {
-              setYear(event.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">{t('financeAllYears')}</option>
-            {Array.from({ length: 301 }, (_, i) => 2200 - i).map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
-        <p>{t('financeYearHelp')}</p>
-      </div>
-      {summary.isPending ? (
-        <Loading />
-      ) : summary.isError ? (
-        <ErrorState error={summary.error} retry={() => void summary.refetch()} />
-      ) : (
-        <section className="stats-grid finance-stats" aria-label={t('financeSummaryHint')}>
-          {[
-            { label: 'financeAssessed', value: summary.data.assessedCents, icon: Coins },
-            { label: 'financePaid', value: summary.data.paidCents, icon: Receipt },
-            { label: 'financeOutstanding', value: summary.data.openCents, icon: Wallet },
-            { label: 'financeOverdue', value: summary.data.overdueCents, icon: Clock3 },
-          ].map((item, index) => (
-            <article key={item.label} className={`stat-card stat-${index}`}>
-              <div>
-                <span>{t(item.label)}</span>
-                <item.icon size={19} />
-              </div>
-              <strong>{formatMoney(item.value, i18n.language)}</strong>
-              <small>{year || t('financeAllYears')}</small>
-            </article>
-          ))}
-        </section>
+      {!ledger && (
+        <>
+          <div className="finance-year-row">
+            <label className="finance-year-filter">
+              <span>{t(tab === 'payments' ? 'financePaymentYear' : 'financeYear')}</span>
+              <select
+                value={year}
+                onChange={(event) => {
+                  setYear(event.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">{t('financeAllYears')}</option>
+                {Array.from({ length: 301 }, (_, i) => 2200 - i).map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p>{t('financeYearHelp')}</p>
+          </div>
+          {summary.isPending ? (
+            <Loading />
+          ) : summary.isError ? (
+            <ErrorState error={summary.error} retry={() => void summary.refetch()} />
+          ) : (
+            <section className="stats-grid finance-stats" aria-label={t('financeSummaryHint')}>
+              {[
+                { label: 'financeAssessed', value: summary.data.assessedCents, icon: Coins },
+                { label: 'financePaid', value: summary.data.paidCents, icon: Receipt },
+                { label: 'financeOutstanding', value: summary.data.openCents, icon: Wallet },
+                { label: 'financeOverdue', value: summary.data.overdueCents, icon: Clock3 },
+              ].map((item, index) => (
+                <article key={item.label} className={`stat-card stat-${index}`}>
+                  <div>
+                    <span>{t(item.label)}</span>
+                    <item.icon size={19} />
+                  </div>
+                  <strong>{formatMoney(item.value, i18n.language)}</strong>
+                  <small>{year || t('financeAllYears')}</small>
+                </article>
+              ))}
+            </section>
+          )}
+        </>
       )}
       <section className="panel finance-panel">
         <div className="finance-tabs" role="tablist" aria-label={t('finance')}>
-          {(['assessments', 'plans', 'payments'] as const).map((value) => (
+          {(Object.keys(tabLabels) as Tab[]).map((value) => (
             <button
               role="tab"
               type="button"
@@ -349,312 +368,331 @@ export function Finance() {
                 setSort('createdAt');
                 setPage(1);
                 setError('');
+                setNotice('');
               }}
             >
-              {t(
-                value === 'assessments'
-                  ? 'financeAssessments'
-                  : value === 'plans'
-                    ? 'financePlans'
-                    : 'financePayments',
-              )}
+              {t(tabLabels[value])}
             </button>
           ))}
         </div>
         <div role="tabpanel" id="finance-tabpanel" aria-labelledby={`finance-tab-${tab}`}>
-          <div className="toolbar">
-            <SearchInput
-              value={search}
-              onChange={(value) => {
-                setSearch(value);
-                setPage(1);
-              }}
-              placeholder={t(
-                tab === 'assessments'
-                  ? 'financeSearch'
-                  : tab === 'payments'
-                    ? 'financePaymentSearch'
-                    : 'search',
-              )}
-            />
-            {tab === 'assessments' && (
-              <label>
-                <span className="sr-only">{t('status')}</span>
-                <select
-                  value={status}
-                  onChange={(event) => {
-                    setStatus(event.target.value);
-                    setPage(1);
-                  }}
-                >
-                  {[
-                    ['', 'financeAllStatuses'],
-                    ['outstanding', 'financeOnlyOutstanding'],
-                    ['overdue', 'financeOnlyOverdue'],
-                    ['open', 'financeOpen'],
-                    ['partial', 'financePartial'],
-                    ['paid', 'financeSettled'],
-                    ['exempt', 'financeExemption'],
-                  ].map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {t(label!)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            {tab === 'plans' && (
-              <label>
-                <span className="sr-only">{t('status')}</span>
-                <select
-                  value={active}
-                  onChange={(event) => {
-                    setActive(event.target.value);
-                    setPage(1);
-                  }}
-                >
-                  <option value="">{t('allStatuses')}</option>
-                  <option value="true">{t('active')}</option>
-                  <option value="false">{t('inactive')}</option>
-                </select>
-              </label>
-            )}
-            <label>
-              <span className="sr-only">{t('sort')}</span>
-              <select
-                value={sort}
-                onChange={(event) => {
-                  setSort(event.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="createdAt">{t('newest')}</option>
-                <option value="name">{t('name')}</option>
-                <option value="amountCents">{t('financeAmount')}</option>
-                {tab === 'assessments' && <option value="dueDate">{t('financeDueDate')}</option>}
-                {tab === 'payments' && <option value="paidOn">{t('financePaidOn')}</option>}
-              </select>
-            </label>
-          </div>
-          {current.isPending ? (
-            <Loading />
-          ) : current.isError ? (
-            <ErrorState error={current.error} retry={() => void current.refetch()} />
+          {ledger ? (
+            <LedgerTab tab={tab} />
           ) : (
             <>
-              {tab === 'assessments' &&
-                assessments.data &&
-                (assessments.data.items.length ? (
-                  <div className="table-scroll">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>{t('financeMember')}</th>
-                          <th>{t('financePlan')}</th>
-                          <th>{t('financeDueDate')}</th>
-                          <th className="align-right">{t('financeAmount')}</th>
-                          <th className="align-right">{t('financeOutstanding')}</th>
-                          <th>{t('status')}</th>
-                          <th>{t('actions')}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {assessments.data.items.map((item) => (
-                          <tr key={item.id}>
-                            <td>
-                              <button
-                                className="finance-name-link"
-                                onClick={() =>
-                                  setEditor({ type: 'assessment-detail', id: item.id })
-                                }
-                              >
-                                <strong>{item.memberName}</strong>
-                                <small>
-                                  {item.membershipNumber} · {item.fiscalYear}
-                                </small>
-                              </button>
-                            </td>
-                            <td>{item.planName}</td>
-                            <td>{formatDate(item.dueDate, i18n.language)}</td>
-                            <td className="align-right finance-money">
-                              {formatMoney(item.amountCents, i18n.language)}
-                            </td>
-                            <td className="align-right finance-money">
-                              {formatMoney(item.openCents, i18n.language)}
-                            </td>
-                            <td>
-                              <FeeStatus item={item} />
-                            </td>
-                            <td>
-                              <div className="finance-row-actions">
-                                {canWrite && item.openCents > 0 && (
-                                  <Button
-                                    variant="secondary"
-                                    onClick={() => setEditor({ type: 'payment', assessment: item })}
-                                  >
-                                    {t('financeAddPayment')}
-                                  </Button>
-                                )}
-                                {canWrite && item.overdue && (
-                                  <Button
-                                    variant="ghost"
-                                    disabled={busy}
-                                    aria-label={`${t('financePrepareReminder')}: ${item.memberName} ${item.planName}`}
-                                    onClick={() => void prepareReminder(item)}
-                                  >
-                                    <Bell size={17} />
-                                  </Button>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  aria-label={`${t('financeAssessmentDetails')}: ${item.memberName} ${item.planName}`}
-                                  onClick={() =>
-                                    setEditor({ type: 'assessment-detail', id: item.id })
-                                  }
-                                >
-                                  <ArrowUpRight size={17} />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <Empty
-                    description={t(debounced || status ? 'noResults' : 'financeAssessmentEmpty')}
-                  />
-                ))}
-              {tab === 'plans' &&
-                plans.data &&
-                (plans.data.items.length ? (
-                  <div className="table-scroll">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>{t('financePlanName')}</th>
-                          <th>{t('financeInterval')}</th>
-                          <th>{t('financeCategory')}</th>
-                          <th className="align-right">{t('financeAmount')}</th>
-                          <th>{t('status')}</th>
-                          {canPlans && <th>{t('actions')}</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {plans.data.items.map((item) => (
-                          <tr key={item.id}>
-                            <td>
-                              <strong>{item.name}</strong>
-                              {item.description && (
-                                <small className="finance-cell-note">{item.description}</small>
-                              )}
-                            </td>
-                            <td>
-                              {t(item.interval === 'annual' ? 'financeAnnual' : 'financeOnce')}
-                            </td>
-                            <td>
-                              {item.membershipType
-                                ? t(item.membershipType)
-                                : t('financeAllCategories')}
-                            </td>
-                            <td className="align-right finance-money">
-                              {formatMoney(item.amountCents, i18n.language)}
-                            </td>
-                            <td>
-                              <span
-                                className={`badge badge-${item.active ? 'active' : 'inactive'}`}
-                              >
-                                <span />
-                                {t(item.active ? 'active' : 'inactive')}
-                              </span>
-                            </td>
-                            {canPlans && (
-                              <td>
-                                <Button
-                                  variant="ghost"
-                                  aria-label={`${t('financeEditPlan')}: ${item.name}`}
-                                  onClick={() => setEditor({ type: 'plan', plan: item })}
-                                >
-                                  <Pencil size={17} />
-                                </Button>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <Empty description={t('financePlanEmpty')} />
-                ))}
-              {tab === 'payments' &&
-                payments.data &&
-                (payments.data.items.length ? (
-                  <div className="table-scroll">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>{t('financeReceiptNumber')}</th>
-                          <th>{t('financePayerName')}</th>
-                          <th>{t('financePaidOn')}</th>
-                          <th>{t('financeMethod')}</th>
-                          <th className="align-right">{t('financeAmount')}</th>
-                          <th>{t('actions')}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {payments.data.items.map((item) => (
-                          <tr key={item.id}>
-                            <td>
-                              <button
-                                className="finance-name-link"
-                                onClick={() => setEditor({ type: 'payment-detail', id: item.id })}
-                              >
-                                <strong>{receiptNumber(item.receiptNumber)}</strong>
-                              </button>
-                            </td>
-                            <td>
-                              {item.payerName}
-                              {item.reference && (
-                                <small className="finance-cell-note">{item.reference}</small>
-                              )}
-                            </td>
-                            <td>{formatDate(item.paidOn, i18n.language)}</td>
-                            <td>{t(methodKey(item.method))}</td>
-                            <td className="align-right finance-money">
-                              {formatMoney(item.amountCents, i18n.language)}
-                            </td>
-                            <td>
-                              <div className="finance-row-actions">
-                                <Button variant="secondary" onClick={() => void receipt(item.id)}>
-                                  <Download size={16} />
-                                  {t('financeReceipt')}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  aria-label={`${t('financePaymentDetails')}: ${receiptNumber(item.receiptNumber)}`}
-                                  onClick={() => setEditor({ type: 'payment-detail', id: item.id })}
-                                >
-                                  <ArrowUpRight size={17} />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <Empty description={t('financePaymentEmpty')} />
-                ))}
-              {current.data && (
-                <Pagination
-                  page={page}
-                  pageSize={current.data.pageSize}
-                  total={current.data.total}
-                  onChange={setPage}
+              <div className="toolbar">
+                <SearchInput
+                  value={search}
+                  onChange={(value) => {
+                    setSearch(value);
+                    setPage(1);
+                  }}
+                  placeholder={t(
+                    tab === 'assessments'
+                      ? 'financeSearch'
+                      : tab === 'payments'
+                        ? 'financePaymentSearch'
+                        : 'search',
+                  )}
                 />
+                {tab === 'assessments' && (
+                  <label>
+                    <span className="sr-only">{t('status')}</span>
+                    <select
+                      value={status}
+                      onChange={(event) => {
+                        setStatus(event.target.value);
+                        setPage(1);
+                      }}
+                    >
+                      {[
+                        ['', 'financeAllStatuses'],
+                        ['outstanding', 'financeOnlyOutstanding'],
+                        ['overdue', 'financeOnlyOverdue'],
+                        ['open', 'financeOpen'],
+                        ['partial', 'financePartial'],
+                        ['paid', 'financeSettled'],
+                        ['exempt', 'financeExemption'],
+                      ].map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {t(label!)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {tab === 'plans' && (
+                  <label>
+                    <span className="sr-only">{t('status')}</span>
+                    <select
+                      value={active}
+                      onChange={(event) => {
+                        setActive(event.target.value);
+                        setPage(1);
+                      }}
+                    >
+                      <option value="">{t('allStatuses')}</option>
+                      <option value="true">{t('active')}</option>
+                      <option value="false">{t('inactive')}</option>
+                    </select>
+                  </label>
+                )}
+                <label>
+                  <span className="sr-only">{t('sort')}</span>
+                  <select
+                    value={sort}
+                    onChange={(event) => {
+                      setSort(event.target.value);
+                      setPage(1);
+                    }}
+                  >
+                    <option value="createdAt">{t('newest')}</option>
+                    <option value="name">{t('name')}</option>
+                    <option value="amountCents">{t('financeAmount')}</option>
+                    {tab === 'assessments' && (
+                      <option value="dueDate">{t('financeDueDate')}</option>
+                    )}
+                    {tab === 'payments' && <option value="paidOn">{t('financePaidOn')}</option>}
+                  </select>
+                </label>
+              </div>
+              {current.isPending ? (
+                <Loading />
+              ) : current.isError ? (
+                <ErrorState error={current.error} retry={() => void current.refetch()} />
+              ) : (
+                <>
+                  {tab === 'assessments' &&
+                    assessments.data &&
+                    (assessments.data.items.length ? (
+                      <div className="table-scroll">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>{t('financeMember')}</th>
+                              <th>{t('financePlan')}</th>
+                              <th>{t('financeDueDate')}</th>
+                              <th className="align-right">{t('financeAmount')}</th>
+                              <th className="align-right">{t('financeOutstanding')}</th>
+                              <th>{t('status')}</th>
+                              <th>{t('actions')}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {assessments.data.items.map((item) => (
+                              <tr key={item.id}>
+                                <td>
+                                  <button
+                                    className="finance-name-link"
+                                    onClick={() =>
+                                      setEditor({ type: 'assessment-detail', id: item.id })
+                                    }
+                                  >
+                                    <strong>{item.memberName}</strong>
+                                    <small>
+                                      {item.membershipNumber} · {item.fiscalYear}
+                                    </small>
+                                  </button>
+                                </td>
+                                <td>{item.planName}</td>
+                                <td>{formatDate(item.dueDate, i18n.language)}</td>
+                                <td className="align-right finance-money">
+                                  {formatMoney(item.amountCents, i18n.language)}
+                                </td>
+                                <td className="align-right finance-money">
+                                  {formatMoney(item.openCents, i18n.language)}
+                                </td>
+                                <td>
+                                  <FeeStatus item={item} />
+                                </td>
+                                <td>
+                                  <div className="finance-row-actions">
+                                    {canWrite && item.openCents > 0 && (
+                                      <Button
+                                        variant="secondary"
+                                        onClick={() =>
+                                          setEditor({ type: 'payment', assessment: item })
+                                        }
+                                      >
+                                        {t('financeAddPayment')}
+                                      </Button>
+                                    )}
+                                    {canWrite && item.overdue && (
+                                      <Button
+                                        variant="ghost"
+                                        disabled={busy}
+                                        aria-label={`${t('financePrepareReminder')}: ${item.memberName} ${item.planName}`}
+                                        onClick={() => void prepareReminder(item)}
+                                      >
+                                        <Bell size={17} />
+                                      </Button>
+                                    )}
+                                    <Button
+                                      variant="ghost"
+                                      aria-label={`${t('financeAssessmentDetails')}: ${item.memberName} ${item.planName}`}
+                                      onClick={() =>
+                                        setEditor({ type: 'assessment-detail', id: item.id })
+                                      }
+                                    >
+                                      <ArrowUpRight size={17} />
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <Empty
+                        description={t(
+                          debounced || status ? 'noResults' : 'financeAssessmentEmpty',
+                        )}
+                      />
+                    ))}
+                  {tab === 'plans' &&
+                    plans.data &&
+                    (plans.data.items.length ? (
+                      <div className="table-scroll">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>{t('financePlanName')}</th>
+                              <th>{t('financeInterval')}</th>
+                              <th>{t('financeCategory')}</th>
+                              <th className="align-right">{t('financeAmount')}</th>
+                              <th>{t('status')}</th>
+                              {canPlans && <th>{t('actions')}</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {plans.data.items.map((item) => (
+                              <tr key={item.id}>
+                                <td>
+                                  <strong>{item.name}</strong>
+                                  {item.description && (
+                                    <small className="finance-cell-note">{item.description}</small>
+                                  )}
+                                </td>
+                                <td>
+                                  {t(item.interval === 'annual' ? 'financeAnnual' : 'financeOnce')}
+                                </td>
+                                <td>
+                                  {item.membershipType
+                                    ? t(item.membershipType)
+                                    : t('financeAllCategories')}
+                                </td>
+                                <td className="align-right finance-money">
+                                  {formatMoney(item.amountCents, i18n.language)}
+                                </td>
+                                <td>
+                                  <span
+                                    className={`badge badge-${item.active ? 'active' : 'inactive'}`}
+                                  >
+                                    <span />
+                                    {t(item.active ? 'active' : 'inactive')}
+                                  </span>
+                                </td>
+                                {canPlans && (
+                                  <td>
+                                    <Button
+                                      variant="ghost"
+                                      aria-label={`${t('financeEditPlan')}: ${item.name}`}
+                                      onClick={() => setEditor({ type: 'plan', plan: item })}
+                                    >
+                                      <Pencil size={17} />
+                                    </Button>
+                                  </td>
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <Empty description={t('financePlanEmpty')} />
+                    ))}
+                  {tab === 'payments' &&
+                    payments.data &&
+                    (payments.data.items.length ? (
+                      <div className="table-scroll">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>{t('financeReceiptNumber')}</th>
+                              <th>{t('financePayerName')}</th>
+                              <th>{t('financePaidOn')}</th>
+                              <th>{t('financeMethod')}</th>
+                              <th className="align-right">{t('financeAmount')}</th>
+                              <th>{t('actions')}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {payments.data.items.map((item) => (
+                              <tr key={item.id}>
+                                <td>
+                                  <button
+                                    className="finance-name-link"
+                                    onClick={() =>
+                                      setEditor({ type: 'payment-detail', id: item.id })
+                                    }
+                                  >
+                                    <strong>{receiptNumber(item.receiptNumber)}</strong>
+                                  </button>
+                                </td>
+                                <td>
+                                  {item.payerName}
+                                  {item.reference && (
+                                    <small className="finance-cell-note">{item.reference}</small>
+                                  )}
+                                  {item.status === 'reversed' && (
+                                    <span className="badge badge-inactive">
+                                      {t('ledgerPaymentReversed')}
+                                    </span>
+                                  )}
+                                </td>
+                                <td>{formatDate(item.paidOn, i18n.language)}</td>
+                                <td>{t(methodKey(item.method))}</td>
+                                <td className="align-right finance-money">
+                                  {formatMoney(item.amountCents, i18n.language)}
+                                </td>
+                                <td>
+                                  <div className="finance-row-actions">
+                                    <Button
+                                      variant="secondary"
+                                      onClick={() => void receipt(item.id)}
+                                    >
+                                      <Download size={16} />
+                                      {t('financeReceipt')}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      aria-label={`${t('financePaymentDetails')}: ${receiptNumber(item.receiptNumber)}`}
+                                      onClick={() =>
+                                        setEditor({ type: 'payment-detail', id: item.id })
+                                      }
+                                    >
+                                      <ArrowUpRight size={17} />
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <Empty description={t('financePaymentEmpty')} />
+                    ))}
+                  {current.data && (
+                    <Pagination
+                      page={page}
+                      pageSize={current.data.pageSize}
+                      total={current.data.total}
+                      onChange={setPage}
+                    />
+                  )}
+                </>
               )}
             </>
           )}
@@ -708,7 +746,12 @@ export function Finance() {
           ) : editor.type === 'assessment-detail' ? (
             <AssessmentDetails id={editor.id} onReceipt={(id) => void receipt(id)} />
           ) : (
-            <PaymentDetails id={editor.id} onReceipt={(id) => void receipt(id)} />
+            <PaymentDetails
+              id={editor.id}
+              canWrite={canWrite}
+              onReceipt={(id) => void receipt(id)}
+              onChanged={(message) => completed(message)}
+            />
           )}
         </Modal>
       )}
@@ -765,6 +808,9 @@ function AssessmentDetails({ id, onReceipt }: { id: string; onReceipt: (id: stri
               <span>
                 {receiptNumber(p.receiptNumber)} · {formatDate(p.paidOn, i18n.language)} ·{' '}
                 {formatMoney(p.amountCents, i18n.language)}
+                {p.reversed && (
+                  <span className="badge badge-inactive">{t('ledgerPaymentReversed')}</span>
+                )}
               </span>
               <Button
                 variant="ghost"
@@ -782,9 +828,20 @@ function AssessmentDetails({ id, onReceipt }: { id: string; onReceipt: (id: stri
     </div>
   );
 }
-function PaymentDetails({ id, onReceipt }: { id: string; onReceipt: (id: string) => void }) {
+function PaymentDetails({
+  id,
+  canWrite,
+  onReceipt,
+  onChanged,
+}: {
+  id: string;
+  canWrite: boolean;
+  onReceipt: (id: string) => void;
+  onChanged: (message: string) => void;
+}) {
   const { t, i18n } = useTranslation(),
-    { me } = useSession();
+    { me } = useSession(),
+    [action, setAction] = useState<'book' | 'reverse' | null>(null);
   const query = useQuery({
     queryKey: ['finance-payment-detail', me.activeOrganizationId, id],
     queryFn: () => api<Payment>(`/payments/${id}`),
@@ -795,6 +852,14 @@ function PaymentDetails({ id, onReceipt }: { id: string; onReceipt: (id: string)
   return (
     <div className="finance-detail">
       <h3>{receiptNumber(item.receiptNumber)}</h3>
+      {item.reversal && (
+        <Notice error>
+          {t('ledgerPaymentReversedOn', {
+            date: formatDate(item.reversal.reversedOn, i18n.language),
+            reason: item.reversal.reason,
+          })}
+        </Notice>
+      )}
       <dl>
         {[
           ['financePayerName', item.payerName],
@@ -803,6 +868,7 @@ function PaymentDetails({ id, onReceipt }: { id: string; onReceipt: (id: string)
           ['financeReference', item.reference || '—'],
           ['financeAmount', formatMoney(item.amountCents, i18n.language)],
           ['financeNotes', item.notes || '—'],
+          ['ledgerBookingStatus', t(item.cashbookEntryId ? 'ledgerBooked' : 'ledgerNotBooked')],
         ].map(([label, value]) => (
           <div key={label}>
             <dt>{t(label!)}</dt>
@@ -821,10 +887,38 @@ function PaymentDetails({ id, onReceipt }: { id: string; onReceipt: (id: string)
           </li>
         ))}
       </ul>
-      <Button variant="secondary" onClick={() => onReceipt(item.id)}>
-        <Download size={16} />
-        {t('financeReceipt')}
-      </Button>
+      <div className="finance-row-actions">
+        <Button variant="secondary" onClick={() => onReceipt(item.id)}>
+          <Download size={16} />
+          {t('financeReceipt')}
+        </Button>
+        {canWrite && item.status === 'posted' && !item.cashbookEntryId && (
+          <Button variant="secondary" onClick={() => setAction('book')}>
+            <BookCheck size={16} />
+            {t('ledgerBookPayment')}
+          </Button>
+        )}
+        {canWrite && item.status === 'posted' && (
+          <Button variant="secondary" onClick={() => setAction('reverse')}>
+            <Undo2 size={16} />
+            {t('ledgerReversePayment')}
+          </Button>
+        )}
+      </div>
+      {action === 'book' && (
+        <BookingForm
+          payment={item}
+          onCancel={() => setAction(null)}
+          onDone={() => onChanged('ledgerSavedBooking')}
+        />
+      )}
+      {action === 'reverse' && (
+        <PaymentReversalForm
+          payment={item}
+          onCancel={() => setAction(null)}
+          onDone={() => onChanged('ledgerSavedPaymentReversal')}
+        />
+      )}
     </div>
   );
 }

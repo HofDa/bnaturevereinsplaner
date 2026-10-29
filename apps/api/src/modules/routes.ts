@@ -13,6 +13,7 @@ import { registerDashboardRoutes } from './dashboard';
 import { registerProfileRoutes } from './profile';
 import { registerUsersRoutes } from './users';
 import { registerFinanceRoutes } from './finance/routes';
+import { registerLedgerRoutes } from './finance/ledger-routes';
 export async function registerRoutes(
   server: FastifyInstance,
   db: Database,
@@ -30,4 +31,5 @@ export async function registerRoutes(
   registerProfileRoutes(context);
   registerUsersRoutes(context);
   registerFinanceRoutes(context);
+  registerLedgerRoutes(context);
 }

@@ -12,6 +12,8 @@ import {
   moneyInputValue,
   formatMoney,
   membershipTypeSchema,
+  bookingInputSchema,
+  paymentReversalInputSchema,
   type FeePlan,
   type FeeAssessment,
   type Payment,
@@ -30,6 +32,7 @@ import {
 import { allPages, errorMessage, queryClient } from '../../lib/api';
 import { useSession } from '../../app/session';
 import { useFinancialWrite } from './client';
+import { useLedgerBasics } from './ledger';
 
 const planFormSchema = feePlanInputSchema
   .omit({ amountCents: true, membershipType: true })
@@ -231,6 +234,12 @@ export function PaymentForm({
   ]);
   const [error, setError] = useState(''),
     [pending, setPending] = useState(false);
+  const ledger = useLedgerBasics(),
+    bookingAccounts = ledger.accounts.data?.items.filter((a) => a.active) ?? [],
+    feeCategories =
+      ledger.categories.data?.items.filter(
+        (c) => c.active && c.classification === 'membership_fee',
+      ) ?? [];
   const query = useQuery({
     queryKey: ['finance-payment-options', me.activeOrganizationId],
     queryFn: () =>
@@ -261,6 +270,9 @@ export function PaymentForm({
         notes: form.get('notes'),
         amountCents: rows.reduce((n, row) => n + row.amountCents, 0),
         allocations: rows,
+        booking: form.get('bookingAccountId')
+          ? { accountId: form.get('bookingAccountId'), categoryId: form.get('bookingCategoryId') }
+          : null,
       });
       if (!input.success) {
         setError(
@@ -392,8 +404,128 @@ export function PaymentForm({
       <Field label={t('financeNotes')}>
         <textarea name="notes" rows={2} maxLength={500} />
       </Field>
+      {bookingAccounts.length > 0 && feeCategories.length > 0 && (
+        <fieldset>
+          <legend>{t('ledgerBookingLegend')}</legend>
+          <p className="finance-form-help">{t('ledgerBookingHelp')}</p>
+          <div className="form-grid">
+            <Field label={t('ledgerAccount')}>
+              <select name="bookingAccountId" defaultValue="">
+                <option value="">{t('ledgerDoNotBook')}</option>
+                {bookingAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label={t('ledgerCategory')}>
+              <select name="bookingCategoryId">
+                {feeCategories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+        </fieldset>
+      )}
       {error && <Notice error>{error}</Notice>}
       <FormActions pending={pending} create onCancel={onCancel} />
     </form>
+  );
+}
+export function BookingForm({
+  payment,
+  onDone,
+  onCancel,
+}: {
+  payment: Payment;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation(),
+    write = useFinancialWrite(),
+    ledger = useLedgerBasics();
+  if (ledger.accounts.isPending || ledger.categories.isPending) return <Loading />;
+  const accounts = ledger.accounts.data?.items.filter((a) => a.active) ?? [],
+    categories =
+      ledger.categories.data?.items.filter(
+        (c) => c.active && c.classification === 'membership_fee',
+      ) ?? [];
+  if (!accounts.length || !categories.length)
+    return <p className="finance-footnote">{t('ledgerBookingSetup')}</p>;
+  return (
+    <section className="finance-inline-form" aria-label={t('ledgerBookPayment')}>
+      <h3>{t('ledgerBookPayment')}</h3>
+      <p className="finance-form-help">{t('ledgerBookingHelp')}</p>
+      <DataForm
+        schema={bookingInputSchema}
+        create
+        onCancel={onCancel}
+        fields={[
+          {
+            name: 'accountId',
+            label: 'ledgerAccount',
+            type: 'select',
+            required: true,
+            options: accounts.map((a) => ({ value: a.id, label: a.name })),
+          },
+          {
+            name: 'categoryId',
+            label: 'ledgerCategory',
+            type: 'select',
+            required: true,
+            options: categories.map((c) => ({ value: c.id, label: c.name })),
+          },
+        ]}
+        onSubmit={async (value) => {
+          await write(`/payments/${payment.id}/booking`, value);
+          onDone();
+        }}
+      />
+    </section>
+  );
+}
+export function PaymentReversalForm({
+  payment,
+  onDone,
+  onCancel,
+}: {
+  payment: Payment;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation(),
+    write = useFinancialWrite();
+  return (
+    <section className="finance-inline-form" aria-label={t('ledgerReversePayment')}>
+      <h3>{t('ledgerReversePayment')}</h3>
+      <p className="finance-form-help">
+        {t(
+          payment.cashbookEntryId ? 'ledgerPaymentReversalBookedHelp' : 'ledgerPaymentReversalHelp',
+        )}
+      </p>
+      <DataForm
+        schema={paymentReversalInputSchema}
+        create
+        onCancel={onCancel}
+        fields={[
+          { name: 'reversedOn', label: 'ledgerReversalDate', type: 'date', required: true },
+          { name: 'reason', label: 'ledgerReversalReason', type: 'textarea', required: true },
+        ]}
+        defaults={{
+          reversedOn: new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(
+            new Date(),
+          ),
+          reason: '',
+        }}
+        onSubmit={async (value) => {
+          await write(`/payments/${payment.id}/reversal`, value);
+          onDone();
+        }}
+      />
+    </section>
   );
 }

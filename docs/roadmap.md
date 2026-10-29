@@ -8,7 +8,7 @@ Vor größerem produktivem Rollout: unabhängige Sicherheits-/Barrierefreiheitsp
 
 ## Beiträge und Finanzen
 
-Sprint 2.1 implementiert: Beitragstarife, Forderungen, Zahlungen mit Zuordnungen, Idempotenz, PDF-Bestätigungen, Erinnerungsentwürfe und CSV-Exporte ([Umsetzung](sprints/2.1-implementation.md), [ADR 0002](decisions/0002-membership-fees.md)). Kassabuch, Konten, Geschäftsjahre, Storno und Berichte folgen gemäß [Tickets](sprints/tickets.md) in 2.2. Die folgende Zielskizze gilt für die verbleibenden Teile:
+Sprint 2.1 implementiert: Beitragstarife, Forderungen, Zahlungen mit Zuordnungen, Idempotenz, PDF-Bestätigungen, Erinnerungsentwürfe und CSV-Exporte ([Umsetzung](sprints/2.1-implementation.md), [ADR 0002](decisions/0002-membership-fees.md)). Sprint 2.2a ergänzt Konten, Geschäftsjahre, Kassabuch, Storno und Jahresberichte ([Umsetzung](sprints/2.2-implementation.md), [ADR 0003](decisions/0003-ledger.md)). Offen sind private Belegdokumente (S22-04), validierte ETS-Vorlagen und gegebenenfalls doppelte Buchführung. Die folgende Zielskizze gilt für die verbleibenden Teile:
 
 Eigenes Modul mit `contribution_tariffs`, `contribution_years`, `receivables`, `payments`, `payment_allocations`, `cashbook_entries`, `receipts`, `fiscal_years` und `closing_versions`, jeweils mit Organisation. Geldwerte als exakte Dezimalbeträge bzw. Minor Units plus Währung, nie JavaScript-Fließkomma als Buchungswahrheit. Teilzahlungen als Zuordnung zwischen Forderung und Zahlung; Buchungen nach Abschluss nicht überschreiben, sondern korrigierend stornieren. Transaktionen und eindeutige Referenzen sichern Zahlungszuordnung. ETS-Modelle D/E erst nach fachlicher und rechtlicher Validierung der jeweils geltenden Vorgaben implementieren.
 

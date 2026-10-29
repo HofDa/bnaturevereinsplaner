@@ -1,6 +1,8 @@
 import finance from './finance-de';
+import ledger from './ledger-de';
 export default {
   ...finance,
+  ...ledger,
   membershipNumber: 'Mitgliedsnummer',
   joinedAt: 'Eintrittsdatum',
   preferredLanguage: 'Bevorzugte Sprache',

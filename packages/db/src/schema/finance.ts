@@ -133,9 +133,8 @@ export const payments = pgTable(
   (t) => [
     unique('payments_org_id_unique').on(t.organizationId, t.id),
     unique('payments_org_receipt_unique').on(t.organizationId, t.receiptNumber),
-    uniqueIndex('payments_org_bank_reference_unique')
-      .on(t.organizationId, t.reference)
-      .where(sql`${t.method}='bank_transfer' and ${t.reference}<>''`),
+    // Bank reference uniqueness ignores reversed payments; enforced by trigger (migration 0002).
+    index('payments_org_reference_idx').on(t.organizationId, t.reference),
     index('payments_org_paid_idx').on(t.organizationId, t.paidOn),
     check('payment_amount_valid', sql`${t.amountCents} between 1 and 1000000000`),
     check('payment_currency_valid', sql`${t.currency}='EUR'`),
