@@ -1,4 +1,7 @@
 export default {
+  mailKindUnavailable: 'Diese Nachrichtenart ist noch nicht für den Versand eingerichtet.',
+  mailError_MAIL_KIND_UNAVAILABLE:
+    'Diese Nachrichtenart hat noch keinen eingerichteten Versand. Es wurde keine E-Mail verschickt.',
   mailTitle: 'E-Mail',
   mailIntro: 'Einladen, erinnern und den Versand im Blick behalten.',
   mailCompose: 'Nachricht vorbereiten',

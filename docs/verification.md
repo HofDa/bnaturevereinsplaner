@@ -1,5 +1,24 @@
 # Prüfnachweise
 
+## Vereinsleben und E-Mail-Reparatur – 31.10.2026
+
+Auf `feat/community-news-polls`, Basis `8d65d35`:
+
+- Typecheck, ESLint und Prettier bestanden.
+- **92/92 Unit-/UI-Tests** in zehn Dateien, davon drei neue Prüfungen für Veröffentlichungs-, Rollen- und Ergebnisregeln.
+- **154/154 PostgreSQL-Integrationstests** in zehn Dateien. Neu sind zwölf News-/Umfrage-/Chat-Tests und eine zusätzliche Mail-Vertragsprüfung. Abgedeckt: Verein/Gruppen/Mandanten, Entwürfe, Veröffentlichung/Archiv, versionierte Änderungen, doppelte Requests, eine veränderbare Stimme je Konto, Ergebnisfreigabe, Frist/Abschluss, SQL-Sperren, Chatverlauf mit Cursor, Moderation und geleerte Nachrichtentexte sowie Status-/Einstellungs-/Postausgangsfelder des erweiterten Mailvertrags.
+- Bestehender lokaler Adminzugang, Dashboard, E-Mail-Seite und der neue Vereinsbereich mit Chat unter `localhost:5173` im Browser geprüft; keine JavaScript-Fehler. Entwicklungsdaten wurden nicht zurückgesetzt.
+- Migrationen bis `0015` lokal angewendet. Erneute Migrationserzeugung meldet keine Schemaänderung. OpenAPI regeneriert und bei erneuter Erzeugung hashgleich.
+- API-Bundle gebaut; Node-Smoke für Datenbank-Health, anonymen Zugriffsschutz und No-Store-Header bestanden.
+- **6/6 Vereinsleben-Browserabläufe** (drei Desktop, drei Mobil): Newsentwurf mit separater Veröffentlichung, DE/IT, reine Textdarstellung statt HTML-Ausführung, Mitgliederansicht, Stimmabgabe und Stimmänderung, Abschluss/Ergebnisse, private Gruppennews, Chat mit zwei bewusst gleichen Nachrichten, Moderation und verweigerter Zugriff gruppenfremder Konten. Axe-Prüfungen auf Redaktion, News, Abstimmung und Chat bestanden. Die bisherigen Plattform-/Finanz-/Dokument-/Veranstaltungs-/Freiwilligen-Browsersuiten wurden in diesem Durchlauf nicht erneut ausgeführt.
+- **4/4 E-Mail-Browserabläufe** (zwei Desktop, zwei Mobil) nach der Cachekorrektur bestanden, einschließlich echtem lokalem SMTP, Postausgang, erneut geöffneten Einstellungen und Sprachumschaltung. Insgesamt zehn gezielte Browserabläufe erfolgreich.
+
+Ein erster mobiler Chatlauf fand zusammengedrückte Nachrichten und einen dadurch verdeckten Moderationsknopf. Chatkarten schrumpfen jetzt nicht mehr im Scrollbereich; Scrollabstände halten Aktionen von der fixierten Navigation fern. Der gezielte mobile Wiederholungslauf bestand vollständig.
+
+Ein erster E-Mail-Browserlauf zeigte beim schnellen Wiederöffnen des Einstellungsdialogs einen alten Eingabewert trotz erfolgreicher Speicherung. Die Mutation übernimmt jetzt die gespeicherte Serverantwort direkt in den Query-Cache. Die begonnene Mail-Schemaerweiterung bleibt erhalten; nicht eingerichtete Mailarten werden ausdrücklich abgewiesen. Es wurden keine externen E-Mails verschickt.
+
+Nutzung und Grenzen: [Vereinsleben](community.md), [E-Mail](mail.md). Ein Push, PR oder Deployment wurde in diesem Durchlauf nicht vorgenommen.
+
 ## Kommunikationserweiterung – 30.10.2026
 
 Auf `feat/communication-email`, ausgehend von `786a035`, lokal geprüft:

@@ -1,9 +1,9 @@
-import { and, eq, lt } from 'drizzle-orm';
+import { and, eq, lt, sql } from 'drizzle-orm';
 import { schema as s, type Database } from '@bnature/db';
 import type { Config } from '../plugins/config';
 import { audit } from './audit';
 import { createMailSender, MailDeliveryError, type MailSender } from './mail';
-import { enqueueAutomaticMail, revalidateMail } from '../modules/mail';
+import { enqueueAutomaticMail, revalidateMail, isSupportedMailKind } from '../modules/mail';
 
 export async function deliverMail(db: Database, config: Config, sender: MailSender, limit = 10) {
   if (config.EMAIL_MODE === 'disabled') return;
@@ -29,7 +29,11 @@ export async function deliverMail(db: Database, config: Config, sender: MailSend
       if (!queued) return null;
       const [claimed] = await tx
         .update(s.mailMessages)
-        .set({ state: 'sending', attemptedAt: new Date() })
+        .set({
+          state: 'sending',
+          attemptedAt: new Date(),
+          attempts: sql`${s.mailMessages.attempts}+1`,
+        })
         .where(eq(s.mailMessages.id, queued.id))
         .returning();
       return claimed!;
@@ -42,6 +46,21 @@ export async function deliverMail(db: Database, config: Config, sender: MailSend
         .from(s.organizations)
         .where(eq(s.organizations.id, row.organizationId))
         .for('no key update');
+      if (!isSupportedMailKind(row.kind)) {
+        await tx
+          .update(s.mailMessages)
+          .set({ state: 'failed', errorCode: 'MAIL_KIND_UNAVAILABLE' })
+          .where(eq(s.mailMessages.id, row.id));
+        await audit(
+          tx,
+          { organizationId: row.organizationId, userId: row.actorUserId },
+          'failed',
+          'mail_message',
+          row.id,
+          ['state'],
+        );
+        return;
+      }
       if (!(await revalidateMail(tx, row, config))) {
         await tx
           .update(s.mailMessages)

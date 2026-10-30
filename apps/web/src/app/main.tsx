@@ -31,6 +31,7 @@ import { VolunteerInsurance } from '../features/volunteers/insurance';
 import { VolunteerRegister } from '../features/volunteers/register';
 import { Compliance } from '../features/compliance';
 import { MailPage } from '../features/mail';
+import { CommunityIndex, CommunityDetail } from '../features/community';
 import { Empty, ErrorState, Loading } from '../components/ui';
 import { shellDatabase } from '../lib/offline';
 applyTheme((localStorage.getItem('bnature-theme') as Theme) || 'system');
@@ -131,6 +132,22 @@ function App() {
       <Routes>
         <Route element={<Shell onLogout={refresh} />}>
           <Route index element={<Dashboard />} />
+          <Route
+            path="community"
+            element={
+              <Guard permission="community:read">
+                <CommunityIndex key={query.data.activeOrganizationId} />
+              </Guard>
+            }
+          />
+          <Route
+            path="community/:id"
+            element={
+              <Guard permission="community:read">
+                <CommunityDetail key={`${query.data.activeOrganizationId}:${location.pathname}`} />
+              </Guard>
+            }
+          />
           <Route
             path="mail"
             element={

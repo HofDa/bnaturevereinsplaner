@@ -4,6 +4,7 @@ import ledger from './ledger-de';
 import documents from './documents-de';
 import volunteers from './volunteers-de';
 import mail from './mail-de';
+import community from './community-de';
 export default {
   ...events,
   ...finance,
@@ -11,6 +12,7 @@ export default {
   ...documents,
   ...volunteers,
   ...mail,
+  ...community,
   membershipNumber: 'Mitgliedsnummer',
   joinedAt: 'Eintrittsdatum',
   preferredLanguage: 'Bevorzugte Sprache',

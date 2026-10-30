@@ -6,3 +6,4 @@ export * from './documents';
 export * from './events';
 export * from './volunteers';
 export * from './mail';
+export * from './community';

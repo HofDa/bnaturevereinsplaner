@@ -1,5 +1,11 @@
 # Roadmap
 
+## Vereinskommunikation
+
+Auf `feat/community-news-polls` ergänzt: zweisprachige Vereins- und Gruppennews mit Entwürfen, Veröffentlichung und Archiv; Umfragen mit einer änderbaren Stimme je Konto, Frist/Abschluss und aggregierten Ergebnissen; Vereins- und Gruppenchat mit gespeicherten Nachrichten und Moderation. Mitgliederzugriffe folgen den aktuellen Gruppen-/Personenzuordnungen. [Nutzung und Grenzen](community.md). Sportmodule bleiben ausgeschlossen.
+
+Zusätzlich sind die Typ-/Antwortfehler der begonnenen Mail-Schemaerweiterung behoben. Beitragserinnerungen und Termineinladungen bleiben die eingerichteten Versandarten. Die weiteren bereits deklarierten Mailarten sind bis zur vollständigen Implementierung ausdrücklich nicht versendbar; ihre Entwürfe und Tabellen bleiben erhalten.
+
 ## Phase 1 – Verwaltungsbasis
 
 Implementiert: Monorepo, gemeinsamer Vertrag, PostgreSQL-Migration, Login/Logout/Session, UUID-Auth-Schema, Organisationsrollen, Bootstrap, Mitglieder-CRUD, Statusvalidierung, Suche/Filter/Sortierung/Pagination, CSV-Export und bestätigter Import mit Vorschau, Dashboard, Gruppen und Personenzuordnungen, Vorstand und Amtszeiten, Vereinsprofil, persönliche Kontakte, Benutzeranlage/Rollen, Audit-Protokoll, DE/IT, Hell/Dunkel, installierbare PWA, sichere Shell-Caches, CI und echte Datenbank-/Browsertests.
@@ -45,7 +51,7 @@ Sprint 2.3 setzt diese Strategie für Anwesenheit um. Die Phase-1-Datenbank blei
 
 ## Nächste Aufgaben nach Sprint 2.4
 
-Kommunikationserweiterung auf `feat/communication-email`: SMTP-Grundlage, lokales Mailpit-Testpostfach, Vorschau/Bestätigung, rollenabhängiger Postausgang, Beitragserinnerungen und Termineinladungen sowie explizit aktivierbare automatische Beitragserinnerungen sind implementiert. Details und Grenzen: [E-Mail](mail.md). Fristenmails, Newsletter, News, Umfragen und optional Chat bleiben offen. Der vorhandene Fristenmanager verschickt weiterhin keine E-Mails.
+Kommunikationserweiterung auf `feat/communication-email`: SMTP-Grundlage, lokales Mailpit-Testpostfach, Vorschau/Bestätigung, rollenabhängiger Postausgang, Beitragserinnerungen und Termineinladungen sowie explizit aktivierbare automatische Beitragserinnerungen sind implementiert. Details und Grenzen: [E-Mail](mail.md). Fristenmails und Newsletter bleiben offen. News, Umfragen und Chat sind inzwischen im [Vereinsleben](community.md) umgesetzt. Der vorhandene Fristenmanager verschickt weiterhin keine E-Mails.
 
 Für b*nature vereinbarter weiterer Schwerpunkt: Kommunikation, Inventar/Ausleihe, Beitrags-Sammelvorschreibungen, Mitgliedszusatzfelder/Einwilligungen/Erziehungsberechtigte, Geburtstage/Jubiläen, Excel-Import und Auswertungen. SEPA und elektronische Rechnungen nur bei konkretem Bedarf. Sportmodule (Mannschaften, Tesseramento und sportbezogene Verwaltung) sind ausdrücklich ausgeschlossen.
 

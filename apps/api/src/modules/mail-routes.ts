@@ -12,6 +12,7 @@ import {
   mailEnqueueResultSchema,
 } from '@bnature/contracts';
 import type { ModuleContext } from './context';
+import { can } from '@bnature/contracts';
 import { enqueuePreview, previewMail, listMail, getMailSettings, updateMailSettings } from './mail';
 
 export function registerMailRoutes({ server, db, access, config }: ModuleContext) {
@@ -21,8 +22,17 @@ export function registerMailRoutes({ server, db, access, config }: ModuleContext
     '/api/v1/mail/status',
     { schema: { tags, response: { 200: mailStatusSchema } } },
     async (req) => {
-      await access(req, 'mail:read');
-      return { mode: config.EMAIL_MODE };
+      const a = await access(req, 'mail:read');
+      const admin = can(a.role, 'users:manage');
+      return {
+        mode: config.EMAIL_MODE,
+        sender: admin ? config.EMAIL_FROM : null,
+        host: admin
+          ? config.EMAIL_MODE === 'local'
+            ? '127.0.0.1'
+            : (config.SMTP_HOST ?? null)
+          : null,
+      };
     },
   );
   app.get(

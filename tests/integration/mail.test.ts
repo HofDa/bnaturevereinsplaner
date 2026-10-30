@@ -194,6 +194,39 @@ afterAll(async () => {
 });
 
 describe('organization-scoped transactional email', () => {
+  it('returns the extended status, settings and outbox contract and rejects unfinished mail kinds explicitly', async () => {
+    const adminStatus = await ok<{ mode: string; sender: string | null; host: string | null }>(
+      await get('/mail/status'),
+    );
+    expect(adminStatus.mode).toBe('local');
+    expect(adminStatus.sender).toBe(config.EMAIL_FROM);
+    const boardStatus = await ok<{ sender: string | null; host: string | null }>(
+      await get('/mail/status', 'board'),
+    );
+    expect(boardStatus.sender).toBeNull();
+    expect(boardStatus.host).toBeNull();
+    const settings = await ok<{
+      automaticDeadlineReminders: boolean;
+      deadlineLastRunOn: string | null;
+    }>(await get('/mail/settings'));
+    expect(settings.automaticDeadlineReminders).toBe(false);
+    expect(settings.deadlineLastRunOn).toBeNull();
+    const unavailable = await preview({ kind: 'newsletter', newsletterId: crypto.randomUUID() });
+    expect(unavailable.statusCode).toBe(409);
+    expect(unavailable.json().error.code).toBe('MAIL_KIND_UNAVAILABLE');
+    const p = await ok<MailPreview>(await preview());
+    expect(p.items.every((item) => item.userId === null)).toBe(true);
+    expect(p.skipped.optedOut).toBe(0);
+    await ok(await queue(p), 202);
+    await deliverMail(db, config, sender);
+    const messages = await ok<{
+      items: { attempts: number; resolution: null; resolvedAt: null; resolutionNote: string }[];
+    }>(await get('/mail/messages'));
+    expect(messages.items[0]!.attempts).toBe(1);
+    expect(messages.items[0]!.resolution).toBeNull();
+    expect(messages.items[0]!.resolvedAt).toBeNull();
+    expect(messages.items[0]!.resolutionNote).toBe('');
+  });
   it('previews overdue fees in DE/IT and rejects unauthenticated, wrong-role and arbitrary-recipient requests', async () => {
     const p = await ok<MailPreview>(await preview());
     expect(p.items).toHaveLength(2);

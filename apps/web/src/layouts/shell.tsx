@@ -20,6 +20,7 @@ import {
   HandHeart,
   ClipboardCheck,
   Mail,
+  Newspaper,
 } from 'lucide-react';
 import type { Permission } from '@bnature/contracts';
 import { useSession } from '../app/session';
@@ -36,6 +37,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   const [error, setError] = useState('');
   const primary = [
     { to: '/', key: 'overview', icon: LayoutDashboard },
+    { to: '/community', key: 'commTitle', icon: Newspaper, permission: 'community:read' },
     { to: '/members', key: 'members', icon: Users, permission: 'members:read' },
     { to: '/events', key: 'events', icon: CalendarDays, permission: 'events:read' },
     { to: '/volunteers', key: 'volunteers', icon: HandHeart, permission: 'volunteers:read' },

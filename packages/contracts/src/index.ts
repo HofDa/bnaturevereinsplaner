@@ -12,6 +12,7 @@ export * from './ledger';
 export * from './documents';
 export * from './roles';
 export * from './mail';
+export * from './community';
 import { roleSchema, type Role, type Permission } from './roles';
 
 const date = z.iso.date();

@@ -1,5 +1,8 @@
 import type de from './mail-de';
 const it: Record<keyof typeof de, string> = {
+  mailKindUnavailable: 'Questo tipo di messaggio non è ancora configurato per l’invio.',
+  mailError_MAIL_KIND_UNAVAILABLE:
+    'L’invio di questo tipo di messaggio non è ancora configurato. Nessuna e-mail è stata inviata.',
   mailTitle: 'E-mail',
   mailIntro: 'Invitare, ricordare e seguire gli invii.',
   mailCompose: 'Prepara messaggio',
