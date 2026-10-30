@@ -641,18 +641,20 @@ describe('closing and reports', () => {
       await post('/finance/fiscal-years', { year: 2027, openingBalances: [] }),
     );
     expect(early.openingMismatch).toBe(true);
-    expect((await post('/finance/fiscal-years/2027/close', {}, admin)).json().error.code).toBe(
-      'PREVIOUS_YEAR_OPEN',
+    expect(
+      (await post('/finance/fiscal-years/2027/close', { confirm: true }, admin)).json().error.code,
+    ).toBe('PREVIOUS_YEAR_OPEN');
+    expect((await post('/finance/fiscal-years/2026/close', { confirm: true })).statusCode).toBe(
+      403,
     );
-    expect((await post('/finance/fiscal-years/2026/close', {})).statusCode).toBe(403);
     const closed = await created<FiscalYear>(
-      await post('/finance/fiscal-years/2026/close', {}, admin),
+      await post('/finance/fiscal-years/2026/close', { confirm: true }, admin),
       200,
     );
     expect(closed.status).toBe('closed');
-    expect((await post('/finance/fiscal-years/2026/close', {}, admin)).json().error.code).toBe(
-      'FISCAL_YEAR_CLOSED',
-    );
+    expect(
+      (await post('/finance/fiscal-years/2026/close', { confirm: true }, admin)).json().error.code,
+    ).toBe('FISCAL_YEAR_CLOSED');
     expect((await post('/finance/cashbook', entry())).json().error.code).toBe(
       'FISCAL_YEAR_NOT_OPEN',
     );
@@ -692,7 +694,7 @@ describe('closing and reports', () => {
     expect((await get('/finance/reports/annual?fiscalYear=2028')).statusCode).toBe(404);
   });
   it('carries closing balances forward into the next year', async () => {
-    await created(await post('/finance/fiscal-years/2027/close', {}, admin), 200);
+    await created(await post('/finance/fiscal-years/2027/close', { confirm: true }, admin), 200);
     const opened = await created<FiscalYear>(await post('/finance/fiscal-years', { year: 2028 }));
     expect(opened.openingMismatch).toBe(false);
     expect(opened.balances.find((b) => b.accountId === bank.id)?.openingCents).toBe('-5000');

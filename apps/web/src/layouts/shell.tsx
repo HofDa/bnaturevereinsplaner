@@ -16,10 +16,12 @@ import {
   Globe2,
   ChevronDown,
   FileText,
+  CalendarDays,
 } from 'lucide-react';
 import type { Permission } from '@bnature/contracts';
 import { useSession } from '../app/session';
 import { authClient } from '../lib/auth';
+import { purgeAttendance } from '../lib/attendance-offline';
 import { broadcastSessionChange } from '../lib/session-events';
 import { queryClient, setOrganization } from '../lib/api';
 import { Avatar, Notice } from '../components/ui';
@@ -32,6 +34,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   const primary = [
     { to: '/', key: 'overview', icon: LayoutDashboard },
     { to: '/members', key: 'members', icon: Users, permission: 'members:read' },
+    { to: '/events', key: 'events', icon: CalendarDays, permission: 'events:read' },
     { to: '/finance', key: 'finance', icon: Wallet, permission: 'finance:read' },
     { to: '/groups', key: 'groups', icon: Layers },
     { to: '/board', key: 'board', icon: ShieldCheck },
@@ -144,12 +147,13 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
               onClick={async () => {
                 setError('');
                 try {
+                  await purgeAttendance();
                   const result = await authClient.signOut();
                   if (result.error) {
                     setError(t('logoutFailed'));
                     return;
                   }
-                  broadcastSessionChange();
+                  broadcastSessionChange('logout');
                   queryClient.clear();
                   setOrganization(undefined);
                   onLogout();

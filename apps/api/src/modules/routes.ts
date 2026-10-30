@@ -14,6 +14,7 @@ import { registerProfileRoutes } from './profile';
 import { registerUsersRoutes } from './users';
 import { registerFinanceRoutes } from './finance/routes';
 import { registerLedgerRoutes } from './finance/ledger-routes';
+import { registerEventRoutes } from './event-routes';
 import { registerDocumentRoutes } from './document-routes';
 export async function registerRoutes(
   server: FastifyInstance,
@@ -34,4 +35,5 @@ export async function registerRoutes(
   registerFinanceRoutes(context);
   registerLedgerRoutes(context);
   registerDocumentRoutes(context);
+  registerEventRoutes(context);
 }

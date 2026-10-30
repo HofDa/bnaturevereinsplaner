@@ -27,7 +27,9 @@ Umsetzung: [2.2-implementation.md](2.2-implementation.md).
 | S22-04 Private Dokumente         | Autorisierte Upload-/Downloadrouten mit Limits, Dateisignaturprüfung, SHA-256, Versionen, Kategorie, Archivstatus und Beleg-/Mitgliedsreferenzen. Direkte URLs und fremde IDs geben keine Dateien frei.    |
 | S22-05 Berichte                  | Getrennte Einnahmen/Ausgaben/Salden, CSV/PDF; ETS-D/E-Kategorien, Schwellen und Gültigkeitszeiträume konfigurierbar und versioniert, ohne Zertifizierungsbehauptung.                                       |
 
-## Sprint 2.3 – Veranstaltungen und Offline-Anwesenheit (offen)
+Zusätzliche Abnahme Sprint 2.2: interne Überträge ohne Ergebniswirkung, freie Geschäftsjahresgrenzen, Kategorie-/ETS-Snapshots, kontrollierte historische Nachbuchung, Finanzdashboard und recherchierte amtliche Modelle D/E. Nachweis: 100 PostgreSQL-Tests, 69 Unit/UI-Tests und 24 Browserprüfungen in Desktop/Mobil; Details in [Prüfnachweise](../verification.md).
+
+## Sprint 2.3 – Veranstaltungen und Offline-Anwesenheit (implementiert)
 
 | Ticket               | Abnahme                                                                                                                                                                                                                                                                       |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -35,6 +37,8 @@ Umsetzung: [2.2-implementation.md](2.2-implementation.md).
 | S23-02 Registrierung | Mitglieder und autorisierte externe Personen; Frist, Limit, Abmeldung und Warteliste transaktional. Parallele Anmeldungen überschreiten keine Kapazität.                                                                                                                      |
 | S23-03 Anwesenheit   | Autorisierte Erfassung und PDF-Teilnehmerliste; Datensparsamkeit und Cross-Tenant-Tests. Dokumentreferenzen an Veranstaltungen anbinden.                                                                                                                                      |
 | S23-04 Offline-Sync  | Minimale lokale Projektion, Operations-UUID, Outbox, idempotente Endpunkte und Versionskonflikte. Wiederholung/Status sichtbar; Start/Fokus/Online/manueller Versuch ohne Background-Sync-Pflicht funktionieren. Logout/Rechteentzug bereinigt personenbezogene lokale Daten. |
+
+Umgesetzt: S23-01 bis S23-04. Nachweise und Gerätegrenzen: [Sprint-2.3-Dokumentation](2.3-implementation.md).
 
 ## Sprint 2.4 – Freiwillige und Compliance (offen)
 

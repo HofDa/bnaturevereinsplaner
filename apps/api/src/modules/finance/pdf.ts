@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from 'pdf-lib';
 import { and, eq } from 'drizzle-orm';
-import { schema as s, type Database } from '@bnature/db';
+import { schema as s, type Database, type Executor } from '@bnature/db';
 import { formatMoney } from '@bnature/contracts';
 import { HttpError } from '../../middleware/access';
 import { getPayment, getAssessment } from './service';
@@ -104,7 +104,7 @@ const labels = {
       "Elaborazione interna. Modelli configurati dall'associazione; nessun modello ufficiale, revisione o certificazione legale.",
   },
 };
-async function renderPdf(
+export async function renderPdf(
   title: string,
   organization: string,
   lines: string[],
@@ -165,7 +165,7 @@ async function renderPdf(
   if (missing) draw(labels[language].unsupported, 9);
   return Buffer.from(await document.save());
 }
-async function organizationName(db: Database, org: string) {
+export async function organizationName(db: Executor, org: string) {
   const [row] = await db
     .select({ name: s.organizations.name })
     .from(s.organizations)

@@ -182,7 +182,7 @@ test('sets up the ledger, books, reverses, reports and closes a fiscal year', as
     page.getByRole('row').filter({ hasText: tariff }).getByText('Bezahlt', { exact: true }),
   ).toBeVisible();
 
-  await tab(page, 'Berichte');
+  await tab(page, 'Jahresabschluss');
   const summary = page.getByRole('region', { name: 'Jahresübersicht' });
   await expect(summary.getByRole('article').filter({ hasText: 'Ergebnis' })).toContainText(
     '37,50 €',
@@ -234,7 +234,7 @@ test('sets up the ledger, books, reverses, reports and closes a fiscal year', as
   await page.getByRole('button', { name: 'Dunkel', exact: true }).click();
   await page.getByRole('button', { name: 'Italiano', exact: true }).click();
   await page.goto('/finance');
-  await tab(page, 'Rendiconti');
+  await tab(page, 'Rendiconto annuale');
   await expect(
     page.getByRole('heading', { name: 'Modelli di rendiconto', level: 2 }),
   ).toBeVisible();
@@ -252,7 +252,7 @@ test('treasurer manages the ledger but cannot close fiscal years', async ({ page
   await expect(page.getByRole('button', { name: /^Jahr abschließen/ })).toHaveCount(0);
   const response = await page.request.post('/api/v1/finance/fiscal-years/2030/close', {
     headers: { 'Idempotency-Key': crypto.randomUUID(), Origin: new URL(page.url()).origin },
-    data: {},
+    data: { confirm: true },
   });
   expect(response.status()).toBe(403);
 });

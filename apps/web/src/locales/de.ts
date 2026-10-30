@@ -1,7 +1,9 @@
+import events from './events-de';
 import finance from './finance-de';
 import ledger from './ledger-de';
 import documents from './documents-de';
 export default {
+  ...events,
   ...finance,
   ...ledger,
   ...documents,

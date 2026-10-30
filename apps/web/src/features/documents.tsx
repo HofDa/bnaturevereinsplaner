@@ -88,11 +88,17 @@ function useMembers() {
 }
 export function UploadForm({
   cashbookEntryId,
+  transferId,
+  eventOccurrenceId,
+  basePath = '/documents',
   defaultTitle = '',
   onDone,
   onCancel,
 }: {
   cashbookEntryId?: string;
+  transferId?: string;
+  eventOccurrenceId?: string;
+  basePath?: string;
   defaultTitle?: string;
   onDone: (document: DocumentDetail) => void;
   onCancel: () => void;
@@ -100,6 +106,12 @@ export function UploadForm({
   const { t } = useTranslation(),
     upload = useUpload(),
     members = useMembers();
+  const { me } = useSession();
+  const groups = useQuery({
+    queryKey: ['documents-group-options', me.activeOrganizationId],
+    queryFn: () => api<{ items: Array<{ id: string; name: string }> }>('/groups?pageSize=100'),
+    enabled: me.permissions.includes('groups:read'),
+  });
   const [error, setError] = useState(''),
     [pending, setPending] = useState(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -114,12 +126,15 @@ export function UploadForm({
     setPending(true);
     try {
       onDone(
-        await upload<DocumentDetail>('/documents', file, {
+        await upload<DocumentDetail>(basePath, file, {
           title: form.get('title'),
           category: form.get('category'),
           description: form.get('description') ?? '',
           membershipId: form.get('membershipId') || null,
           cashbookEntryId: cashbookEntryId ?? null,
+          transferId: transferId ?? null,
+          eventOccurrenceId: eventOccurrenceId ?? null,
+          groupId: form.get('groupId') || null,
           filename: file.name,
         }),
       );
@@ -140,7 +155,10 @@ export function UploadForm({
           <input name="title" required maxLength={200} defaultValue={defaultTitle} />
         </Field>
         <Field label={t('documentCategory')}>
-          <select name="category" defaultValue={cashbookEntryId ? 'receipt' : 'other'}>
+          <select
+            name="category"
+            defaultValue={cashbookEntryId || transferId ? 'receipt' : 'other'}
+          >
             {categories.map((value) => (
               <option key={value} value={value}>
                 {t(categoryKey(value))}
@@ -160,6 +178,18 @@ export function UploadForm({
             </select>
           </Field>
         )}
+        {groups.data && (
+          <Field label={t('groups')}>
+            <select name="groupId">
+              <option value="">—</option>
+              {groups.data.items.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
         <Field label={t('documentDescription')}>
           <textarea name="description" rows={3} maxLength={2000} />
         </Field>
@@ -169,14 +199,20 @@ export function UploadForm({
     </form>
   );
 }
-function VersionList({ document }: { document: DocumentDetail }) {
+function VersionList({
+  document,
+  basePath = '/documents',
+}: {
+  document: DocumentDetail;
+  basePath?: string;
+}) {
   const { t, i18n } = useTranslation(),
     [error, setError] = useState('');
   async function download(version: DocumentVersion) {
     setError('');
     try {
       await downloadPrivateFile(
-        `/documents/${document.id}/versions/${version.id}/content`,
+        `${basePath}/${document.id}/versions/${version.id}/content`,
         version.filename,
       );
     } catch (error) {
@@ -210,16 +246,26 @@ function VersionList({ document }: { document: DocumentDetail }) {
     </>
   );
 }
-function DocumentDetails({ id, onChanged }: { id: string; onChanged: (message: string) => void }) {
-  const { t } = useTranslation(),
+function DocumentDetails({
+  id,
+  onChanged,
+  basePath = '/documents',
+}: {
+  id: string;
+  onChanged: (message: string) => void;
+  basePath?: string;
+}) {
+  const { t, i18n } = useTranslation(),
     { me } = useSession(),
     upload = useUpload(),
     members = useMembers(),
-    canWrite = me.permissions.includes('documents:write'),
+    canWrite =
+      me.permissions.includes('documents:write') ||
+      (basePath.startsWith('/events/') && me.permissions.includes('events:write')),
     financeWrite = me.permissions.includes('finance:write');
   const query = useQuery({
-    queryKey: ['documents-detail', me.activeOrganizationId, id],
-    queryFn: () => api<DocumentDetail>(`/documents/${id}`),
+    queryKey: ['documents-detail', me.activeOrganizationId, id, basePath],
+    queryFn: () => api<DocumentDetail>(`${basePath}/${id}`),
   });
   const [error, setError] = useState(''),
     [pending, setPending] = useState(false),
@@ -227,12 +273,13 @@ function DocumentDetails({ id, onChanged }: { id: string; onChanged: (message: s
   if (query.isPending) return <Loading />;
   if (query.isError) return <ErrorState error={query.error} />;
   const item = query.data,
-    editable = canWrite && !item.archived && (!item.cashbookEntryId || financeWrite);
+    editable =
+      canWrite && !item.archived && (!(item.cashbookEntryId || item.transferId) || financeWrite);
   async function patch(body: Record<string, unknown>, message: string) {
     setPending(true);
     setError('');
     try {
-      await api(`/documents/${item.id}`, {
+      await api(`${basePath}/${item.id}`, {
         method: 'PATCH',
         body: JSON.stringify({ ...body, version: item.version }),
         headers: { 'Idempotency-Key': crypto.randomUUID() },
@@ -257,7 +304,7 @@ function DocumentDetails({ id, onChanged }: { id: string; onChanged: (message: s
     setPending(true);
     setError('');
     try {
-      await upload(`/documents/${item.id}/versions`, file, { filename: file.name });
+      await upload(`${basePath}/${item.id}/versions`, file, { filename: file.name });
       formElement.reset();
       refresh();
       onChanged('documentVersionSaved');
@@ -279,6 +326,9 @@ function DocumentDetails({ id, onChanged }: { id: string; onChanged: (message: s
           ['documentDescription', item.description || '—'],
           ['documentMember', item.memberName ?? '—'],
           ['documentCashbookEntry', item.cashbookEntryLabel ?? '—'],
+          ['s22Transfers', item.transferLabel ?? '—'],
+          ['groups', item.groupName ?? '—'],
+          ['events', item.eventTitleI18n?.[i18n.language === 'it' ? 'it' : 'de'] ?? '—'],
         ].map(([label, value]) => (
           <div key={label}>
             <dt>{t(label!)}</dt>
@@ -287,7 +337,7 @@ function DocumentDetails({ id, onChanged }: { id: string; onChanged: (message: s
         ))}
       </dl>
       <h3>{t('documentVersions')}</h3>
-      <VersionList document={item} />
+      <VersionList document={item} basePath={basePath} />
       {error && <Notice error>{error}</Notice>}
       {editable && !editing && (
         <form className="document-version-form" onSubmit={(event) => void newVersion(event)}>
@@ -354,7 +404,7 @@ function DocumentDetails({ id, onChanged }: { id: string; onChanged: (message: s
           <FormActions pending={pending} onCancel={() => setEditing(false)} />
         </form>
       )}
-      {canWrite && (!item.cashbookEntryId || financeWrite) && !editing && (
+      {canWrite && (!(item.cashbookEntryId || item.transferId) || financeWrite) && !editing && (
         <div className="finance-row-actions document-actions">
           {editable && (
             <Button variant="secondary" onClick={() => setEditing(true)}>
@@ -382,9 +432,11 @@ function DocumentDetails({ id, onChanged }: { id: string; onChanged: (message: s
 function DocumentTable({
   items,
   onOpen,
+  basePath = '/documents',
 }: {
   items: DocumentRecord[];
   onOpen: (id: string) => void;
+  basePath?: string;
 }) {
   const { t, i18n } = useTranslation(),
     [error, setError] = useState('');
@@ -440,7 +492,7 @@ function DocumentTable({
                           setError('');
                           try {
                             await downloadPrivateFile(
-                              `/documents/${item.id}/versions/${item.latestVersion!.id}/content`,
+                              `${basePath}/${item.id}/versions/${item.latestVersion!.id}/content`,
                               item.latestVersion!.filename,
                             );
                           } catch (error) {
@@ -609,26 +661,46 @@ export function Documents() {
 // Receipts for a cashbook entry, shown from the cashbook.
 export function EntryDocuments({
   entryId,
+  transferId,
+  eventOccurrenceId,
   title,
   canWrite,
 }: {
-  entryId: string;
+  entryId?: string;
+  transferId?: string;
+  eventOccurrenceId?: string;
   title: string;
   canWrite: boolean;
 }) {
+  const basePath =
+    eventOccurrenceId && canWrite ? `/events/${eventOccurrenceId}/documents` : '/documents';
   const { t } = useTranslation(),
     { me } = useSession(),
     [uploading, setUploading] = useState(false),
     [open, setOpen] = useState<string | null>(null),
     [notice, setNotice] = useState('');
   const query = useQuery({
-    queryKey: ['documents-entry', me.activeOrganizationId, entryId],
+    queryKey: [
+      'documents-entry',
+      me.activeOrganizationId,
+      entryId,
+      transferId,
+      eventOccurrenceId,
+      basePath,
+    ],
     queryFn: () =>
       api<Page<DocumentRecord>>(
-        `/documents?cashbookEntryId=${entryId}&archived=false&pageSize=100`,
+        `${basePath}?${eventOccurrenceId ? `eventOccurrenceId=${eventOccurrenceId}` : transferId ? `transferId=${transferId}` : `cashbookEntryId=${entryId}`}&archived=false&pageSize=100`,
       ),
   });
-  if (open) return <DocumentDetails id={open} onChanged={(message) => setNotice(t(message))} />;
+  if (open)
+    return (
+      <DocumentDetails
+        basePath={basePath}
+        id={open}
+        onChanged={(message) => setNotice(t(message))}
+      />
+    );
   return (
     <div className="finance-detail">
       {notice && <Notice>{notice}</Notice>}
@@ -637,16 +709,24 @@ export function EntryDocuments({
       ) : query.isError ? (
         <ErrorState error={query.error} retry={() => void query.refetch()} />
       ) : query.data.items.length ? (
-        <DocumentTable items={query.data.items} onOpen={setOpen} />
+        <DocumentTable basePath={basePath} items={query.data.items} onOpen={setOpen} />
       ) : (
-        <p className="finance-footnote">{t('documentNoReceipts')}</p>
+        <p className="finance-footnote">
+          {t(eventOccurrenceId ? 'documentEmpty' : 'documentNoReceipts')}
+        </p>
       )}
       {canWrite &&
         (uploading ? (
-          <section className="finance-inline-form" aria-label={t('documentAttachReceipt')}>
-            <h3>{t('documentAttachReceipt')}</h3>
+          <section
+            className="finance-inline-form"
+            aria-label={t(eventOccurrenceId ? 'documentUpload' : 'documentAttachReceipt')}
+          >
+            <h3>{t(eventOccurrenceId ? 'documentUpload' : 'documentAttachReceipt')}</h3>
             <UploadForm
+              basePath={basePath}
               cashbookEntryId={entryId}
+              transferId={transferId}
+              eventOccurrenceId={eventOccurrenceId}
               defaultTitle={title}
               onCancel={() => setUploading(false)}
               onDone={() => {
@@ -659,7 +739,7 @@ export function EntryDocuments({
         ) : (
           <Button variant="secondary" onClick={() => setUploading(true)}>
             <FileUp size={16} />
-            {t('documentAttachReceipt')}
+            {t(eventOccurrenceId ? 'documentUpload' : 'documentAttachReceipt')}
           </Button>
         ))}
     </div>

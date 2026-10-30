@@ -1,8 +1,10 @@
+import events from './events-it';
 import finance from './finance-it';
 import ledger from './ledger-it';
 import documents from './documents-it';
 import type de from './de';
 const it: Record<keyof typeof de, string> = {
+  ...events,
   ...finance,
   ...ledger,
   ...documents,

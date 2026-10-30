@@ -1,24 +1,24 @@
 # Prüfnachweise
 
-Stand: 29.10.2026. Alle Angaben beziehen sich auf den lokal implementierten Stand von Phase 1, Sprint 2.1 und Sprint 2.2. Eine Veröffentlichung auf einem öffentlichen Server oder Zertifizierung ist damit nicht verbunden.
+Stand: 30.10.2026 (Sprint 2.3). Alle Angaben beziehen sich auf den lokal implementierten Stand von Phase 1 und Sprints 2.1–2.3. Eine Veröffentlichung auf einem öffentlichen Server oder Zertifizierung ist damit nicht verbunden.
 
-| Prüfung                | Ergebnis                                                                                                                                                                                    |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Bun                    | 1.3.14, direkte Paketversionen und Lockfile gepinnt                                                                                                                                         |
-| TypeScript Strict Mode | bestanden                                                                                                                                                                                   |
-| ESLint                 | bestanden                                                                                                                                                                                   |
-| Prettier               | bestanden                                                                                                                                                                                   |
-| Unit-/UI-Tests         | **69 bestanden**                                                                                                                                                                            |
-| PostgreSQL-Integration | **90 bestanden**, echte PostgreSQL-17-Datenbank und Better-Auth-Sessions, inklusive Upgrade-Test der Migration                                                                              |
-| Playwright Desktop     | **11 bestanden** (5 Plattform, 2 Beiträge, 2 Kassabuch, 2 Dokumente), Produktionsbuild in Chrome                                                                                            |
-| Playwright Mobilformat | **11 bestanden** (5 Plattform, 2 Beiträge, 2 Kassabuch, 2 Dokumente), Chromium mit iPhone-13-Viewport und Touch-Emulation                                                                   |
-| Produktionsbuild       | Web-PWA und Node-kompatibles API-Bundle bestanden                                                                                                                                           |
-| Migrationen            | `0000`, additive `0001_membership_fees` `0002_ledger` und `0003_documents` angewendet; erneute Generierung ohne Schemaänderung                                                              |
-| OpenAPI                | aus den registrierten Routen generiert                                                                                                                                                      |
-| Node-Runtime           | Health mit Datenbank, anonymer Zugriffsschutz und No-Store-Header bestanden                                                                                                                 |
-| Docker                 | API-/Migrations-/Web-Images gebaut; API-Container gegen PostgreSQL erfolgreich geprüft; Dokumentvolume im schreibgeschützten API-Container für den Laufzeitnutzer beschreibbar (30.10.2026) |
-| Caddy                  | Konfiguration im Container erfolgreich validiert                                                                                                                                            |
-| Paket-Audit            | keine mittleren/hohen/kritischen Hinweise nach esbuild-Override; **ein niedriger Build-Hinweis bleibt offen**, siehe [Sicherheit](security.md#abhängigkeitsprüfung-vom-29102026)            |
+| Prüfung                | Ergebnis                                                                                                                                                                         |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bun                    | 1.3.14, direkte Paketversionen und Lockfile gepinnt                                                                                                                              |
+| TypeScript Strict Mode | bestanden                                                                                                                                                                        |
+| ESLint                 | bestanden                                                                                                                                                                        |
+| Prettier               | bestanden                                                                                                                                                                        |
+| Unit-/UI-Tests         | **74 bestanden**                                                                                                                                                                 |
+| PostgreSQL-Integration | **116 bestanden**, echte PostgreSQL-17-Datenbank und Better-Auth-Sessions, inklusive Upgrade-Test der Migration                                                                  |
+| Playwright Desktop     | **16 bestanden** (5 Plattform, 2 Beiträge, 2 Kassabuch, 2 Dokumente, 1 Sprint-2.2-Ablauf, 4 Veranstaltungen/Offline), Produktionsbuild in Chrome                                 |
+| Playwright Mobilformat | **16 bestanden** (5 Plattform, 2 Beiträge, 2 Kassabuch, 2 Dokumente, 1 Sprint-2.2-Ablauf, 4 Veranstaltungen/Offline), Chromium mit iPhone-13-Viewport und Touch-Emulation        |
+| Produktionsbuild       | Web-PWA und Node-kompatibles API-Bundle bestanden                                                                                                                                |
+| Migrationen            | `0000`–`0010` angewendet; Upgrade mit Phase-1-Daten und geschlossenem Kassabuch geprüft; erneute Generierung ohne Schemaänderung                                                 |
+| OpenAPI                | aus den registrierten Routen generiert                                                                                                                                           |
+| Node-Runtime           | Health mit Datenbank, anonymer Zugriffsschutz und No-Store-Header bestanden                                                                                                      |
+| Docker                 | Vorheriger Nachweis vor dieser Erweiterung: Images und Dokumentvolume geprüft; Container-Images in diesem Durchlauf nicht erneut gebaut                                          |
+| Caddy                  | Vorheriger Nachweis: unveränderte Konfiguration im Container erfolgreich validiert                                                                                               |
+| Paket-Audit            | keine mittleren/hohen/kritischen Hinweise nach esbuild-Override; **ein niedriger Build-Hinweis bleibt offen**, siehe [Sicherheit](security.md#abhängigkeitsprüfung-vom-29102026) |
 
 ## Inhalt der Tests
 
@@ -48,3 +48,29 @@ Desktop- und Mobilprojekt starten getrennte API-Prozesse. Die Rate-Limits bleibe
 - Automatische Prüfungen belegen konkrete getestete Abläufe und Grenzen, keine allgemeine Fehlerfreiheit oder rechtliche Zertifizierung.
 
 Reproduzierbare Befehle und Konfiguration stehen in der [Startanleitung](../README.md). Die GitHub-Actions-Konfiguration enthält Typecheck, Lint, Format, Unit/UI, PostgreSQL-Integration, Build, Spec-Drift-Prüfung, Node-Smoke und beide Browserprojekte. Ein GitHub-Actions-Lauf kann erst nach Bereitstellung des Repositorys auf GitHub stattfinden.
+
+## Sprint 2.2 – zusätzliche Abnahme
+
+`tests/integration/sprint22.test.ts` ergänzt zehn transaktionale Abnahmetests: neutrale Überträge mit parallelem Idempotenz-Replay und exaktem Storno; positive/negative Kontobewegungen; Fremdkonten ohne Teilzustand; datumsbasierte Geschäftsjahre; automatische einmalige Beitragsverbuchung trotz zweier Teilzuordnungen; atomare Zahlungsstornos; kontrollierte historische Nachbuchung; ausdrücklich bestätigter Abschluss; unveränderliche Kategorie-/ETS-Snapshots; DE/IT-PDF/CSV; Berichtssummen und Anfangs-/Endbestände; Berechtigungen für Finanzdaten und private Übertragsbelege; Kontenvortrag und Vorjahresvergleich. Zwölf gleichzeitige Dashboard-Abfragen prüfen, dass sich die Snapshot-Transaktionen nicht an der Verbindungspool-Grenze blockieren.
+
+Der erweiterte Upgrade-Test migriert über den früheren Stand `0003` mit einer bereits abgeschlossenen Jahresbuchung, zwischenzeitlich umbenannter Kategorie und gespeicherten Idempotenzantworten. Abschlussstatus, Betrag, rekonstruierbarer Kategoriename und Wiederholungsantworten bleiben erhalten; Schreibsperren bleiben aktiv.
+
+`tests/e2e/sprint22.spec.ts` prüft auf Desktop und Mobil: Startkategorien/Konten, abweichendes Geschäftsjahr, Bank-Kasse-Übertrag, Projektbuchung im Folgekalenderjahr, Buchungshistorie, echte Bestände, Modell-E-Tabellenexport, italienischen PDF-Export, Layoutbreite und Axe-Prüfung. Die bisherigen vier Browser-Suiten bestehen ebenfalls. Reproduzierbar: `bun run test:e2e` oder gezielt `bun run test:e2e sprint22 ledger documents`.
+
+Amtliche Quellen, zeitliche Schwellenregeln und notwendige fachliche Prüfung stehen in [ETS-Berichte](ets-reporting.md). Die Software erstellt eine prüfbare Vorbereitung. Fachliche Zuordnungen, historische Referenzwerte und die ergänzenden Erläuterungsberichte sind vor Verwendung als Vereinsabschluss verantwortlich zu prüfen. Eine produktive Migration/Veröffentlichung wurde nicht durchgeführt.
+
+## Sprint 2.3
+
+16 zusätzliche PostgreSQL-Integrationstests prüfen CRUD/Rollen/Mandanten, DST und endliche Serien samt Ausnahmen, unveränderte vergangene Instanzen, Metadatenänderung mit erhaltener Anmeldung, strukturelle Sperre bei aktiven Anmeldungen, begründete Serienabsage einschließlich verschobener Termine, Kategorieversionen, Gäste ohne Mitgliedschaft, Doppelanmeldung, konkurrierende letzte Plätze, exakte FIFO-Warteliste und automatisches/manuelles Nachrücken. Hinzu kommen mehrstufige Anwesenheit, Idempotenz mit einmaligem Audit, direkte SQL-Sperren, Teilbatch-Konflikte, Sessionablauf, Rechteentzug, private Veranstaltungsdokumente, PDF/CSV/ICS und unveränderte Finanzdaten bei Anmeldungen/Absagen.
+
+Fünf zusätzliche Unit-Tests prüfen lokale Uhrzeiten über beide Zeitumstellungen, nicht existierende Uhrzeiten, Intervall-/Materialisierungsgrenzen, eingeschleuste Akteurfelder und UTF-8-ICS-Faltung. Vier neue Browserabläufe je Desktop/Mobilformat verwenden echte Datenbank, autorisierte Sessions und den Produktionsbuild: Kalender/Verwaltung/DE-IT/Exporte/Dokumente mit Axe; verschlüsselte Offline-Queue über Netzunterbrechung und Neuladen, abgelaufene Session und erneute Anmeldung, mehrere abhängige Änderungen, echter konkurrierender Serverstand, sichtbare manuelle Konfliktauflösung, Ablauf und Logout; Rechteentzug mit Bereinigung und verweigerter Übertragung; verzögert eintreffende Offline-Vorbereitung nach Logout ohne Wiederherstellung privater Daten.
+
+Keine physische iOS-/Safari-Installation oder echter Flugmodus wurde in dieser Umgebung geprüft. Touch-/iPhone-Viewport läuft in Chromium und ersetzt diese Geräteabnahme nicht. Der Node-Starttest hat Datenbank-Health, anonymen Zugriffsschutz und No-Store-Header bestanden. Migrationserzeugung meldet nach `0010` keine Schemaabweichung.
+
+## Offene Release-Gates
+
+Vor einer Produktivfreigabe der Sprints 2.2–2.3 sind folgende Prüfungen offen und nicht durch die automatisierten Tests abgedeckt:
+
+- [ ] **PWA auf echtem iPhone:** installierte PWA in Safari/iOS im Flugmodus (Vorbereitung, Offline-Check-ins, Neustart, Wiederverbindung, Konflikte, Logout-Bereinigung). Chromium mit iPhone-Viewport ersetzt diese Geräteabnahme nicht.
+- [ ] **Migrationen an Produktionsdatenkopie:** `0004`–`0010` gegen eine aktuelle, gesicherte Kopie der Produktionsdaten ausführen und Bestände, geschlossene Jahre, Kategorienamen und Idempotenzantworten abgleichen. Keine Migration gegen Produktivdaten ohne Backup.
+- [ ] **Fachliche Freigabe ETS:** Zuordnungen der Kategorien zu den ETS-Modellen D/E, Schwellenwerte und historische Referenzwerte durch die verantwortliche Person prüfen und freigeben (siehe [ETS-Berichte](ets-reporting.md)).

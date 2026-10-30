@@ -75,6 +75,8 @@ export type CashbookCategory = z.infer<typeof categoryResponseSchema>;
 export const fiscalYearInputSchema = z
   .object({
     year: fiscalYearSchema,
+    startsOn: z.iso.date().optional(),
+    endsOn: z.iso.date().optional(),
     // Omitted: carried forward from the previous fiscal year, or zero for the first year.
     openingBalances: z
       .array(z.object({ accountId: idSchema, amountCents: signedCentsSchema }).strict())
@@ -93,6 +95,7 @@ export const accountBalanceSchema = z.object({
   accountId: idSchema,
   name: z.string(),
   kind: accountKindSchema,
+  transferCents: signedTotalSchema.default('0'),
   openingCents: signedTotalSchema,
   incomeCents: signedTotalSchema,
   expenseCents: signedTotalSchema,
@@ -102,6 +105,8 @@ export type AccountBalance = z.infer<typeof accountBalanceSchema>;
 export const fiscalYearResponseSchema = z.object({
   id: idSchema,
   year: fiscalYearSchema,
+  startsOn: z.iso.date(),
+  endsOn: z.iso.date(),
   status: z.enum(['open', 'closed']),
   createdAt: z.string(),
   closedAt: z.string().nullable(),
@@ -115,6 +120,7 @@ export const yearParams = z.object({ year: z.coerce.number().int().min(1900).max
 const entryFields = {
   accountId: idSchema,
   categoryId: idSchema,
+  project: z.string().trim().max(160).default(''),
   amountCents: positiveCentsSchema,
   bookingDate: z.iso.date(),
   documentDate: z.iso.date(),
@@ -136,6 +142,9 @@ export const cashbookEntryResponseSchema = z.object({
   accountName: z.string(),
   categoryId: idSchema,
   categoryName: z.string(),
+  project: z.string().default(''),
+  etsPosition: z.string().nullable().default(null),
+  etsDefinitionVersion: z.string().nullable().default(null),
   classification: ledgerClassificationSchema,
   direction: ledgerDirectionSchema,
   amountCents: signedCentsSchema,
@@ -159,6 +168,9 @@ export const cashbookQuerySchema = z.object({
   accountId: idSchema.optional(),
   categoryId: idSchema.optional(),
   direction: ledgerDirectionSchema.optional(),
+  from: z.iso.date().optional(),
+  to: z.iso.date().optional(),
+  project: z.string().trim().max(160).optional(),
   order: z.enum(['asc', 'desc']).default('desc'),
 });
 export type CashbookQuery = z.infer<typeof cashbookQuerySchema>;
@@ -260,3 +272,73 @@ export const annualReportSchema = z.object({
 });
 export type AnnualReport = z.infer<typeof annualReportSchema>;
 export const itemsOf = <T extends z.ZodType>(item: T) => z.object({ items: z.array(item) });
+
+export const transferInputSchema = z
+  .object({
+    fromAccountId: idSchema,
+    toAccountId: idSchema,
+    amountCents: positiveCentsSchema,
+    bookingDate: z.iso.date(),
+    description: z.string().trim().min(1).max(300),
+  })
+  .strict()
+  .refine((v) => v.fromAccountId !== v.toAccountId, { message: 'ledgerDifferentAccounts' });
+export type TransferInput = z.infer<typeof transferInputSchema>;
+export const transferResponseSchema = z.object({
+  id: idSchema,
+  fiscalYear: fiscalYearSchema,
+  fromAccountId: idSchema,
+  toAccountId: idSchema,
+  amountCents: positiveCentsSchema,
+  bookingDate: z.iso.date(),
+  description: z.string(),
+  reversesTransferId: idSchema.nullable(),
+  createdAt: z.string(),
+});
+export type LedgerTransfer = z.infer<typeof transferResponseSchema>;
+export const backfillInputSchema = z
+  .object({
+    accountId: idSchema,
+    categoryId: idSchema,
+    fiscalYear: fiscalYearSchema,
+    method: z.enum(['cash', 'bank_transfer', 'other']),
+  })
+  .strict();
+export const backfillResponseSchema = z.object({
+  booked: z.number().int(),
+  remaining: z.number().int(),
+});
+export const etsMappingInputSchema = z
+  .object({
+    effectiveFrom: z.iso.date(),
+    position: z.string().min(1).max(30),
+  })
+  .strict();
+export const etsMappingResponseSchema = etsMappingInputSchema
+  .extend({
+    id: idSchema,
+    categoryId: idSchema,
+    definitionVersion: z.string(),
+    createdAt: z.string(),
+  })
+  .strip();
+export const financeDashboardSchema = z.object({
+  fiscalYear: fiscalYearSchema,
+  startsOn: z.iso.date(),
+  endsOn: z.iso.date(),
+  totalCents: signedTotalSchema,
+  bankCents: signedTotalSchema,
+  cashCents: signedTotalSchema,
+  incomeCents: signedTotalSchema,
+  expenseCents: signedTotalSchema,
+  openFeesCents: signedTotalSchema,
+  recent: z.array(cashbookEntryResponseSchema),
+  trend: z.array(
+    z.object({
+      month: z.string(),
+      incomeCents: signedTotalSchema,
+      expenseCents: signedTotalSchema,
+    }),
+  ),
+});
+export type FinanceDashboard = z.infer<typeof financeDashboardSchema>;

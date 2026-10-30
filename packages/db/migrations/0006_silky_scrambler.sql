@@ -1,0 +1,4 @@
+ALTER TABLE "documents" ADD COLUMN "transfer_id" uuid;--> statement-breakpoint
+ALTER TABLE "documents" ADD COLUMN "group_id" uuid;--> statement-breakpoint
+ALTER TABLE "documents" ADD CONSTRAINT "documents_organization_id_transfer_id_ledger_transfers_organization_id_id_fk" FOREIGN KEY ("organization_id","transfer_id") REFERENCES "public"."ledger_transfers"("organization_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "documents" ADD CONSTRAINT "documents_organization_id_group_id_groups_organization_id_id_fk" FOREIGN KEY ("organization_id","group_id") REFERENCES "public"."groups"("organization_id","id") ON DELETE no action ON UPDATE no action;

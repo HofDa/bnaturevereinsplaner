@@ -75,7 +75,7 @@ export async function createApp(db: Database, config: Config) {
     openapi: {
       info: {
         title: 'b*nature API',
-        version: '1.1.0',
+        version: '1.2.3',
         description:
           'Organization-scoped REST API. Cookie session required except health. Set X-Organization-Id to select an authorized organization.',
       },

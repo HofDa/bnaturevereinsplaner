@@ -47,11 +47,14 @@ import { BookingForm, PaymentReversalForm } from './forms';
 
 type Tab = 'assessments' | 'plans' | 'payments' | LedgerTabName;
 const tabLabels: Record<Tab, string> = {
+  overview: 's22Overview',
   assessments: 'financeAssessments',
   plans: 'financePlans',
   payments: 'financePayments',
   cashbook: 'ledgerCashbook',
   setup: 'ledgerSetup',
+  categories: 'ledgerCategories',
+  transfers: 's22Transfers',
   reports: 'ledgerReports',
 };
 type Editor =
@@ -81,7 +84,7 @@ export function FeeStatus({ item }: { item: FeeAssessment }) {
 export function Finance() {
   const { t, i18n } = useTranslation(),
     { me } = useSession();
-  const [tab, setTab] = useState<Tab>('assessments'),
+  const [tab, setTab] = useState<Tab>('overview'),
     [year, setYear] = useState(String(new Date().getFullYear())),
     [search, setSearch] = useState(''),
     [status, setStatus] = useState(''),
@@ -258,7 +261,13 @@ export function Finance() {
     }
   }
   const current = tab === 'assessments' ? assessments : tab === 'plans' ? plans : payments,
-    ledger = tab === 'cashbook' || tab === 'setup' || tab === 'reports';
+    ledger =
+      tab === 'cashbook' ||
+      tab === 'setup' ||
+      tab === 'reports' ||
+      tab === 'overview' ||
+      tab === 'transfers' ||
+      tab === 'categories';
   return (
     <>
       <PageHeading

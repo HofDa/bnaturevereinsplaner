@@ -38,10 +38,16 @@ Die Oberfläche nutzt Sidebar ab Desktopbreite und Bottom-Navigation auf Mobilge
 
 ## Offline und Erweiterungen
 
-Workbox precacht ausschließlich Build-Dateien. API-Navigation ist vom SPA-Fallback ausgeschlossen und besitzt `Cache-Control: no-store`. Dexie hat in Phase 1 nur eine Shell-Metadaten-Tabelle; es existiert bewusst noch kein personenbezogener Offline-Store. App-Updates werden angeboten und erst nach Zustimmung aktiviert.
+Workbox precacht ausschließlich Build-Dateien. API-Navigation ist vom SPA-Fallback ausgeschlossen und besitzt `Cache-Control: no-store`. Dexie hat in Phase 1 nur eine Shell-Metadaten-Tabelle; der personenbezogene Offline-Store aus Sprint 2.3 ist davon getrennt. App-Updates werden angeboten und erst nach Zustimmung aktiviert.
 
-Phase 2 erhält pro Fachmodul eine lokale Datenprojektion, eine Outbox mit UUID-Operationen, Idempotency-Key, Versionsnummer und Organisations-/Benutzerbindung. Ein dedizierter Sync-Service überträgt bei geöffneter App, `online` und erneuter Anmeldung; Background Sync ist eine optionale Optimierung. Rollenentzug, Konflikte, Geräteverlust und Abmeldung müssen vor der ersten personenbezogenen Offline-Funktion gelöst werden. Siehe Roadmap.
+Die allgemeine Erweiterungsstrategie sieht pro Fachmodul eine lokale Datenprojektion vor und verwendet eine Outbox mit UUID-Operationen, Idempotency-Key, Versionsnummer und Organisations-/Benutzerbindung. Ein dedizierter Sync-Service überträgt bei geöffneter App, `online` und erneuter Anmeldung; Background Sync ist eine optionale Optimierung. Rollenentzug, Konflikte, Geräteverlust und Abmeldung müssen vor der ersten personenbezogenen Offline-Funktion gelöst werden. Siehe Roadmap.
 
 ## Node-Kompatibilität
 
 Die API verwendet Fetch-, Node- und PostgreSQL-Schnittstellen, keine Bun-spezifischen Server-, SQL- oder Passwort-APIs. Der Build bündelt Workspace-Code für Node und lässt Drittbibliotheken extern. Bun bleibt Paket-/Buildwerkzeug; die API kann nach `bun run build` auch als `node --env-file=.env apps/api/dist/server.js` gestartet werden. Laufzeit und Werkzeugkette werden separat getestet.
+
+## Sprint 2.3 – konkrete Offline-Projektion
+
+Das Veranstaltungsmodul verwendet separate Serien und Instanzen. Personen ohne Mitgliedschaft können autorisiert als Gäste teilnehmen. Registrierungs-/Anwesenheitsoperationen sind organisationsgebundene Datenbanktransaktionen mit Idempotenz, Versionen und Audit. Vorhandene Rollen und private Dokumente werden erweitert; es gibt keine Kopie des Finanzmoduls und keine impliziten Veranstaltungsbuchungen.
+
+Die explizite Vorbereitung liefert minimale Teilnehmerdaten. Die separate Dexie-Datenbank `bnature-attendance` enthält AES-GCM-verschlüsselte Kopien und eine persistente Outbox, gebunden an Benutzer und Organisation. Die App-Shell lädt die Offline-Ansicht ohne simulierte Session. Der Server prüft bei der Synchronisierung aktuelle Rechte und Versionen neu. Der Browser zeigt lokale/Serverwerte und verlangt manuelle Konfliktauflösung. Ablauf, Logout und erkannter Rechteentzug bereinigen die Daten; Einschränkungen zu geschlossenem Browser und Geräteschutz stehen in [ADR 0004](decisions/0004-events-offline.md).

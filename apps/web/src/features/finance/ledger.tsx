@@ -1,3 +1,12 @@
+import {
+  FinanceOverview,
+  FinanceInitialize,
+  Transfers,
+  EtsMappings,
+  PaymentBackfill,
+  EtsReports,
+  EntryHistory,
+} from './extensions';
 import { useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -50,7 +59,8 @@ import { useSession } from '../../app/session';
 import { useDebounced } from '../../hooks/use-debounced';
 import { useFinancialWrite } from './client';
 
-export type LedgerTabName = 'cashbook' | 'setup' | 'reports';
+export type LedgerTabName =
+  'cashbook' | 'setup' | 'reports' | 'overview' | 'transfers' | 'categories';
 const refresh = () =>
   void queryClient.invalidateQueries({
     predicate: (query) => String(query.queryKey[0]).startsWith('finance-'),
@@ -98,6 +108,15 @@ function Amount({
   );
 }
 export function LedgerTab({ tab }: { tab: LedgerTabName }) {
+  if (tab === 'overview') return <FinanceOverview />;
+  if (tab === 'transfers') return <Transfers />;
+  if (tab === 'categories')
+    return (
+      <>
+        <LedgerSetup categoriesOnly />
+        <EtsMappings />
+      </>
+    );
   if (tab === 'cashbook') return <Cashbook />;
   if (tab === 'setup') return <LedgerSetup />;
   return <Reports />;
@@ -111,7 +130,8 @@ const entryFormSchema = z
 type CashbookEditor =
   | { type: 'new' }
   | { type: 'reverse'; entry: CashbookEntry }
-  | { type: 'documents'; entry: CashbookEntry };
+  | { type: 'documents'; entry: CashbookEntry }
+  | { type: 'history'; entry: CashbookEntry };
 function Cashbook() {
   const { t, i18n } = useTranslation(),
     { me } = useSession(),
@@ -123,6 +143,8 @@ function Cashbook() {
     [account, setAccount] = useState(''),
     [category, setCategory] = useState(''),
     [direction, setDirection] = useState(''),
+    [from, setFrom] = useState(''),
+    [to, setTo] = useState(''),
     [search, setSearch] = useState(''),
     [page, setPage] = useState(1),
     [editor, setEditor] = useState<CashbookEditor | null>(null),
@@ -140,6 +162,8 @@ function Cashbook() {
     ...(account ? { accountId: account } : {}),
     ...(category ? { categoryId: category } : {}),
     ...(direction ? { direction } : {}),
+    ...(from ? { from } : {}),
+    ...(to ? { to } : {}),
   }).toString();
   const entries = useQuery({
     queryKey: ['finance-cashbook', me.activeOrganizationId, q],
@@ -265,7 +289,43 @@ function Cashbook() {
             </select>
           </label>
         ))}
+        <Field label={t('s22FromDate')}>
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => {
+              setFrom(e.target.value);
+              setPage(1);
+            }}
+          />
+        </Field>
+        <Field label={t('s22ToDate')}>
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => {
+              setTo(e.target.value);
+              setPage(1);
+            }}
+          />
+        </Field>
         <div className="ledger-toolbar-actions">
+          <Button
+            variant="secondary"
+            onClick={async () => {
+              setError('');
+              try {
+                await downloadPrivateFile(
+                  `/finance/cashbook-export/pdf?${q}&language=${i18n.language === 'it' ? 'it' : 'de'}`,
+                  'bnature-cashbook.pdf',
+                );
+              } catch (e) {
+                setError(errorMessage(e));
+              }
+            }}
+          >
+            {t('s22CashbookPdf')}
+          </Button>
           <Button variant="secondary" disabled={busy} onClick={() => void exportCsv()}>
             <Download size={16} />
             {t(busy ? 'financeExporting' : 'financeExport')}
@@ -304,14 +364,23 @@ function Cashbook() {
                   <tr key={entry.id}>
                     <td>
                       <strong>
-                        {entry.fiscalYear}/{entry.entryNumber}
+                        <button
+                          type="button"
+                          className="link-button"
+                          aria-label={`${t('s22History')}: ${entry.fiscalYear}/${entry.entryNumber}`}
+                          onClick={() => setEditor({ type: 'history', entry })}
+                        >
+                          {entry.fiscalYear}/{entry.entryNumber}
+                        </button>
                       </strong>
                     </td>
                     <td>{formatDate(entry.bookingDate, i18n.language)}</td>
                     <td>
                       {entry.description}
                       <small className="finance-cell-note">
-                        {[entry.counterparty, entry.documentNumber].filter(Boolean).join(' · ')}
+                        {[entry.counterparty, entry.documentNumber, entry.project]
+                          .filter(Boolean)
+                          .join(' · ')}
                       </small>
                       <span className="ledger-flags">
                         {entry.reversesEntryId && (
@@ -379,13 +448,17 @@ function Cashbook() {
         <Modal
           wide
           title={
-            editor.type === 'documents'
-              ? `${t('documentReceipts')} ${editor.entry.fiscalYear}/${editor.entry.entryNumber}`
-              : t(editor.type === 'new' ? 'ledgerAddEntry' : 'ledgerReverse')
+            editor.type === 'history'
+              ? t('s22History')
+              : editor.type === 'documents'
+                ? `${t('documentReceipts')} ${editor.entry.fiscalYear}/${editor.entry.entryNumber}`
+                : t(editor.type === 'new' ? 'ledgerAddEntry' : 'ledgerReverse')
           }
           onClose={() => setEditor(null)}
         >
-          {editor.type === 'documents' ? (
+          {editor.type === 'history' ? (
+            <EntryHistory id={editor.entry.id} />
+          ) : editor.type === 'documents' ? (
             <EntryDocuments
               entryId={editor.entry.id}
               title={editor.entry.description}
@@ -436,12 +509,13 @@ function Cashbook() {
                   { name: 'documentNumber', label: 'ledgerDocumentNumber' },
                   { name: 'description', label: 'ledgerDescription', required: true },
                   { name: 'counterparty', label: 'ledgerCounterparty' },
+                  { name: 'project', label: 's22Project' },
                 ]}
                 defaults={{
                   categoryId: '',
                   amount: '',
-                  bookingDate: `${openYears[0]!.year}-01-01`,
-                  documentDate: `${openYears[0]!.year}-01-01`,
+                  bookingDate: openYears[0]!.startsOn,
+                  documentDate: openYears[0]!.startsOn,
                 }}
                 onSubmit={async (value) => {
                   await write<CashbookEntry>('/finance/cashbook', value);
@@ -496,7 +570,7 @@ type SetupEditor =
   | { type: 'category'; category?: CashbookCategory }
   | { type: 'year' }
   | { type: 'close'; year: FiscalYear };
-function LedgerSetup() {
+function LedgerSetup({ categoriesOnly = false }: { categoriesOnly?: boolean }) {
   const { t, i18n } = useTranslation(),
     { me } = useSession(),
     write = useFinancialWrite(),
@@ -532,149 +606,159 @@ function LedgerSetup() {
     <div className="ledger-setup">
       {notice && <Notice>{notice}</Notice>}
       {error && <Notice error>{error}</Notice>}
-      <section aria-labelledby="ledger-years-heading">
-        <div className="ledger-section-heading">
-          <div>
-            <h2 id="ledger-years-heading">{t('ledgerFiscalYears')}</h2>
-            <p>{t('ledgerFiscalYearsHelp')}</p>
-          </div>
-          {canWrite && (
-            <Button onClick={() => setEditor({ type: 'year' })}>
-              <Plus size={17} />
-              {t('ledgerOpenYear')}
-            </Button>
-          )}
-        </div>
-        {years.length ? (
-          <div
-            className="table-scroll"
-            tabIndex={0}
-            role="region"
-            aria-label={t('ledgerFiscalYears')}
-          >
-            <table>
-              <thead>
-                <tr>
-                  <th>{t('ledgerFiscalYear')}</th>
-                  <th>{t('status')}</th>
-                  <th>{t('ledgerBalances')}</th>
-                  {canClose && <th>{t('actions')}</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {years.map((year) => (
-                  <tr key={year.id}>
-                    <td>
-                      <strong>{year.year}</strong>
-                    </td>
-                    <td>
-                      <span
-                        className={`badge badge-${year.status === 'open' ? 'active' : 'inactive'}`}
-                      >
-                        <span />
-                        {t(year.status === 'open' ? 'ledgerYearOpen' : 'ledgerYearClosed')}
-                      </span>
-                      {year.openingMismatch && (
-                        <small className="ledger-warning">
-                          <TriangleAlert size={13} /> {t('ledgerOpeningMismatch')}
-                        </small>
-                      )}
-                    </td>
-                    <td>
-                      <ul className="ledger-balance-list">
-                        {year.balances.map((b) => (
-                          <li key={b.accountId}>
-                            <span>{b.name}</span>
-                            <span className="finance-money">
-                              {formatMoney(b.openingCents, i18n.language)} →{' '}
-                              <strong>{formatMoney(b.closingCents, i18n.language)}</strong>
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </td>
-                    {canClose && (
-                      <td>
-                        {year.status === 'open' && (
-                          <Button
-                            variant="secondary"
-                            onClick={() => setEditor({ type: 'close', year })}
-                            aria-label={`${t('ledgerCloseYear')} ${year.year}`}
+      <FinanceInitialize />
+      {!categoriesOnly && (
+        <>
+          <section aria-labelledby="ledger-years-heading">
+            <div className="ledger-section-heading">
+              <div>
+                <h2 id="ledger-years-heading">{t('ledgerFiscalYears')}</h2>
+                <p>{t('ledgerFiscalYearsHelp')}</p>
+              </div>
+              {canWrite && (
+                <Button onClick={() => setEditor({ type: 'year' })}>
+                  <Plus size={17} />
+                  {t('ledgerOpenYear')}
+                </Button>
+              )}
+            </div>
+            {years.length ? (
+              <div
+                className="table-scroll"
+                tabIndex={0}
+                role="region"
+                aria-label={t('ledgerFiscalYears')}
+              >
+                <table>
+                  <thead>
+                    <tr>
+                      <th>{t('ledgerFiscalYear')}</th>
+                      <th>{t('status')}</th>
+                      <th>{t('ledgerBalances')}</th>
+                      {canClose && <th>{t('actions')}</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {years.map((year) => (
+                      <tr key={year.id}>
+                        <td>
+                          <strong>{year.year}</strong>
+                        </td>
+                        <td>
+                          <span
+                            className={`badge badge-${year.status === 'open' ? 'active' : 'inactive'}`}
                           >
-                            <Lock size={15} />
-                            {t('ledgerCloseYear')}
-                          </Button>
+                            <span />
+                            {t(year.status === 'open' ? 'ledgerYearOpen' : 'ledgerYearClosed')}
+                          </span>
+                          {year.openingMismatch && (
+                            <small className="ledger-warning">
+                              <TriangleAlert size={13} /> {t('ledgerOpeningMismatch')}
+                            </small>
+                          )}
+                        </td>
+                        <td>
+                          <ul className="ledger-balance-list">
+                            {year.balances.map((b) => (
+                              <li key={b.accountId}>
+                                <span>{b.name}</span>
+                                <span className="finance-money">
+                                  {formatMoney(b.openingCents, i18n.language)} →{' '}
+                                  <strong>{formatMoney(b.closingCents, i18n.language)}</strong>
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </td>
+                        {canClose && (
+                          <td>
+                            {year.status === 'open' && (
+                              <Button
+                                variant="secondary"
+                                onClick={() => setEditor({ type: 'close', year })}
+                                aria-label={`${t('ledgerCloseYear')} ${year.year}`}
+                              >
+                                <Lock size={15} />
+                                {t('ledgerCloseYear')}
+                              </Button>
+                            )}
+                          </td>
                         )}
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <Empty description={t('ledgerNoYear')} />
-        )}
-      </section>
-      <section aria-labelledby="ledger-accounts-heading">
-        <div className="ledger-section-heading">
-          <div>
-            <h2 id="ledger-accounts-heading">{t('ledgerAccounts')}</h2>
-            <p>{t('ledgerAccountsHelp')}</p>
-          </div>
-          {canWrite && (
-            <Button variant="secondary" onClick={() => setEditor({ type: 'account' })}>
-              <Plus size={17} />
-              {t('ledgerAddAccount')}
-            </Button>
-          )}
-        </div>
-        {accounts.length ? (
-          <div className="table-scroll" tabIndex={0} role="region" aria-label={t('ledgerAccounts')}>
-            <table>
-              <thead>
-                <tr>
-                  <th>{t('name')}</th>
-                  <th>{t('ledgerAccountKind')}</th>
-                  <th>{t('ledgerIban')}</th>
-                  <th>{t('status')}</th>
-                  {canWrite && <th>{t('actions')}</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {accounts.map((account) => (
-                  <tr key={account.id}>
-                    <td>
-                      <strong>{account.name}</strong>
-                    </td>
-                    <td>{t(account.kind === 'cash' ? 'ledgerCash' : 'ledgerBank')}</td>
-                    <td className="ledger-iban">{account.iban || '—'}</td>
-                    <td>
-                      <span className={`badge badge-${account.active ? 'active' : 'inactive'}`}>
-                        <span />
-                        {t(account.active ? 'active' : 'inactive')}
-                      </span>
-                    </td>
-                    {canWrite && (
-                      <td>
-                        <Button
-                          variant="ghost"
-                          aria-label={`${t('ledgerEditAccount')}: ${account.name}`}
-                          onClick={() => setEditor({ type: 'account', account })}
-                        >
-                          <Pencil size={17} />
-                        </Button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <Empty description={t('ledgerNoAccounts')} />
-        )}
-      </section>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <Empty description={t('ledgerNoYear')} />
+            )}
+          </section>
+          <section aria-labelledby="ledger-accounts-heading">
+            <div className="ledger-section-heading">
+              <div>
+                <h2 id="ledger-accounts-heading">{t('ledgerAccounts')}</h2>
+                <p>{t('ledgerAccountsHelp')}</p>
+              </div>
+              {canWrite && (
+                <Button variant="secondary" onClick={() => setEditor({ type: 'account' })}>
+                  <Plus size={17} />
+                  {t('ledgerAddAccount')}
+                </Button>
+              )}
+            </div>
+            {accounts.length ? (
+              <div
+                className="table-scroll"
+                tabIndex={0}
+                role="region"
+                aria-label={t('ledgerAccounts')}
+              >
+                <table>
+                  <thead>
+                    <tr>
+                      <th>{t('name')}</th>
+                      <th>{t('ledgerAccountKind')}</th>
+                      <th>{t('ledgerIban')}</th>
+                      <th>{t('status')}</th>
+                      {canWrite && <th>{t('actions')}</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {accounts.map((account) => (
+                      <tr key={account.id}>
+                        <td>
+                          <strong>{account.name}</strong>
+                        </td>
+                        <td>{t(account.kind === 'cash' ? 'ledgerCash' : 'ledgerBank')}</td>
+                        <td className="ledger-iban">{account.iban || '—'}</td>
+                        <td>
+                          <span className={`badge badge-${account.active ? 'active' : 'inactive'}`}>
+                            <span />
+                            {t(account.active ? 'active' : 'inactive')}
+                          </span>
+                        </td>
+                        {canWrite && (
+                          <td>
+                            <Button
+                              variant="ghost"
+                              aria-label={`${t('ledgerEditAccount')}: ${account.name}`}
+                              onClick={() => setEditor({ type: 'account', account })}
+                            >
+                              <Pencil size={17} />
+                            </Button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <Empty description={t('ledgerNoAccounts')} />
+            )}
+          </section>
+        </>
+      )}
       <section aria-labelledby="ledger-categories-heading">
         <div className="ledger-section-heading">
           <div>
@@ -861,7 +945,9 @@ function LedgerSetup() {
                     setPending(true);
                     setError('');
                     try {
-                      await write(`/finance/fiscal-years/${editor.year.year}/close`, {});
+                      await write(`/finance/fiscal-years/${editor.year.year}/close`, {
+                        confirm: true,
+                      });
                       done('ledgerSavedClose');
                     } catch (error) {
                       setError(errorMessage(error));
@@ -897,6 +983,8 @@ function OpenYearForm({
   const latest = years[0],
     previousClosed = latest?.status === 'closed';
   const [year, setYear] = useState(String(latest ? latest.year + 1 : new Date().getFullYear())),
+    [startsOn, setStartsOn] = useState(''),
+    [endsOn, setEndsOn] = useState(''),
     [manual, setManual] = useState(!previousClosed),
     [amounts, setAmounts] = useState<Record<string, string>>(() =>
       Object.fromEntries(
@@ -926,6 +1014,8 @@ function OpenYearForm({
       setPending(true);
       await write('/finance/fiscal-years', {
         year: parsedYear,
+        startsOn: startsOn || `${parsedYear}-01-01`,
+        endsOn: endsOn || `${parsedYear}-12-31`,
         ...(manual ? { openingBalances } : {}),
       });
       onDone();
@@ -949,6 +1039,22 @@ function OpenYearForm({
             required
             value={year}
             onChange={(event) => setYear(event.target.value)}
+          />
+        </Field>
+      </div>
+      <div className="form-grid">
+        <Field label={t('s22StartsOn')}>
+          <input
+            type="date"
+            value={startsOn || `${year}-01-01`}
+            onChange={(e) => setStartsOn(e.target.value)}
+          />
+        </Field>
+        <Field label={t('s22EndsOn')}>
+          <input
+            type="date"
+            value={endsOn || `${year}-12-31`}
+            onChange={(e) => setEndsOn(e.target.value)}
           />
         </Field>
       </div>
@@ -1150,7 +1256,7 @@ function Reports() {
                 {report.data.categories
                   .filter((c) => c.totalCents !== '0')
                   .map((c) => (
-                    <li key={c.categoryId}>
+                    <li key={`${c.categoryId}:${c.name}`}>
                       <span>{c.name}</span>
                       <Amount cents={c.totalCents} direction={c.direction} />
                     </li>
@@ -1220,6 +1326,8 @@ function Reports() {
           )}
         </>
       )}
+      <EtsReports year={selectedYear} />
+      <PaymentBackfill />
       <section aria-labelledby="ledger-templates-heading" className="ledger-templates">
         <div className="ledger-section-heading">
           <div>

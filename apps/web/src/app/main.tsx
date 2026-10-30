@@ -20,6 +20,10 @@ import { UsersPage } from '../features/users';
 import { Profile } from '../features/profile';
 import { Audit } from '../features/audit';
 import { Finance } from '../features/finance';
+import { Events, EventDetails, EventCategories, EventAttendanceIndex } from '../features/events';
+import { OfflineAttendanceHub, AttendanceSyncManager } from '../features/events/offline-attendance';
+import { purgeAttendance, attendanceOwner } from '../lib/attendance-offline';
+import { Link } from 'react-router';
 import { Documents } from '../features/documents';
 import { Empty, ErrorState, Loading } from '../components/ui';
 import { shellDatabase } from '../lib/offline';
@@ -39,9 +43,22 @@ function App() {
     [expired, setExpired] = useState(false);
   const { t } = useTranslation(),
     location = useLocation();
+  const offlineRoute = location.pathname === '/offline-attendance';
   const query = useQuery({
     queryKey: ['me', epoch, org],
-    queryFn: () => api<Me>('/me'),
+    enabled: !offlineRoute,
+    queryFn: async () => {
+      const owner = !org ? await attendanceOwner().catch(() => undefined) : undefined;
+      if (owner) {
+        try {
+          return await api<Me>('/me', { headers: { 'X-Organization-Id': owner.organizationId } });
+        } catch (error) {
+          if (!(error instanceof ApiError && error.status === 403)) throw error;
+          await purgeAttendance();
+        }
+      }
+      return api<Me>('/me');
+    },
     retry: false,
   });
   useEffect(() => {
@@ -49,7 +66,8 @@ function App() {
     const channel =
       typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('bnature-session');
     if (channel)
-      channel.onmessage = () => {
+      channel.onmessage = (event) => {
+        if (event.data === 'logout') void purgeAttendance();
         queryClient.clear();
         setOrganization(undefined);
         setOrg(undefined);
@@ -76,21 +94,34 @@ function App() {
     queryClient.clear();
     setEpoch((value) => value + 1);
   };
+  if (offlineRoute) return <OfflineAttendanceHub />;
   if (expired || (query.isError && query.error instanceof ApiError && query.error.status === 401))
     return <Login onSuccess={refresh} />;
   if (query.isPending) return <Loading />;
-  if (query.isError) return <ErrorState error={query.error} retry={() => void query.refetch()} />;
+  if (query.isError)
+    return (
+      <>
+        <ErrorState error={query.error} retry={() => void query.refetch()} />
+        <div className="offline-attendance-page">
+          <Link className="button button-secondary" to="/offline-attendance">
+            {t('eventOpenOffline')}
+          </Link>
+        </div>
+      </>
+    );
   return (
     <SessionContext.Provider
       value={{
         me: query.data,
         switchOrganization: (id) => {
+          void purgeAttendance();
           queryClient.clear();
           setOrganization(id);
           setOrg(id);
         },
       }}
     >
+      <AttendanceSyncManager me={query.data} />
       <Routes>
         <Route element={<Shell onLogout={refresh} />}>
           <Route index element={<Dashboard />} />
@@ -123,6 +154,38 @@ function App() {
             element={
               <Guard permission="documents:read">
                 <Documents />
+              </Guard>
+            }
+          />
+          <Route
+            path="events"
+            element={
+              <Guard permission="events:read">
+                <Events />
+              </Guard>
+            }
+          />
+          <Route
+            path="events/categories"
+            element={
+              <Guard permission="events:read">
+                <EventCategories />
+              </Guard>
+            }
+          />
+          <Route
+            path="events/attendance"
+            element={
+              <Guard permission="events:write">
+                <EventAttendanceIndex />
+              </Guard>
+            }
+          />
+          <Route
+            path="events/:id"
+            element={
+              <Guard permission="events:read">
+                <EventDetails />
               </Guard>
             }
           />

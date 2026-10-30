@@ -1,4 +1,75 @@
 export default {
+  s22YearOverlap: 'Die Datumsgrenzen überschneiden sich mit einem bestehenden Geschäftsjahr.',
+  s22MappingExists:
+    'Für dieses Gültigkeitsdatum besteht bereits eine Zuordnung. Bitte ein anderes Datum wählen.',
+  s22PositionInvalid: 'Die ETS-Position passt nicht zur Kategorie oder Buchungsrichtung.',
+  s22ExportTooLarge: 'Der Export ist zu groß. Bitte den Zeitraum einschränken.',
+  s22BookingRequired: 'Bitte ein Buchungskonto und eine Kategorie für Mitgliedsbeiträge auswählen.',
+
+  s22ReverseTransfer: 'Übertrag stornieren',
+
+  s22EtsPdf: 'ETS-PDF herunterladen',
+  s22EtsCsv: 'ETS-Tabelle herunterladen',
+
+  s22Yes: 'Ja',
+  s22No: 'Nein',
+  s22History: 'Buchungshistorie',
+  s22RecordedAt: 'Erfasst am',
+
+  s22Overview: 'Übersicht',
+  s22CurrentYear: 'Aktuelles Geschäftsjahr',
+  s22Total: 'Gesamtbestand',
+  s22Trend: 'Einnahmen und Ausgaben im Zeitverlauf',
+  s22Month: 'Monat',
+  s22Recent: 'Letzte Buchungen',
+  s22Initialize: 'Startkategorien und Zahlungskonten einrichten',
+  s22InitializeHelp:
+    'Ergänzt fehlende Startkategorien und Konten. Bei genau einem aktiven Konto je Kontoart werden neue Beitragszahlungen automatisch dort verbucht. Vorhandene Daten bleiben erhalten.',
+  s22Transfers: 'Überträge',
+  s22TransferHelp:
+    'Interne Überträge verschieben Geld zwischen Vereinskonten. Sie verändern weder den Gesamtbestand noch Einnahmen oder Ausgaben.',
+  s22AddTransfer: 'Übertrag erfassen',
+  s22FromAccount: 'Von Konto',
+  s22ToAccount: 'Auf Konto',
+  s22Mappings: 'ETS-Zuordnungen',
+  s22MappingHelp:
+    'Zuordnungen gelten für neue Buchungen ab dem gewählten Datum. Bereits gebuchte Zuordnungen bleiben erhalten. Unklare Startkategorien müssen fachlich zugeordnet werden.',
+  s22EffectiveFrom: 'Gültig ab',
+  s22Position: 'ETS-Rechnungslegungsposition',
+  s22Backfill: 'Historische Zahlungen nachbuchen',
+  s22BackfillHelp:
+    'Kontrollierte Nachbuchung von bis zu 100 unverbuchten Zahlungen je Durchlauf. Konto, Zahlungsart und Beitragskategorie prüfen. Bereits verbuchte oder stornierte Zahlungen werden übersprungen.',
+  s22BackfillResult: '{{booked}} nachgebucht · {{remaining}} verbleibend',
+  s22Ets: 'ETS-Jahresabschluss vorbereiten',
+  s22Model: 'Berichtsmodell',
+  s22LegalPersonality: 'Rechtspersönlichkeit',
+  s22Unknown: 'Noch zu prüfen',
+  s22PriorRevenue: 'Vorjahreseinnahmen laut geprüften Unterlagen (EUR)',
+  s22PriorRevenueHelp:
+    'Leer: vorhandene Vorjahresbuchungen verwenden. Referenzwerte und ETS-Anwendbarkeit gesondert prüfen.',
+  s22Eligibility_within_limit: 'Innerhalb der erfassten Schwelle; fachliche Prüfung erforderlich.',
+  s22Eligibility_outside_limit:
+    'Schwelle oder zeitliche Anwendbarkeit nicht erfüllt. Berichtsmodell prüfen.',
+  s22Eligibility_review: 'Vorjahreswerte oder Rechtspersönlichkeit fehlen. Berichtsmodell prüfen.',
+  s22Check_balanced: 'Bestände mit Geldbewegungen abgestimmt',
+  s22Check_mapped: 'Alle Buchungen zugeordnet',
+  s22Check_payments_booked: 'Alle Zahlungen verbucht',
+  s22Check_nonnegative_cash: 'Kassenbestände nicht negativ',
+  s22Check_model_date: 'Berichtsmodell zeitlich anwendbar',
+  s22Check_prior_year_available: 'Vorjahreswerte verfügbar',
+  s22MissingMappings: '{{count}} Buchungen ohne gültige ETS-Zuordnung.',
+  s22PriorYear: 'Vorjahr · Ergebnis',
+  s22StartsOn: 'Beginn des Geschäftsjahres',
+  s22EndsOn: 'Ende des Geschäftsjahres',
+  s22FromDate: 'Datum von',
+  s22ToDate: 'Datum bis',
+  s22CashbookPdf: 'Kassabuch als PDF',
+  s22Project: 'Projekt',
+  ledger_transfer: 'Interner Übertrag',
+  category_ets_mapping: 'ETS-Zuordnung',
+  initialize: 'Eingerichtet',
+  backfill: 'Nachgebucht',
+
   finance_account: 'Konto',
   cashbook_category: 'Kassabuchkategorie',
   fiscal_year: 'Geschäftsjahr',
@@ -31,11 +102,11 @@ export default {
 
   ledgerCashbook: 'Kassabuch',
   ledgerSetup: 'Konten & Jahre',
-  ledgerReports: 'Berichte',
+  ledgerReports: 'Jahresabschluss',
   ledgerFiscalYear: 'Geschäftsjahr',
   ledgerFiscalYears: 'Geschäftsjahre',
   ledgerFiscalYearsHelp:
-    'Geschäftsjahre entsprechen dem Kalenderjahr. Ein geschlossenes Jahr nimmt keine Buchungen mehr an; Korrekturen erfolgen im offenen Folgejahr.',
+    'Geschäftsjahre haben frei definierbare Datumsgrenzen. Ein geschlossenes Jahr nimmt keine Buchungen mehr an; Korrekturen erfolgen im offenen Folgejahr.',
   ledgerYearOpen: 'Offen',
   ledgerYearClosed: 'Geschlossen',
   ledgerOpenYear: 'Geschäftsjahr eröffnen',
@@ -118,8 +189,8 @@ export default {
   ledgerSavedTemplate: 'Berichtsvorlage gespeichert.',
   ledgerBookingLegend: 'Kassabuch',
   ledgerBookingHelp:
-    'Optional direkt als Einnahme verbuchen. Das Zahlungsdatum muss in einem offenen Geschäftsjahr liegen.',
-  ledgerDoNotBook: 'Nicht verbuchen',
+    'Eingerichtete Zahlungskonten verbuchen automatisch. Eine ausdrückliche Auswahl hat Vorrang; ohne passenden Standard ist sie nach Einrichtung erforderlich. Das Zahlungsdatum muss in einem offenen Geschäftsjahr liegen.',
+  ledgerDoNotBook: 'Automatisch (falls eingerichtet)',
   ledgerBookingSetup:
     'Für die Verbuchung werden ein aktives Konto und eine Kategorie „Mitgliedsbeiträge“ benötigt.',
   ledgerBookPayment: 'Im Kassabuch verbuchen',

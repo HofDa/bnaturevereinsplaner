@@ -20,11 +20,11 @@ PostgreSQL 17, Drizzle ORM, UUID-Primärschlüssel und Zeitpunkte als `timestamp
 | finance_operations                          | Idempotenzschlüssel je Organisation mit Operation, Request-Hash und ursprünglicher Antwort                                                                                                        |
 | membership_fee_reminders                    | Unveränderliche, nummerierte Erinnerungsentwürfe mit offenem Betrag zum Vorbereitungszeitpunkt                                                                                                    |
 | finance_accounts / cashbook_categories      | Kassen/Bankkonten und Einnahmen-/Ausgabenkategorien mit Klassifizierung Beitrag/Spende/Sonstige; versioniert (Migration `0002`)                                                                   |
-| fiscal_years / fiscal_year_opening_balances | Kalenderjahr je Organisation eindeutig, nur `open → closed`; unveränderliche Anfangsbestände je Konto                                                                                             |
+| fiscal_years / fiscal_year_opening_balances | Jahreskennung je Organisation eindeutig, inklusive Datumsgrenzen mit Überschneidungsschutz, nur `open → closed`; unveränderliche Anfangsbestände je Konto                                         |
 | cashbook_entries                            | Unveränderliche, je Jahr nummerierte Buchungen; Storno als negatives Gegenstück mit Verweis; höchstens eine Buchung je Zahlung                                                                    |
 | payment_reversals                           | Storno einer Zahlung; Zuordnungen stornierter Zahlungen zählen nicht mehr                                                                                                                         |
 | finance_report_templates                    | Vereinseigene Berichtsvorlagen als fortlaufende unveränderliche Versionen                                                                                                                         |
-| documents                                   | Dokumentmetadaten mit Kategorie, Archivstatus, optionalem Kassabuch-/Mitgliedsbezug (zusammengesetzte FKs) und Version; nicht löschbar (Migration `0003`)                                         |
+| documents                                   | Dokumentmetadaten mit Kategorie, Archivstatus, optionalem Kassabuch-/Übertrags-/Mitglieds-/Gruppenbezug (zusammengesetzte FKs) und Version; nicht löschbar (Migration `0003`)                     |
 | document_versions                           | Unveränderliche, fortlaufend nummerierte Dateiversionen mit Dateiname, Typ, Größe, SHA-256 und serverseitigem Speicherschlüssel                                                                   |
 
 Es gibt keine gemeinsam genutzten Personensätze zwischen Organisationen. E-Mail-Adressen von Personen sind fachlich nicht zwingend eindeutig (z. B. Familienadresse). Leere optionale Textfelder werden als leere Zeichenfolge normalisiert; nicht bekannte Datumswerte sind `null`. `fiscal_code` von Personen wird auf 16 alphanumerische Zeichen geprüft, aber nicht auf amtliche Gültigkeit oder Prüfziffer zertifiziert.
@@ -49,3 +49,17 @@ Mitgliedsanlage/-änderung, Gruppenbelegung, Vorstandsänderungen, Nutzerbereits
 ## Pflege
 
 Dauerhaftes PostgreSQL-Volume für Produktion/Entwicklung; separate kurzlebige Testdatenbank. Aufbewahrungsfristen, Lösch-/Anonymisierungsprozesse und Audit-Retention sind vor einem produktiven Datenimport organisatorisch festzulegen. Es gibt absichtlich keinen unkontrollierten Hard-Delete-Endpunkt für Mitglieder. Benutzer-, Person- und Dokumentdaten werden später unabhängig behandelt.
+
+## Sprint 2.2 – Erweiterungsmigrationen 0004–0007
+
+`ledger_transfers` speichert beide Konten eines internen Übertrags atomar, mit eigenem Stornoverweis und Datenbankprüfungen für Organisation, offene Jahre und exakte Gegenbewegung. `category_ets_mappings` enthält unveränderliche datierte Zuordnungen mit Definitionsversion. Buchungen speichern Kategoriebezeichnung, Projekt, ETS-Position und Definitionsversion. `payment_booking_defaults` konfiguriert automatische Buchungen je Zahlungsart. Alle Salden bleiben aus Eröffnungen, Buchungen und Überträgen ableitbar.
+
+Bestehende Kalenderjahre erhalten Januar-/Dezembergrenzen ohne Änderung von Abschlussstatus oder Geldbeträgen. Die Migration bewahrt Wiederholungsantworten. Direkte Änderungen an Buchungen, Überträgen, Klassifizierungen, Kontoarten und geschlossenen Jahren sind gesperrt. Geschäftsjahres- und Kategorie-Upgrades werden mit einer realen bestehenden Datenbank getestet.
+
+## Sprint 2.3 – Veranstaltungen
+
+Migrationen `0008`–`0010` sind additiv. `0008_curious_smasher.sql` ergänzt `event_categories`, `event_series`, `event_occurrences`, `event_occurrence_exceptions`, `event_registrations`, `event_attendances`, `attendance_operations`, `attendance_history` und `event_operations` samt Status-Enums, Indizes, mandantengebundenen Fremdschlüsseln und Invariantentriggern. `0009_watery_vision.sql` ergänzt den privaten Dokumentbezug `event_occurrence_id`. `0010_smooth_nick_fury.sql` speichert Absagegründe für Instanz und Serie.
+
+Anmeldungen sind je Organisation/Instanz/Person eindeutig. Abmeldung ändert den Status und bewahrt dieselbe Identität für eine erneute Anmeldung. Anwesenheit besitzt vier Statuswerte, monotone Versionen, erfassende Benutzer und eine unveränderliche Historie. Ein verzögerter Constraint verlangt für jede Anwesenheitsänderung die zugehörige Operation und Historie. UUID-Operationen speichern die autorisierte Identität, Request-Hash und Ergebnis. SQL-Regeln verhindern Kapazitätsüberschreitungen und direkte Löschung zentraler Historie.
+
+Bestehende Personen dienen als Gäste ohne Mitgliedschaft. Projektbezüge bleiben optionale Textreferenzen, da kein Projektstammmodul existiert. Finanzschema und Zahlungsabläufe werden nicht mit Anmeldungen gekoppelt. Vor Produktivmigration wie üblich Datenbank/Dateien sichern und Migrationen kontrolliert mit `bun run db:migrate` anwenden; kein automatisches Schema-Push.

@@ -59,6 +59,7 @@ export const cashbookCategories = pgTable(
       .notNull()
       .references(() => organizations.id),
     name: text('name').notNull(),
+    starterKey: text('starter_key'),
     direction: ledgerDirection('direction').notNull(),
     classification: ledgerClassification('classification').notNull().default('other'),
     active: boolean('active').notNull().default(true),
@@ -69,7 +70,8 @@ export const cashbookCategories = pgTable(
   (t) => [
     unique('cashbook_categories_org_id_unique').on(t.organizationId, t.id),
     unique('cashbook_categories_org_id_direction_unique').on(t.organizationId, t.id, t.direction),
-    unique('cashbook_categories_org_name_unique').on(t.organizationId, t.name),
+    unique('cashbook_categories_org_name_unique').on(t.organizationId, t.name, t.direction),
+    unique('cashbook_categories_starter_key_unique').on(t.organizationId, t.starterKey),
     check('cashbook_category_name_valid', sql`length(trim(${t.name})) between 1 and 120`),
     check(
       'cashbook_category_classification_valid',
@@ -86,6 +88,8 @@ export const fiscalYears = pgTable(
       .notNull()
       .references(() => organizations.id),
     year: integer('year').notNull(),
+    startsOn: date('starts_on').notNull(),
+    endsOn: date('ends_on').notNull(),
     status: fiscalYearStatus('status').notNull().default('open'),
     openedBy: uuid('opened_by')
       .notNull()
@@ -96,6 +100,7 @@ export const fiscalYears = pgTable(
   },
   (t) => [
     unique('fiscal_years_org_year_unique').on(t.organizationId, t.year),
+    check('fiscal_year_dates_valid', sql`${t.startsOn} <= ${t.endsOn}`),
     check('fiscal_year_valid', sql`${t.year} between 1900 and 2200`),
     check(
       'fiscal_year_closing_valid',
@@ -137,6 +142,10 @@ export const cashbookEntries = pgTable(
     accountId: uuid('account_id').notNull(),
     categoryId: uuid('category_id').notNull(),
     direction: ledgerDirection('direction').notNull(),
+    categoryName: text('category_name').notNull().default(''),
+    project: text('project').notNull().default(''),
+    etsPosition: text('ets_position'),
+    etsDefinitionVersion: text('ets_definition_version'),
     // Signed: original postings are positive, reversals negate the original amount.
     amountCents: integer('amount_cents').notNull(),
     bookingDate: date('booking_date').notNull(),
@@ -187,10 +196,6 @@ export const cashbookEntries = pgTable(
       .where(sql`${t.reversesEntryId} is not null`),
     index('cashbook_entries_org_date_idx').on(t.organizationId, t.fiscalYear, t.bookingDate),
     check('cashbook_entry_number_valid', sql`${t.entryNumber}>0`),
-    check(
-      'cashbook_entry_year_valid',
-      sql`extract(year from ${t.bookingDate})::integer=${t.fiscalYear}`,
-    ),
     check(
       'cashbook_entry_amount_valid',
       sql`(${t.reversesEntryId} is null and ${t.amountCents} between 1 and 1000000000 and ${t.reversalReason}='') or (${t.reversesEntryId} is not null and ${t.amountCents} between -1000000000 and -1 and length(trim(${t.reversalReason}))>0)`,
@@ -263,6 +268,106 @@ export const financeReportTemplates = pgTable(
     check(
       'report_template_threshold_valid',
       sql`${t.revenueThresholdCents} is null or ${t.revenueThresholdCents} between 0 and 1000000000`,
+    ),
+  ],
+);
+
+// An internal transfer is one immutable monetary event, never operating income/expense.
+export const ledgerTransfers = pgTable(
+  'ledger_transfers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    fiscalYear: integer('fiscal_year').notNull(),
+    fromAccountId: uuid('from_account_id').notNull(),
+    toAccountId: uuid('to_account_id').notNull(),
+    amountCents: integer('amount_cents').notNull(),
+    bookingDate: date('booking_date').notNull(),
+    description: text('description').notNull(),
+    reversesTransferId: uuid('reverses_transfer_id'),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => user.id),
+    createdAt: created(),
+  },
+  (t) => [
+    unique('ledger_transfers_org_id_unique').on(t.organizationId, t.id),
+    unique('ledger_transfers_reversal_unique').on(t.organizationId, t.reversesTransferId),
+    foreignKey({
+      columns: [t.organizationId, t.fiscalYear],
+      foreignColumns: [fiscalYears.organizationId, fiscalYears.year],
+    }),
+    foreignKey({
+      columns: [t.organizationId, t.fromAccountId],
+      foreignColumns: [financeAccounts.organizationId, financeAccounts.id],
+    }),
+    foreignKey({
+      columns: [t.organizationId, t.toAccountId],
+      foreignColumns: [financeAccounts.organizationId, financeAccounts.id],
+    }),
+    foreignKey({
+      columns: [t.organizationId, t.reversesTransferId],
+      foreignColumns: [t.organizationId, t.id],
+    }),
+    index('ledger_transfers_org_year_idx').on(t.organizationId, t.fiscalYear),
+    check('ledger_transfer_accounts_different', sql`${t.fromAccountId}<>${t.toAccountId}`),
+    check('ledger_transfer_amount_valid', sql`${t.amountCents} between 1 and 1000000000`),
+    check(
+      'ledger_transfer_description_valid',
+      sql`length(trim(${t.description})) between 1 and 300`,
+    ),
+  ],
+);
+export const categoryEtsMappings = pgTable(
+  'category_ets_mappings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    categoryId: uuid('category_id').notNull(),
+    effectiveFrom: date('effective_from').notNull(),
+    position: text('position').notNull(),
+    definitionVersion: text('definition_version').notNull(),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => user.id),
+    createdAt: created(),
+  },
+  (t) => [
+    unique('category_ets_mappings_date_unique').on(t.organizationId, t.categoryId, t.effectiveFrom),
+    foreignKey({
+      columns: [t.organizationId, t.categoryId],
+      foreignColumns: [cashbookCategories.organizationId, cashbookCategories.id],
+    }),
+  ],
+);
+
+export const paymentBookingDefaults = pgTable(
+  'payment_booking_defaults',
+  {
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    method: text('method').notNull(),
+    accountId: uuid('account_id').notNull(),
+    categoryId: uuid('category_id').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.method] }),
+    foreignKey({
+      columns: [t.organizationId, t.accountId],
+      foreignColumns: [financeAccounts.organizationId, financeAccounts.id],
+    }),
+    foreignKey({
+      columns: [t.organizationId, t.categoryId],
+      foreignColumns: [cashbookCategories.organizationId, cashbookCategories.id],
+    }),
+    check(
+      'payment_booking_default_method_valid',
+      sql`${t.method} in ('cash','bank_transfer','other')`,
     ),
   ],
 );

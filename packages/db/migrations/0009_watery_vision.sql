@@ -1,0 +1,3 @@
+ALTER TABLE "documents" ADD COLUMN "event_occurrence_id" uuid;--> statement-breakpoint
+ALTER TABLE "documents" ADD CONSTRAINT "documents_organization_id_event_occurrence_id_event_occurrences_organization_id_id_fk" FOREIGN KEY ("organization_id","event_occurrence_id") REFERENCES "public"."event_occurrences"("organization_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "documents_event_idx" ON "documents" USING btree ("organization_id","event_occurrence_id");

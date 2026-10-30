@@ -472,6 +472,7 @@ strong {
 }
 .language-switch:hover {
   background: var(--accent-soft);
+  color: var(--text);
 }
 .main-content {
   padding: 35px 38px 38px;
@@ -2438,4 +2439,185 @@ dd {
 }
 .document-actions {
   margin-top: 14px;
+}
+/* Events and explicitly prepared offline attendance share the existing design tokens. */
+.event-navigation {
+  display: flex;
+  gap: 8px 18px;
+  flex-wrap: wrap;
+  margin: 0 0 20px;
+}
+.event-navigation a {
+  color: var(--accent);
+  font-size: 13px;
+  padding: 8px 0;
+}
+.event-panel {
+  min-width: 0;
+  overflow: hidden;
+}
+.event-filters {
+  align-items: end;
+  flex-wrap: wrap;
+}
+.event-calendar {
+  padding: 18px;
+  min-width: 0;
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: var(--surface);
+  --fc-neutral-bg-color: var(--surface-subtle);
+  --fc-button-text-color: var(--surface);
+  --fc-button-hover-bg-color: var(--accent);
+  --fc-button-active-bg-color: var(--accent);
+  --fc-button-active-border-color: var(--accent);
+  --fc-event-text-color: var(--surface);
+  --fc-today-bg-color: var(--accent-soft);
+  --fc-list-event-hover-bg-color: var(--surface-subtle);
+  --fc-button-bg-color: var(--accent);
+  --fc-button-border-color: var(--accent);
+  --fc-event-bg-color: var(--accent);
+  --fc-event-border-color: var(--accent);
+}
+.event-calendar .fc-toolbar {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.event-calendar .fc-toolbar-title {
+  font-size: 1.2rem;
+}
+.event-calendar .fc-button {
+  min-height: 44px;
+}
+.event-calendar .fc-col-header-cell-cushion,
+.event-calendar .fc-daygrid-day-number {
+  color: var(--text);
+}
+.event-calendar .fc-list {
+  border-radius: 8px;
+  overflow: hidden;
+}
+.event-calendar-cancelled {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+.event-calendar-draft {
+  opacity: 0.75;
+}
+.event-section,
+.event-description,
+.event-empty {
+  padding: 22px;
+}
+.event-preserve-lines {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.event-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin: 22px 0;
+}
+.event-facts div {
+  min-width: 0;
+}
+.event-facts dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+.event-facts dd {
+  margin: 5px 0;
+  overflow-wrap: anywhere;
+}
+.event-checkin-list {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0;
+}
+.event-checkin-list > li {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.event-checkin-list > li > div:first-child {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.event-checkin-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.event-checkin-actions .button {
+  min-height: 44px;
+}
+.event-conflict {
+  padding: 20px;
+  margin: 18px 0;
+  border-left: 4px solid var(--danger);
+}
+.offline-attendance-page {
+  max-width: 1180px;
+  padding: 28px;
+  margin: 0 auto;
+}
+.offline-attendance-page .toolbar {
+  flex-wrap: wrap;
+  align-items: end;
+}
+@media (max-width: 700px) {
+  .event-calendar {
+    padding: 12px 6px;
+  }
+  .event-calendar .fc-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .event-calendar .fc-button-group {
+    display: flex;
+  }
+  .event-calendar .fc-button-group .fc-button {
+    flex: 1;
+  }
+  .event-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .event-section,
+  .event-description {
+    padding: 16px;
+  }
+  .event-checkin-actions {
+    width: 100%;
+  }
+  .event-checkin-actions .button {
+    flex: 1 1 42%;
+  }
+  .offline-attendance-page {
+    padding: 18px;
+  }
+  .event-navigation {
+    gap: 4px 12px;
+  }
+  .bottom-nav {
+    overflow-x: auto;
+  }
+  .bottom-nav .nav-link {
+    min-width: 56px;
+  }
+}
+.event-calendar .fc-day-other .fc-daygrid-day-top {
+  opacity: 1;
+}
+.event-calendar .fc-day-other .fc-daygrid-day-number {
+  color: var(--muted);
+}
+
+.event-calendar .fc-day-today .fc-daygrid-day-number {
+  color: var(--text);
 }

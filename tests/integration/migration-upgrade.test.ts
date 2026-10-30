@@ -50,6 +50,50 @@ it('upgrades a real Phase-1 database without losing existing persons or membersh
       membershipNumber: 'OLD-001',
       joinedAt: '2020-01-01',
     });
+    // Upgrade through the previous Sprint-2.2 schema and preserve a closed ledger too.
+    const priorJournal = JSON.parse(
+      await readFile('packages/db/migrations/meta/_journal.json', 'utf8'),
+    );
+    priorJournal.entries = priorJournal.entries.slice(0, 4);
+    for (const migration of priorJournal.entries)
+      await writeFile(
+        join(folder, `${migration.tag}.sql`),
+        await readFile(`packages/db/migrations/${migration.tag}.sql`),
+      );
+    await writeFile(join(folder, 'meta/_journal.json'), JSON.stringify(priorJournal));
+    await migrate(upgraded.db, { migrationsFolder: folder });
+    const actorId = crypto.randomUUID(),
+      accountId = crypto.randomUUID(),
+      categoryId = crypto.randomUUID(),
+      entryId = crypto.randomUUID(),
+      yearId = crypto.randomUUID();
+    await upgraded.db
+      .insert(s.user)
+      .values({ id: actorId, name: 'Existing treasurer', email: 'upgrade@example.test' });
+    await upgraded.db.execute(
+      sql`insert into finance_accounts(id,organization_id,name,kind) values(${accountId},${orgId},'Existing bank','bank')`,
+    );
+    await upgraded.db.execute(
+      sql`insert into cashbook_categories(id,organization_id,name,direction) values(${categoryId},${orgId},'Original category','income')`,
+    );
+    await upgraded.db.execute(
+      sql`insert into fiscal_years(id,organization_id,year,opened_by) values(${yearId},${orgId},2025,${actorId})`,
+    );
+    await upgraded.db.execute(
+      sql`insert into cashbook_entries(id,organization_id,fiscal_year,entry_number,account_id,category_id,direction,amount_cents,booking_date,document_date,description,created_by) values(${entryId},${orgId},2025,1,${accountId},${categoryId},'income',1234,'2025-03-01','2025-03-01','Historical income',${actorId})`,
+    );
+    await upgraded.db.execute(
+      sql`update fiscal_years set status='closed',closed_by=${actorId},closed_at=now() where id=${yearId}`,
+    );
+    await upgraded.db.execute(
+      sql`insert into finance_operations(organization_id,idempotency_key,operation,request_hash,response,actor_user_id) values(${orgId},${crypto.randomUUID()},'cashbook-entries:create',${'a'.repeat(64)},${JSON.stringify({ id: entryId, categoryName: 'Original category' })}::jsonb,${actorId})`,
+    );
+    await upgraded.db.execute(
+      sql`insert into finance_operations(organization_id,idempotency_key,operation,request_hash,response,actor_user_id) values(${orgId},${crypto.randomUUID()},'fiscal-years:create',${'b'.repeat(64)},${JSON.stringify({ id: yearId, year: 2025, balances: [] })}::jsonb,${actorId})`,
+    );
+    await upgraded.db.execute(
+      sql`update cashbook_categories set name='Renamed later' where id=${categoryId}`,
+    );
     await migrate(upgraded.db, { migrationsFolder: 'packages/db/migrations' });
     const [member] = await upgraded.db
       .select()
@@ -64,7 +108,28 @@ it('upgrades a real Phase-1 database without losing existing persons or membersh
       sql`select tgname from pg_trigger where tgname='payment_balanced_after_insert'`,
     );
     expect(triggers.rowCount).toBe(1);
-    expect(await upgraded.db.select().from(s.cashbookEntries)).toEqual([]);
+    const [historical] = await upgraded.db.select().from(s.cashbookEntries);
+    expect(historical?.id).toBe(entryId);
+    expect(historical?.amountCents).toBe(1234);
+    expect(historical?.categoryName).toBe('Original category');
+    expect(historical?.etsPosition).toBeNull();
+    const [year] = await upgraded.db.select().from(s.fiscalYears);
+    expect(year?.startsOn).toBe('2025-01-01');
+    expect(year?.endsOn).toBe('2025-12-31');
+    expect(year?.status).toBe('closed');
+    const replay = (
+      await upgraded.db.execute<{ response: { startsOn: string; endsOn: string } }>(
+        sql`select response from finance_operations where operation='fiscal-years:create'`,
+      )
+    ).rows[0]!.response;
+    expect(replay.startsOn).toBe('2025-01-01');
+    expect(replay.endsOn).toBe('2025-12-31');
+    await expect(
+      upgraded.db.execute(sql`update cashbook_entries set amount_cents=1 where id=${entryId}`),
+    ).rejects.toThrow();
+    await expect(
+      upgraded.db.execute(sql`update fiscal_years set ends_on='2025-11-30' where id=${yearId}`),
+    ).rejects.toThrow();
     const ledgerTriggers = await upgraded.db.execute(
       sql`select tgname from pg_trigger where tgname in ('cashbook_entry_insert_guard','payment_reversal_balanced_after_insert','payment_reference_guard')`,
     );

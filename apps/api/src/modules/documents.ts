@@ -19,6 +19,7 @@ import { audit } from '../services/audit';
 import type { DocumentStorage } from '../services/storage';
 import { wire } from './responses';
 import { escapeLike } from './members';
+import { eventRow } from './events';
 import { financialOperation } from './finance/operations';
 
 const d = s.documents,
@@ -29,8 +30,18 @@ export function fingerprint(bytes: Buffer) {
   return createHash('sha256').update(bytes).digest('hex');
 }
 // Receipts linked to cashbook entries are financial records: hidden from roles without finance access.
-const financeVisible = (role: Role) =>
-  can(role, 'finance:read') ? undefined : isNull(d.cashbookEntryId);
+const financeVisible = (role: Role, userId = '') =>
+  and(
+    can(role, 'finance:read') ? undefined : and(isNull(d.cashbookEntryId), isNull(d.transferId)),
+    role === 'project_lead'
+      ? sql`exists(select 1 from event_occurrences ev where ev.organization_id="documents"."organization_id" and ev.id="documents"."event_occurrence_id" and (ev.organizer_id=${userId || '00000000-0000-0000-0000-000000000000'} or ev.created_by=${userId || '00000000-0000-0000-0000-000000000000'}))`
+      : ['admin', 'board'].includes(role)
+        ? undefined
+        : or(
+            isNull(d.eventOccurrenceId),
+            sql`exists(select 1 from event_occurrences ev where ev.organization_id="documents"."organization_id" and ev.id="documents"."event_occurrence_id" and ev.visibility<>'internal' and ev.status<>'draft')`,
+          ),
+  );
 // Single-table selects render columns unqualified, so correlated subqueries name the table explicitly.
 const latest = sql<
   string | null
@@ -47,6 +58,19 @@ const documentSelect = {
     string | null
   >`(select ce.fiscal_year || '/' || ce.entry_number from cashbook_entries ce where ce.organization_id="documents"."organization_id" and ce.id="documents"."cashbook_entry_id")`,
   membershipId: d.membershipId,
+  transferId: d.transferId,
+  groupId: d.groupId,
+  eventOccurrenceId: d.eventOccurrenceId,
+  eventTitleI18n: sql<{
+    de: string;
+    it: string;
+  } | null>`(select ev.title_i18n from event_occurrences ev where ev.organization_id="documents"."organization_id" and ev.id="documents"."event_occurrence_id")`,
+  groupName: sql<
+    string | null
+  >`(select g.name from groups g where g.organization_id="documents"."organization_id" and g.id="documents"."group_id")`,
+  transferLabel: sql<
+    string | null
+  >`(select tr.booking_date || ' · ' || tr.description from ledger_transfers tr where tr.organization_id="documents"."organization_id" and tr.id="documents"."transfer_id")`,
   memberName: sql<
     string | null
   >`(select p.first_name || ' ' || p.last_name from memberships m join persons p on p.organization_id=m.organization_id and p.id=m.person_id where m.organization_id="documents"."organization_id" and m.id="documents"."membership_id")`,
@@ -81,11 +105,11 @@ async function present(
     latestVersion: version ? wire(version) : null,
   });
 }
-export async function getDocument(db: Executor, org: string, role: Role, id: string) {
+export async function getDocument(db: Executor, org: string, role: Role, id: string, userId = '') {
   const [row] = await db
     .select(documentSelect)
     .from(d)
-    .where(and(eq(d.organizationId, org), eq(d.id, id), financeVisible(role)));
+    .where(and(eq(d.organizationId, org), eq(d.id, id), financeVisible(role, userId)));
   if (!row) throw new HttpError(404, 'NOT_FOUND', 'Dokument nicht gefunden.');
   return documentDetailSchema.parse({
     ...(await present(db, org, row)),
@@ -97,14 +121,18 @@ export async function listDocuments(
   org: string,
   role: Role,
   q: DocumentListQuery,
+  userId = '',
 ): Promise<Page<DocumentRecord>> {
   const where: SQL | undefined = and(
     eq(d.organizationId, org),
     eq(d.archived, q.archived === 'true'),
-    financeVisible(role),
+    financeVisible(role, userId),
     q.category ? eq(d.category, q.category) : undefined,
     q.cashbookEntryId ? eq(d.cashbookEntryId, q.cashbookEntryId) : undefined,
     q.membershipId ? eq(d.membershipId, q.membershipId) : undefined,
+    q.transferId ? eq(d.transferId, q.transferId) : undefined,
+    q.groupId ? eq(d.groupId, q.groupId) : undefined,
+    q.eventOccurrenceId ? eq(d.eventOccurrenceId, q.eventOccurrenceId) : undefined,
     q.search
       ? or(
           ilike(d.title, `%${escapeLike(q.search)}%`),
@@ -144,8 +172,40 @@ async function assertReferences(
   tx: Transaction,
   access: Access,
   role: Role,
-  refs: { cashbookEntryId?: string | null; membershipId?: string | null },
+  refs: {
+    cashbookEntryId?: string | null;
+    membershipId?: string | null;
+    transferId?: string | null;
+    groupId?: string | null;
+    eventOccurrenceId?: string | null;
+  },
 ) {
+  if (refs.eventOccurrenceId) await eventRow(tx, { ...access, role }, refs.eventOccurrenceId, true);
+  if (role === 'project_lead' && refs.eventOccurrenceId === null)
+    throw new HttpError(403, 'FORBIDDEN', 'Veranstaltungsbezug erforderlich.');
+  if (refs.transferId) {
+    if (!can(role, 'finance:write'))
+      throw new HttpError(403, 'FORBIDDEN', 'Finanzrechte erforderlich.');
+    const [transfer] = await tx
+      .select({ id: s.ledgerTransfers.id })
+      .from(s.ledgerTransfers)
+      .where(
+        and(
+          eq(s.ledgerTransfers.organizationId, access.organizationId),
+          eq(s.ledgerTransfers.id, refs.transferId),
+        ),
+      );
+    if (!transfer) throw new HttpError(404, 'NOT_FOUND', 'Übertrag nicht gefunden.');
+  }
+  if (refs.groupId) {
+    const [group] = await tx
+      .select({ id: s.groups.id })
+      .from(s.groups)
+      .where(
+        and(eq(s.groups.organizationId, access.organizationId), eq(s.groups.id, refs.groupId)),
+      );
+    if (!group) throw new HttpError(404, 'NOT_FOUND', 'Gruppe nicht gefunden.');
+  }
   if (refs.cashbookEntryId) {
     if (!can(role, 'finance:write'))
       throw new HttpError(403, 'FORBIDDEN', 'Belege zu Buchungen erfordern Finanzrechte.');
@@ -231,8 +291,17 @@ export function createDocument(
       access,
       key,
       'documents:create',
-      { ...input, sha256: file.sha256, mediaType: file.mediaType },
-      'documents:write',
+      {
+        ...Object.fromEntries(
+          Object.entries(input).filter(
+            ([key, value]) =>
+              !['groupId', 'transferId', 'eventOccurrenceId'].includes(key) || value !== null,
+          ),
+        ),
+        sha256: file.sha256,
+        mediaType: file.mediaType,
+      },
+      access.role === 'project_lead' ? 'events:write' : 'documents:write',
       async (tx) => {
         const role = await currentRole(tx, access);
         await assertReferences(tx, access, role, input);
@@ -243,7 +312,7 @@ export function createDocument(
           .returning({ id: d.id });
         await audit(tx, access, 'create', 'document', row!.id, Object.keys(metadata));
         await insertVersion(tx, access, row!.id, 1, filename, file, storageKey);
-        return getDocument(tx, access.organizationId, role, row!.id);
+        return getDocument(tx, access.organizationId, role, row!.id, access.userId);
       },
     ),
   );
@@ -264,17 +333,17 @@ export function addDocumentVersion(
       key,
       `documents:version:${documentId}`,
       { filename, sha256: file.sha256, mediaType: file.mediaType },
-      'documents:write',
+      access.role === 'project_lead' ? 'events:write' : 'documents:write',
       async (tx) => {
         const role = await currentRole(tx, access),
-          current = await getDocument(tx, access.organizationId, role, documentId);
+          current = await getDocument(tx, access.organizationId, role, documentId, access.userId);
         if (current.archived)
           throw new HttpError(
             409,
             'DOCUMENT_ARCHIVED',
             'Archivierte Dokumente sind schreibgeschützt.',
           );
-        if (current.cashbookEntryId && !can(role, 'finance:write'))
+        if ((current.cashbookEntryId || current.transferId) && !can(role, 'finance:write'))
           throw new HttpError(403, 'FORBIDDEN', 'Belege zu Buchungen erfordern Finanzrechte.');
         await insertVersion(
           tx,
@@ -290,7 +359,7 @@ export function addDocumentVersion(
           .update(d)
           .set({ version: current.version + 1, updatedAt: new Date() })
           .where(and(eq(d.organizationId, access.organizationId), eq(d.id, documentId)));
-        return getDocument(tx, access.organizationId, role, documentId);
+        return getDocument(tx, access.organizationId, role, documentId, access.userId);
       },
     ),
   );
@@ -308,10 +377,10 @@ export function updateDocument(
     key,
     `documents:update:${id}`,
     input,
-    'documents:write',
+    access.role === 'project_lead' ? 'events:write' : 'documents:write',
     async (tx) => {
       const role = await currentRole(tx, access),
-        current = await getDocument(tx, access.organizationId, role, id);
+        current = await getDocument(tx, access.organizationId, role, id, access.userId);
       if (current.version !== input.version)
         throw new HttpError(409, 'STALE_VERSION', 'Das Dokument wurde zwischenzeitlich geändert.');
       const { version, ...patch } = input;
@@ -323,6 +392,8 @@ export function updateDocument(
         );
       const touchesFinance =
         current.cashbookEntryId !== null ||
+        current.transferId !== null ||
+        !!patch.transferId ||
         (patch.cashbookEntryId !== undefined && patch.cashbookEntryId !== null);
       if (touchesFinance && !can(role, 'finance:write'))
         throw new HttpError(403, 'FORBIDDEN', 'Belege zu Buchungen erfordern Finanzrechte.');
@@ -332,7 +403,7 @@ export function updateDocument(
         .set({ ...patch, version: version + 1, updatedAt: new Date() })
         .where(and(eq(d.organizationId, access.organizationId), eq(d.id, id)));
       await audit(tx, access, 'update', 'document', id, Object.keys(patch));
-      return getDocument(tx, access.organizationId, role, id);
+      return getDocument(tx, access.organizationId, role, id, access.userId);
     },
   );
 }
@@ -343,6 +414,7 @@ export async function readDocumentVersion(
   role: Role,
   documentId: string,
   versionId: string,
+  userId = '',
 ) {
   const [row] = await db
     .select({
@@ -358,7 +430,7 @@ export async function readDocumentVersion(
         eq(v.organizationId, org),
         eq(v.documentId, documentId),
         eq(v.id, versionId),
-        financeVisible(role),
+        financeVisible(role, userId),
       ),
     );
   if (!row) throw new HttpError(404, 'NOT_FOUND', 'Dokument nicht gefunden.');

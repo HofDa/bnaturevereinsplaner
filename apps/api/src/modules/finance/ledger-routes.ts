@@ -1,3 +1,4 @@
+import { registerFinanceExtensions } from './extension-routes';
 import { z } from 'zod';
 import type { FastifyReply } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -62,7 +63,9 @@ function sendPdf(reply: FastifyReply, pdf: Buffer, filename: string) {
 }
 const replayed = (reply: FastifyReply, value: boolean) =>
   reply.header('Idempotency-Replayed', String(value));
-export function registerLedgerRoutes({ server, db, access }: ModuleContext) {
+export function registerLedgerRoutes(context: ModuleContext) {
+  registerFinanceExtensions(context);
+  const { server, db, access } = context;
   const app = server.withTypeProvider<ZodTypeProvider>(),
     p = '/api/v1/finance',
     tags = ['Ledger'];
@@ -165,7 +168,7 @@ export function registerLedgerRoutes({ server, db, access }: ModuleContext) {
       schema: {
         tags,
         description:
-          'Opens a calendar fiscal year. Without openingBalances, balances are carried forward from the closed previous year.',
+          'Opens a fiscal year with inclusive date boundaries (calendar year by default). Without openingBalances, balances are carried forward from the closed previous year.',
         headers: financeWriteHeaders,
         body: fiscalYearInputSchema,
         response: { 201: fiscalYearResponseSchema },
@@ -186,7 +189,7 @@ export function registerLedgerRoutes({ server, db, access }: ModuleContext) {
           'Irreversibly closes a fiscal year. Later corrections are booked in an open year.',
         params: yearParams,
         headers: financeWriteHeaders,
-        body: z.object({}).strict(),
+        body: z.object({ confirm: z.literal(true) }).strict(),
         response: { 200: fiscalYearResponseSchema },
       },
     },

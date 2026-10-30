@@ -48,6 +48,7 @@ try {
     ['treasurer', 'e2e-treasurer@example.test'],
     ['member', 'e2e-member@example.test'],
     ['board', 'e2e-board@example.test'],
+    ['project_lead', 'e2e-lead@example.test'],
   ] as const) {
     const created = await provision.api.signUpEmail({
       body: { name: `E2E ${role}`, email, password: 'E2E-only-Password-2026!' },

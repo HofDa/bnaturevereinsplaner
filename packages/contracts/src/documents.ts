@@ -8,6 +8,9 @@ export const documentCategorySchema = z.enum([
   'minutes',
   'statute',
   'correspondence',
+  'invoice',
+  'insurance',
+  'funding',
   'other',
 ]);
 export const documentMediaTypeSchema = z.enum(['application/pdf', 'image/png', 'image/jpeg']);
@@ -42,6 +45,9 @@ export const documentInputSchema = z
     description: z.string().trim().max(2000).default(''),
     cashbookEntryId: reference,
     membershipId: reference,
+    transferId: reference,
+    groupId: reference,
+    eventOccurrenceId: reference,
     filename: filenameSchema,
   })
   .strict();
@@ -55,6 +61,9 @@ export const documentPatchSchema = z
     archived: z.boolean(),
     cashbookEntryId: idSchema.nullable(),
     membershipId: idSchema.nullable(),
+    transferId: idSchema.nullable(),
+    groupId: idSchema.nullable(),
+    eventOccurrenceId: idSchema.nullable(),
   })
   .strict()
   .partial()
@@ -96,7 +105,13 @@ export const documentResponseSchema = z.object({
   cashbookEntryId: idSchema.nullable(),
   cashbookEntryLabel: z.string().nullable(),
   membershipId: idSchema.nullable(),
+  transferId: idSchema.nullable().default(null),
+  groupId: idSchema.nullable().default(null),
+  eventOccurrenceId: idSchema.nullable().default(null),
+  eventTitleI18n: z.object({ de: z.string(), it: z.string() }).nullable().default(null),
   memberName: z.string().nullable(),
+  groupName: z.string().nullable().default(null),
+  transferLabel: z.string().nullable().default(null),
   version: z.number().int().positive(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -116,6 +131,9 @@ export const documentListQuerySchema = z.object({
   archived: z.enum(['true', 'false']).default('false'),
   cashbookEntryId: idSchema.optional(),
   membershipId: idSchema.optional(),
+  transferId: idSchema.optional(),
+  groupId: idSchema.optional(),
+  eventOccurrenceId: idSchema.optional(),
 });
 export type DocumentListQuery = z.infer<typeof documentListQuerySchema>;
 export const documentVersionParams = z.object({ id: idSchema, versionId: idSchema });

@@ -66,3 +66,59 @@ Listen verwenden `page`, `pageSize`, `search`, `direction`, `sort=name|createdAt
 Wichtige Fehlercodes: `FEE_PLAN_EXISTS`, `ASSESSMENT_EXISTS`, `PLAN_INACTIVE`, `PLAN_IN_USE`, `STALE_VERSION`, `FEE_CATEGORY_MISMATCH`, `INVALID_REDUCTION`, `OVERPAYMENT`, `PAYMENT_REFERENCE_EXISTS`, `IDEMPOTENCY_MISMATCH`, `REMINDER_NOT_DUE`. HTTP 409 für Konflikte; 422 für ungültige Eingaben/Kategorien/Zuordnungen; 401/403/404 wie in Phase 1. Die Oberfläche übersetzt diese Codes nach DE/IT.
 
 PDF-Erfolge verwenden `application/pdf` und `Content-Disposition: attachment`; Fehler bleiben JSON. Alle Antworten sind `no-store`. CSV-Exporte laden die gefilterten Listen autorisiert seitenweise und neutralisieren Tabellenformeln. Der Zahlungs-CSV enthält genau eine Zeile je Zahlung, damit Gesamtbeträge bei mehreren Zuordnungen nicht doppelt summiert werden. Zuordnungsdetails stehen in der Detail-API und PDF-Bestätigung.
+
+## Sprint 2.2 – Erweiterungen
+
+Alle Pfade unter `/api/v1`; Finanzzugriff nur Admin/Kassier, Abschluss nur Admin. Schreiboperationen erfordern `Idempotency-Key` und `Origin`.
+
+| Methode / Pfad                                | Zweck                                                                                                                      |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| POST /finance/initialize                      | Startkategorien und eindeutig auswählbare automatische Zahlungskonten ergänzen (`language`)                                |
+| GET /finance/dashboard                        | Bestände, Jahreswerte, offene Beiträge, letzte Buchungen und Monatsentwicklung                                             |
+| GET /finance/cashbook/:id/history             | Originalbuchung und etwaige Gegenbuchung                                                                                   |
+| GET /finance/cashbook-export/pdf              | Privates PDF, dieselben Filter wie Kassabuch plus `language`                                                               |
+| GET/POST /finance/transfers                   | Interne Überträge, Liste mit `fiscalYear`                                                                                  |
+| POST /finance/transfers/:id/reversal          | Exakter Rückübertrag mit Datum und Begründung                                                                              |
+| POST /finance/payments/backfill               | Bis 100 historische Zahlungen nachbuchen (`accountId`, `categoryId`, `method`, `fiscalYear`); Antwort `booked`/`remaining` |
+| GET /finance/ets-definitions                  | Versionierte Positionen und zeitliche Schwellenregeln                                                                      |
+| GET/POST /finance/categories/:id/ets-mappings | Unveränderliche Zuordnung mit `effectiveFrom` und `position`                                                               |
+| GET /finance/reports/ets                      | D/E-Vorbereitung mit Vorjahresvergleich, Prüfungen und Definitionsversion                                                  |
+| GET /finance/reports/ets/pdf und /csv         | Privater exportierter Bericht mit Warnungen                                                                                |
+
+Geschäftsjahr anlegen: `startsOn` und `endsOn` optional, Standard Kalenderjahr; Jahreskennung bleibt eindeutig. Abschlussbody jetzt ausdrücklich `{ "confirm": true }`. Kassabuchfilter zusätzlich `from`, `to`, `project`; Buchungen zusätzlich `project`. Neue Dokumentkategorien `invoice`, `insurance`, `funding`; Dokumente unterstützen zusätzlich mandantengebundene `transferId` und `groupId`.
+
+ETS-Abfrage: `fiscalYear`, `model=D|E`, `language=de|it`, `legalPersonality=yes|no|unknown`, optional ausdrücklich geprüfte `priorRevenueCents` als Ganzzahlstring. Fehlende Referenzdaten führen zum Prüfstatus, nicht zu einer Zertifizierung. Historische Nachbuchung ist ein kontrollierter Schreibvorgang, kein automatischer Seiteneffekt einer Leseabfrage oder Schema-Migration.
+
+## Sprint 2.3 – Veranstaltungen und Anwesenheit
+
+Alle Pfade unter `/api/v1`, authentifiziert und organisationsgebunden. `:id` bei `/events/:id` bezeichnet immer die konkrete Veranstaltungsinstanz. Admin/Vorstand verwalten alle Instanzen; Projektleitung nur selbst erstellte oder verantwortete Instanzen. Normale Benutzer sehen veröffentlichte/abgeschlossene, für Mitglieder oder öffentlich markierte Veranstaltungen und ausschließlich ihre eigenen Anmeldungen. Die Sichtbarkeit `public` stellt keinen anonymen Anmeldeendpunkt bereit.
+
+| Methode / Pfad                                     | Zweck                                                                                                         |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| GET/POST /event-categories                         | Bilinguale Kategorien lesen/anlegen                                                                           |
+| POST /event-categories/initialize                  | Acht Startkategorien idempotent einrichten                                                                    |
+| PATCH /event-categories/:id                        | Name/Aktivstatus mit Version ändern                                                                           |
+| GET /event-people und /event-organizers            | Minimale autorisierte Personensuche bzw. Verantwortliche                                                      |
+| GET/POST /events                                   | Instanzen filtern/paginieren bzw. anlegen                                                                     |
+| GET/PATCH /events/:id                              | Details bzw. versionierte Einzelbearbeitung                                                                   |
+| POST /events/:id/cancel                            | Begründete Absage, Anmeldungen atomar abmelden                                                                |
+| GET/POST /event-series                             | Endliche RRULE-Serie lesen/anlegen                                                                            |
+| PATCH /event-series/:id                            | Künftige Instanzen bearbeiten oder begründet absagen                                                          |
+| GET/POST /events/:id/registrations                 | Eigene bzw. autorisierte Teilnehmerliste, Anmeldung                                                           |
+| PATCH/DELETE /registrations/:id                    | Versionierter Statuswechsel bzw. Abmeldung                                                                    |
+| GET /events/:id/attendance                         | Autorisierte Anwesenheitsliste                                                                                |
+| GET /events/:id/attendance/prepare                 | Autorisierte minimale Offline-Projektion, sieben Tage nutzbar                                                 |
+| PUT /events/:id/attendance/:registrationId         | Einzelne versionierte Operation                                                                               |
+| GET /events/:id/attendance/:registrationId/history | Unveränderliche Änderungshistorie                                                                             |
+| POST /attendance/sync                              | Jede Operation einzeln bestätigen, Konflikt oder Ablehnung zurückgeben                                        |
+| GET /events/:id/attendance/export                  | Privates PDF/CSV (`format`, `language`)                                                                       |
+| GET /events/calendar.ics                           | Gefilterter ICS-Export ohne Teilnehmerdaten                                                                   |
+| /events/:eventId/documents                         | Vorhandene private Dokument-API einschließlich Versionen/Downloads, auf eine verantwortete Instanz beschränkt |
+
+Allgemeine Schreiboperationen benötigen `Origin` und UUID-`Idempotency-Key`. Änderungen verwenden `version`; Absagen zusätzlich `reason`. Veranstaltungseingaben enthalten `titleI18n`, `descriptionI18n`, `categoryId`, `startLocal`, `endLocal`, `timezone` (Europe/Rome), `location`, optionale Koordinaten, `organizerId`, `project`, `status`, `visibility`, `registrationRequired`, `capacity`, `registrationDeadline` und `waitlistEnabled`. Zeitpunkte werden als ISO-Instant ausgegeben. Filter: `from`, `to`, `categoryId`, `status`, `project`, `search`, `mine`, `page`, `pageSize`.
+
+Anmeldung: `{personId}` oder für Berechtigte `{guest:{firstName,lastName,email?}}`; ohne Person wird die verknüpfte eigene Identität verwendet. Gäste erzeugen keine Mitgliedschaft. Doppelanmeldungen liefern 409. Wartelistenstatus entsteht automatisch bei der Anmeldung; eine bestätigte Anmeldung wird nicht per PATCH auf die Warteliste zurückgestuft (`EVENT_WAITLIST_AUTOMATIC`). Atomare Kapazitätskontrolle und FIFO nach exaktem `(registered_at,id)` gelten auch bei Parallelität. `overrideDeadline` ist eine ausdrückliche Verwaltungsentscheidung. Nach Ablauf von Frist/Beginn erfolgt kein automatisches Nachrücken.
+
+Sync-Body: `{operations:[{operationId,organizationId,eventOccurrenceId,registrationId,requestedStatus,expectedVersion,clientCreatedAt}]}`. Die Identität stammt ausschließlich aus der serverseitigen Session. Pro Operation enthält `results` den Status `applied`, `conflict` oder `rejected`, optional `code` und den autorisierten aktuellen Datensatz sowie `replayed`. Statuswerte sind `unrecorded|present|absent|excused`. Erfolgreiche Wiederholungen derselben UUID/Inhalte erzeugen keine neue Version und keinen zweiten Audit-Eintrag. Konfliktauflösung benötigt eine neue UUID mit bewusst übernommener Serverversion. Ungültige Session: 401; verlorenes Recht: 403. Die gesamte Anfrage wird vor Verarbeitung gegen das strikte Schema geprüft; fachliche Fehler einzelner gültiger Operationen beeinflussen erfolgreiche Nachbaroperationen nicht.
+
+RRULE: DAILY/WEEKLY/MONTHLY, benutzerdefiniertes INTERVAL und unterstützte BY-Felder, zwingend COUNT oder UNTIL, maximal 366 Instanzen/732 Tage. Serienänderungen schützen Vergangenheit, abgeschlossene Termine und Einzel-Ausnahmen. Strukturelle Änderung mit aktiven Anmeldungen: `EVENT_SERIES_HAS_REGISTRATIONS` (409). Die explizite Serienabsage schließt verschobene künftige Instanzen ein.

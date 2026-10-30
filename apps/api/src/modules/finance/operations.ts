@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
-import { schema as s, type Database, type Transaction } from '@bnature/db';
+import { schema as s, type Database, type Transaction, type Executor } from '@bnature/db';
 import { can, type Permission } from '@bnature/contracts';
 import { HttpError, type Access } from '../../middleware/access';
 
@@ -71,4 +71,10 @@ export async function financialOperation<T extends Record<string, unknown>>(
     });
     return { data, replayed: false };
   });
+}
+
+// Reuse an enclosing snapshot when composing reports/exports.
+export function readSnapshot<T>(db: Executor, work: (tx: Transaction) => Promise<T>): Promise<T> {
+  if ('rollback' in db) return work(db);
+  return db.transaction(work, { isolationLevel: 'repeatable read', accessMode: 'read only' });
 }

@@ -2,6 +2,9 @@ import { and, eq, sql, asc, desc, count, ilike, or, type SQL } from 'drizzle-orm
 import { schema as s, type Database, type Executor, type Transaction } from '@bnature/db';
 import {
   MAX_CENTS,
+  transferResponseSchema,
+  type TransferInput,
+  type LedgerTransfer,
   accountResponseSchema,
   categoryResponseSchema,
   fiscalYearResponseSchema,
@@ -29,7 +32,7 @@ import { HttpError, type Access } from '../../middleware/access';
 import { audit } from '../../services/audit';
 import { wire } from '../responses';
 import { escapeLike } from '../members';
-import { financialOperation } from './operations';
+import { financialOperation, readSnapshot } from './operations';
 import { getPayment } from './service';
 
 const readOnly = { isolationLevel: 'repeatable read', accessMode: 'read only' } as const;
@@ -57,11 +60,20 @@ async function assertNameFree(
   org: string,
   name: string,
   exceptId?: string,
+  direction?: 'income' | 'expense',
 ) {
   const [existing] = await db
     .select({ id: table.id })
     .from(table)
-    .where(and(eq(table.organizationId, org), eq(table.name, name)));
+    .where(
+      and(
+        eq(table.organizationId, org),
+        eq(table.name, name),
+        direction && table === s.cashbookCategories
+          ? eq(s.cashbookCategories.direction, direction)
+          : undefined,
+      ),
+    );
   if (existing && existing.id !== exceptId)
     throw new HttpError(409, 'NAME_EXISTS', 'Dieser Name wird bereits verwendet.');
 }
@@ -149,7 +161,14 @@ export function createCategory(db: Database, access: Access, key: string, input:
     input,
     'finance:write',
     async (tx) => {
-      await assertNameFree(tx, s.cashbookCategories, access.organizationId, input.name);
+      await assertNameFree(
+        tx,
+        s.cashbookCategories,
+        access.organizationId,
+        input.name,
+        undefined,
+        input.direction,
+      );
       const [row] = await tx
         .insert(s.cashbookCategories)
         .values({ ...input, organizationId: access.organizationId })
@@ -179,7 +198,14 @@ export function updateCategory(
         throw new HttpError(409, 'STALE_VERSION', 'Die Kategorie wurde zwischenzeitlich geändert.');
       const { version, ...patch } = input;
       if (patch.name)
-        await assertNameFree(tx, s.cashbookCategories, access.organizationId, patch.name, id);
+        await assertNameFree(
+          tx,
+          s.cashbookCategories,
+          access.organizationId,
+          patch.name,
+          id,
+          current.direction,
+        );
       const [row] = await tx
         .update(s.cashbookCategories)
         .set({ ...patch, version: version + 1, updatedAt: new Date() })
@@ -209,9 +235,11 @@ export async function accountBalances(
     openingCents: string;
     incomeCents: string;
     expenseCents: string;
+    transferCents: string;
   }>(sql`
     select a.id as "accountId", a.name, a.kind,
       coalesce(ob.amount_cents, 0)::text as "openingCents",
+      (select coalesce(sum(case when tr.to_account_id=a.id then tr.amount_cents::bigint else -tr.amount_cents::bigint end),0)::text from ledger_transfers tr where tr.organization_id=a.organization_id and tr.fiscal_year=${year} and (tr.from_account_id=a.id or tr.to_account_id=a.id)) as "transferCents",
       coalesce(sum(e.amount_cents) filter (where e.direction = 'income'), 0)::text as "incomeCents",
       coalesce(sum(e.amount_cents) filter (where e.direction = 'expense'), 0)::text as "expenseCents"
     from finance_accounts a
@@ -225,7 +253,10 @@ export async function accountBalances(
   return result.rows.map((row) => ({
     ...row,
     closingCents: String(
-      BigInt(row.openingCents) + BigInt(row.incomeCents) - BigInt(row.expenseCents),
+      BigInt(row.openingCents) +
+        BigInt(row.incomeCents) -
+        BigInt(row.expenseCents) +
+        BigInt(row.transferCents),
     ),
   }));
 }
@@ -236,6 +267,15 @@ async function fiscalYearRow(db: Executor, org: string, year: number) {
     .where(and(eq(s.fiscalYears.organizationId, org), eq(s.fiscalYears.year, year)));
   return row;
 }
+async function previousFiscalYear(db: Executor, org: string, startsOn: string) {
+  const [row] = await db
+    .select()
+    .from(s.fiscalYears)
+    .where(and(eq(s.fiscalYears.organizationId, org), sql`${s.fiscalYears.endsOn}<${startsOn}`))
+    .orderBy(desc(s.fiscalYears.endsOn))
+    .limit(1);
+  return row;
+}
 async function describeYear(
   db: Executor,
   org: string,
@@ -243,15 +283,18 @@ async function describeYear(
 ): Promise<FiscalYear> {
   const balances = await accountBalances(db, org, row.year);
   let openingMismatch = false;
-  if (await fiscalYearRow(db, org, row.year - 1)) {
+  const prior = await previousFiscalYear(db, org, row.startsOn);
+  if (prior) {
     const previous = new Map(
-      (await accountBalances(db, org, row.year - 1)).map((b) => [b.accountId, b.closingCents]),
+      (await accountBalances(db, org, prior.year)).map((b) => [b.accountId, b.closingCents]),
     );
     openingMismatch = balances.some((b) => (previous.get(b.accountId) ?? '0') !== b.openingCents);
   }
   return fiscalYearResponseSchema.parse({
     id: row.id,
     year: row.year,
+    startsOn: row.startsOn,
+    endsOn: row.endsOn,
     status: row.status,
     createdAt: row.createdAt.toISOString(),
     closedAt: row.closedAt?.toISOString() ?? null,
@@ -287,9 +330,25 @@ export function openFiscalYear(db: Database, access: Access, key: string, input:
           'FISCAL_YEAR_EXISTS',
           'Dieses Geschäftsjahr ist bereits eröffnet.',
         );
+      const startsOn = input.startsOn ?? `${input.year}-01-01`,
+        endsOn = input.endsOn ?? `${input.year}-12-31`;
+      if (startsOn > endsOn)
+        throw new HttpError(422, 'INVALID_FISCAL_DATES', 'Beginn liegt nach Ende.');
+      const [overlap] = await tx
+        .select({ id: s.fiscalYears.id })
+        .from(s.fiscalYears)
+        .where(
+          and(
+            eq(s.fiscalYears.organizationId, org),
+            sql`${s.fiscalYears.startsOn} <= ${endsOn}`,
+            sql`${s.fiscalYears.endsOn} >= ${startsOn}`,
+          ),
+        );
+      if (overlap)
+        throw new HttpError(409, 'FISCAL_YEARS_OVERLAP', 'Geschäftsjahre überschneiden sich.');
       let balances = input.openingBalances;
       if (!balances) {
-        const previous = await fiscalYearRow(tx, org, input.year - 1);
+        const previous = await previousFiscalYear(tx, org, startsOn);
         if (previous && previous.status !== 'closed')
           throw new HttpError(
             409,
@@ -314,7 +373,13 @@ export function openFiscalYear(db: Database, access: Access, key: string, input:
       }
       const [row] = await tx
         .insert(s.fiscalYears)
-        .values({ organizationId: org, year: input.year, openedBy: access.userId })
+        .values({
+          organizationId: org,
+          year: input.year,
+          startsOn,
+          endsOn,
+          openedBy: access.userId,
+        })
         .returning();
       const nonZero = balances.filter((b) => b.amountCents !== 0);
       if (nonZero.length)
@@ -351,7 +416,7 @@ export function closeFiscalYear(db: Database, access: Access, key: string, year:
           and(
             eq(s.fiscalYears.organizationId, org),
             eq(s.fiscalYears.status, 'open'),
-            sql`${s.fiscalYears.year} < ${year}`,
+            sql`${s.fiscalYears.startsOn} < ${row.startsOn}`,
           ),
         )
         .limit(1);
@@ -372,7 +437,16 @@ export function closeFiscalYear(db: Database, access: Access, key: string, year:
   );
 }
 async function assertYearOpen(db: Executor, org: string, date: string) {
-  const row = await fiscalYearRow(db, org, Number(date.slice(0, 4)));
+  const [row] = await db
+    .select()
+    .from(s.fiscalYears)
+    .where(
+      and(
+        eq(s.fiscalYears.organizationId, org),
+        sql`${s.fiscalYears.startsOn} <= ${date}`,
+        sql`${s.fiscalYears.endsOn} >= ${date}`,
+      ),
+    );
   if (!row || row.status !== 'open')
     throw new HttpError(
       409,
@@ -400,7 +474,10 @@ const entrySelect = {
   accountId: e.accountId,
   accountName: s.financeAccounts.name,
   categoryId: e.categoryId,
-  categoryName: s.cashbookCategories.name,
+  categoryName: e.categoryName,
+  project: e.project,
+  etsPosition: e.etsPosition,
+  etsDefinitionVersion: e.etsDefinitionVersion,
   classification: s.cashbookCategories.classification,
   direction: e.direction,
   amountCents: e.amountCents,
@@ -439,7 +516,7 @@ export async function getEntry(db: Executor, org: string, id: string): Promise<C
   return cashbookEntryResponseSchema.parse(wire(row));
 }
 export async function listEntries(
-  db: Database,
+  db: Executor,
   org: string,
   q: CashbookQuery,
 ): Promise<Page<CashbookEntry>> {
@@ -449,16 +526,20 @@ export async function listEntries(
     q.accountId ? eq(e.accountId, q.accountId) : undefined,
     q.categoryId ? eq(e.categoryId, q.categoryId) : undefined,
     q.direction ? eq(e.direction, q.direction) : undefined,
+    q.from ? sql`${e.bookingDate} >= ${q.from}` : undefined,
+    q.to ? sql`${e.bookingDate} <= ${q.to}` : undefined,
+    q.project ? eq(e.project, q.project) : undefined,
     q.search
       ? or(
           ilike(e.description, `%${escapeLike(q.search)}%`),
+          ilike(e.project, `%${escapeLike(q.search)}%`),
           ilike(e.counterparty, `%${escapeLike(q.search)}%`),
           ilike(e.documentNumber, `%${escapeLike(q.search)}%`),
         )
       : undefined,
   );
   const order = q.order === 'asc' ? asc : desc;
-  return db.transaction(async (tx) => {
+  return readSnapshot(db, async (tx) => {
     const rows = await entryQuery(tx)
       .where(where)
       .orderBy(order(e.bookingDate), order(e.fiscalYear), order(e.entryNumber))
@@ -471,7 +552,7 @@ export async function listEntries(
       page: q.page,
       pageSize: q.pageSize,
     };
-  }, readOnly);
+  });
 }
 export function createEntry(db: Database, access: Access, key: string, input: CashbookEntryInput) {
   return financialOperation(
@@ -479,7 +560,9 @@ export function createEntry(db: Database, access: Access, key: string, input: Ca
     access,
     key,
     'cashbook-entries:create',
-    input,
+    Object.fromEntries(
+      Object.entries(input).filter(([key, value]) => key !== 'project' || value !== ''),
+    ),
     'finance:write',
     async (tx) => {
       const org = access.organizationId,
@@ -799,12 +882,12 @@ export function createTemplateVersion(
 
 const sumOf = (values: string[]) => values.reduce((n, v) => n + BigInt(v), 0n);
 export async function annualReport(
-  db: Database,
+  db: Executor,
   org: string,
   fiscalYear: number,
   templateId?: string,
 ): Promise<AnnualReport> {
-  return db.transaction(async (tx) => {
+  return readSnapshot(db, async (tx) => {
     const year = await fiscalYearRow(tx, org, fiscalYear);
     if (!year) throw new HttpError(404, 'NOT_FOUND', 'Geschäftsjahr nicht gefunden.');
     const categories = (
@@ -815,13 +898,13 @@ export async function annualReport(
         classification: 'membership_fee' | 'donation' | 'other';
         totalCents: string;
       }>(sql`
-        select c.id as "categoryId", c.name, c.direction, c.classification,
+        select c.id as "categoryId", coalesce(e.category_name,c.name) as name, c.direction, c.classification,
           coalesce(sum(e.amount_cents), 0)::text as "totalCents"
         from cashbook_categories c
         left join cashbook_entries e
           on e.organization_id = c.organization_id and e.category_id = c.id and e.fiscal_year = ${fiscalYear}
         where c.organization_id = ${org}
-        group by c.id, c.name, c.direction, c.classification
+        group by c.id, coalesce(e.category_name,c.name), c.direction, c.classification
         order by c.direction, c.name, c.id`)
     ).rows;
     const income = categories.filter((c) => c.direction === 'income'),
@@ -837,7 +920,7 @@ export async function annualReport(
       .where(
         and(
           eq(s.payments.organizationId, org),
-          sql`extract(year from ${s.payments.paidOn})::integer = ${fiscalYear}`,
+          sql`${s.payments.paidOn} between ${year.startsOn} and ${year.endsOn}`,
           sql`not exists(select 1 from payment_reversals r where r.organization_id=${s.payments.organizationId} and r.payment_id=${s.payments.id})`,
           sql`not exists(select 1 from cashbook_entries c where c.organization_id=${s.payments.organizationId} and c.payment_id=${s.payments.id} and c.reverses_entry_id is null)`,
         ),
@@ -858,8 +941,13 @@ export async function annualReport(
           'TEMPLATE_NOT_VALID_FOR_YEAR',
           'Die Vorlage gilt nicht für dieses Geschäftsjahr.',
         );
-      const totals = new Map(categories.map((c) => [c.categoryId, c.totalCents])),
-        mapped = new Set(row.lines.flatMap((l) => l.categoryIds));
+      const totals = new Map<string, string>();
+      for (const c of categories)
+        totals.set(
+          c.categoryId,
+          String(BigInt(totals.get(c.categoryId) ?? '0') + BigInt(c.totalCents)),
+        );
+      const mapped = new Set(row.lines.flatMap((l) => l.categoryIds));
       template = {
         id: row.id,
         name: row.name,
@@ -893,5 +981,130 @@ export async function annualReport(
       accounts: await accountBalances(tx, org, fiscalYear),
       template,
     });
-  }, readOnly);
+  });
+}
+
+export async function listTransfers(
+  db: Executor,
+  org: string,
+  year: number,
+): Promise<{ items: LedgerTransfer[] }> {
+  const rows = await db
+    .select()
+    .from(s.ledgerTransfers)
+    .where(and(eq(s.ledgerTransfers.organizationId, org), eq(s.ledgerTransfers.fiscalYear, year)))
+    .orderBy(desc(s.ledgerTransfers.bookingDate), desc(s.ledgerTransfers.createdAt));
+  return { items: rows.map((r) => transferResponseSchema.parse(wire(r))) };
+}
+export function createTransfer(db: Database, access: Access, key: string, input: TransferInput) {
+  return financialOperation(
+    db,
+    access,
+    key,
+    'transfers:create',
+    input,
+    'finance:write',
+    async (tx) => {
+      const org = access.organizationId,
+        year = await assertYearOpen(tx, org, input.bookingDate);
+      for (const id of [input.fromAccountId, input.toAccountId])
+        if (!(await getAccount(tx, org, id)).active)
+          throw new HttpError(409, 'INACTIVE_REFERENCE', 'Konto ist deaktiviert.');
+      const [row] = await tx
+        .insert(s.ledgerTransfers)
+        .values({ ...input, organizationId: org, fiscalYear: year, createdBy: access.userId })
+        .returning();
+      await audit(tx, access, 'create', 'ledger_transfer', row!.id, Object.keys(input));
+      return transferResponseSchema.parse(wire(row));
+    },
+  );
+}
+export function reverseTransfer(
+  db: Database,
+  access: Access,
+  key: string,
+  id: string,
+  input: ReversalInput,
+) {
+  return financialOperation(
+    db,
+    access,
+    key,
+    `transfers:reverse:${id}`,
+    input,
+    'finance:write',
+    async (tx) => {
+      const org = access.organizationId,
+        table = s.ledgerTransfers;
+      const [original] = await tx
+        .select()
+        .from(table)
+        .where(and(eq(table.organizationId, org), eq(table.id, id)));
+      if (!original) throw new HttpError(404, 'NOT_FOUND', 'Übertrag nicht gefunden.');
+      const [reversed] = await tx
+        .select()
+        .from(table)
+        .where(and(eq(table.organizationId, org), eq(table.reversesTransferId, id)));
+      if (original.reversesTransferId || reversed)
+        throw new HttpError(409, 'ALREADY_REVERSED', 'Übertrag bereits storniert.');
+      if (input.bookingDate < original.bookingDate)
+        throw new HttpError(422, 'REVERSAL_BEFORE_ORIGINAL', 'Storno liegt vor Original.');
+      const fiscalYear = await assertYearOpen(tx, org, input.bookingDate);
+      const [row] = await tx
+        .insert(table)
+        .values({
+          organizationId: org,
+          fiscalYear,
+          fromAccountId: original.toAccountId,
+          toAccountId: original.fromAccountId,
+          amountCents: original.amountCents,
+          bookingDate: input.bookingDate,
+          description: input.reason.slice(0, 300),
+          reversesTransferId: id,
+          createdBy: access.userId,
+        })
+        .returning();
+      await audit(tx, access, 'reverse', 'ledger_transfer', id, ['reason']);
+      return transferResponseSchema.parse(wire(row));
+    },
+  );
+}
+export function backfillPayments(
+  db: Database,
+  access: Access,
+  key: string,
+  input: {
+    accountId: string;
+    categoryId: string;
+    fiscalYear: number;
+    method: 'cash' | 'bank_transfer' | 'other';
+  },
+) {
+  return financialOperation(
+    db,
+    access,
+    key,
+    'payments:backfill',
+    input,
+    'finance:write',
+    async (tx) => {
+      const org = access.organizationId,
+        year = await fiscalYearRow(tx, org, input.fiscalYear);
+      if (!year || year.status !== 'open')
+        throw new HttpError(409, 'FISCAL_YEAR_NOT_OPEN', 'Geschäftsjahr ist nicht offen.');
+      const rows = (
+        await tx.execute<{ id: string }>(
+          sql`select p.id from payments p where p.organization_id=${org} and p.method=${input.method} and p.paid_on between ${year.startsOn} and ${year.endsOn} and not exists(select 1 from payment_reversals r where r.organization_id=p.organization_id and r.payment_id=p.id) and not exists(select 1 from cashbook_entries e where e.organization_id=p.organization_id and e.payment_id=p.id and e.reverses_entry_id is null) order by p.paid_on,p.id limit 100`,
+        )
+      ).rows;
+      for (const row of rows) await bookPayment(tx, access, row.id, input);
+      const remaining = (
+        await tx.execute<{ n: number }>(
+          sql`select count(*)::int n from payments p where p.organization_id=${org} and p.method=${input.method} and p.paid_on between ${year.startsOn} and ${year.endsOn} and not exists(select 1 from payment_reversals r where r.organization_id=p.organization_id and r.payment_id=p.id) and not exists(select 1 from cashbook_entries e where e.organization_id=p.organization_id and e.payment_id=p.id and e.reverses_entry_id is null)`,
+        )
+      ).rows[0]!.n;
+      await audit(tx, access, 'backfill', 'fiscal_year', year.id, ['payments']);
+      return { booked: rows.length, remaining };
+    },
+  );
 }

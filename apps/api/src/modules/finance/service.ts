@@ -194,7 +194,7 @@ export async function listAssessments(
     { isolationLevel: 'repeatable read', accessMode: 'read only' },
   );
 }
-export async function financeSummary(db: Database, org: string, year?: number) {
+export async function financeSummary(db: Executor, org: string, year?: number) {
   const today = await businessDate(db, org);
   const [row] = await db
     .select({
@@ -568,6 +568,24 @@ export function createPayment(db: Database, access: Access, key: string, input: 
     normalized,
     'finance:write',
     async (tx) => {
+      const [closedPeriod] = await tx
+        .select({ id: s.fiscalYears.id })
+        .from(s.fiscalYears)
+        .where(
+          and(
+            eq(s.fiscalYears.organizationId, access.organizationId),
+            eq(s.fiscalYears.status, 'closed'),
+            sql`${s.fiscalYears.startsOn}<=${input.paidOn}`,
+            sql`${s.fiscalYears.endsOn}>=${input.paidOn}`,
+          ),
+        )
+        .limit(1);
+      if (closedPeriod)
+        throw new HttpError(
+          409,
+          'FISCAL_YEAR_NOT_OPEN',
+          'Das Zahlungsdatum liegt in einem abgeschlossenen Geschäftsjahr.',
+        );
       // Validate the whole allocation set before inserting any payment; all writes share the org lock.
       for (const allocation of normalized.allocations) {
         const assessment = await getAssessment(tx, access.organizationId, allocation.assessmentId);
@@ -629,7 +647,35 @@ export function createPayment(db: Database, access: Access, key: string, input: 
         'notes',
         'allocations',
       ]);
-      if (booking) await bookPayment(tx, access, row!.id, booking);
+      const [defaults] = await tx
+        .select()
+        .from(s.paymentBookingDefaults)
+        .where(
+          and(
+            eq(s.paymentBookingDefaults.organizationId, access.organizationId),
+            eq(s.paymentBookingDefaults.method, input.method),
+          ),
+        );
+      const resolvedBooking = booking ?? defaults;
+      if (!resolvedBooking) {
+        const [initialized] = await tx
+          .select({ id: s.financeOperations.id })
+          .from(s.financeOperations)
+          .where(
+            and(
+              eq(s.financeOperations.organizationId, access.organizationId),
+              eq(s.financeOperations.operation, 'finance:initialize'),
+            ),
+          )
+          .limit(1);
+        if (initialized)
+          throw new HttpError(
+            422,
+            'LEDGER_BOOKING_REQUIRED',
+            'Bitte ein Buchungskonto und eine Beitragskategorie auswählen.',
+          );
+      }
+      if (resolvedBooking) await bookPayment(tx, access, row!.id, resolvedBooking);
       return getPayment(tx, access.organizationId, row!.id);
     },
   );

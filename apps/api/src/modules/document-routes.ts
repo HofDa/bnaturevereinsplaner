@@ -3,7 +3,8 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   MAX_DOCUMENT_BYTES,
-  idParams,
+  idSchema,
+  idParams as globalIdParams,
   financeWriteHeaders,
   financePageSchema,
   documentMediaTypeSchema,
@@ -14,10 +15,11 @@ import {
   documentDetailSchema,
   documentListQuerySchema,
   documentUploadHeaders,
-  documentVersionParams,
+  documentVersionParams as globalVersionParams,
   decodeDocumentMetadata,
   detectMediaType,
 } from '@bnature/contracts';
+import { eventRow } from './events';
 import { HttpError } from '../middleware/access';
 import { documentStorage } from '../services/storage';
 import type { ModuleContext } from './context';
@@ -72,32 +74,62 @@ function disposition(filename: string) {
 }
 const replayed = (reply: FastifyReply, value: boolean) =>
   reply.header('Idempotency-Replayed', String(value));
-export function registerDocumentRoutes({ server, db, access, config }: ModuleContext) {
+export function registerDocumentRoutes(context: ModuleContext, prefix = '/api/v1/documents') {
+  const { server, db, config } = context,
+    scoped = prefix.includes(':eventId');
+  const scopedId = (req: FastifyRequest) =>
+    idSchema.parse((req.params as Record<string, unknown>).eventId);
+  const access: ModuleContext['access'] = scoped
+    ? async (req) => {
+        const a = await context.access(req, 'events:write');
+        const eventId = scopedId(req);
+        await eventRow(db, a, eventId, true);
+        const id = (req.params as Record<string, unknown>).id;
+        if (typeof id === 'string') {
+          const document = await getDocument(db, a.organizationId, a.role, id, a.userId);
+          if (document.eventOccurrenceId !== eventId)
+            throw new HttpError(404, 'NOT_FOUND', 'Dokument nicht gefunden.');
+        }
+        return a;
+      }
+    : context.access;
+  const scopeFields = scoped ? { eventId: idSchema } : {};
+  const baseParams = z.object(scopeFields),
+    idParams = globalIdParams.extend(scopeFields),
+    documentVersionParams = globalVersionParams.extend(scopeFields);
   const app = server.withTypeProvider<ZodTypeProvider>(),
     storage = documentStorage(config.DOCUMENT_STORAGE_DIR),
-    p = '/api/v1/documents',
+    p = prefix,
     tags = ['Documents'],
     upload = {
       bodyLimit: MAX_DOCUMENT_BYTES,
       config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
     };
-  server.addContentTypeParser(
-    uploadTypes,
-    { parseAs: 'buffer', bodyLimit: MAX_DOCUMENT_BYTES },
-    (_req, body, done) => done(null, body),
-  );
+  if (!scoped)
+    server.addContentTypeParser(
+      uploadTypes,
+      { parseAs: 'buffer', bodyLimit: MAX_DOCUMENT_BYTES },
+      (_req, body, done) => done(null, body),
+    );
   app.get(
     p,
     {
       schema: {
         tags,
+        params: baseParams,
         querystring: documentListQuerySchema,
         response: { 200: financePageSchema(documentResponseSchema) },
       },
     },
     async (req) => {
       const a = await access(req, 'documents:read');
-      return listDocuments(db, a.organizationId, a.role, req.query);
+      return listDocuments(
+        db,
+        a.organizationId,
+        a.role,
+        scoped ? { ...req.query, eventOccurrenceId: scopedId(req) } : req.query,
+        a.userId,
+      );
     },
   );
   app.get(
@@ -105,7 +137,7 @@ export function registerDocumentRoutes({ server, db, access, config }: ModuleCon
     { schema: { tags, params: idParams, response: { 200: documentDetailSchema } } },
     async (req) => {
       const a = await access(req, 'documents:read');
-      return getDocument(db, a.organizationId, a.role, req.params.id);
+      return getDocument(db, a.organizationId, a.role, req.params.id, a.userId);
     },
   );
   app.post(
@@ -117,6 +149,7 @@ export function registerDocumentRoutes({ server, db, access, config }: ModuleCon
         description:
           'Raw file body (PDF, PNG or JPEG, max. 10 MiB). Metadata as base64url JSON in X-Document-Metadata.',
         consumes: uploadTypes,
+        params: baseParams,
         headers: documentUploadHeaders,
         response: { 201: documentDetailSchema },
       },
@@ -129,7 +162,7 @@ export function registerDocumentRoutes({ server, db, access, config }: ModuleCon
           storage,
           a,
           req.headers['idempotency-key'],
-          input,
+          scoped ? { ...input, eventOccurrenceId: scopedId(req) } : input,
           uploadedFile(req),
         );
       return replayed(reply.code(201), result.replayed).send(result.data);
@@ -206,6 +239,7 @@ export function registerDocumentRoutes({ server, db, access, config }: ModuleCon
           a.role,
           req.params.id,
           req.params.versionId,
+          a.userId,
         );
       return (reply as FastifyReply)
         .type(file.mediaType)

@@ -12,15 +12,19 @@ import {
   foreignKey,
   check,
 } from 'drizzle-orm/pg-core';
-import { organizations, memberships } from './core';
+import { organizations, memberships, groups } from './core';
 import { user } from './auth';
-import { cashbookEntries } from './ledger';
+import { cashbookEntries, ledgerTransfers } from './ledger';
+import { eventOccurrences } from './events';
 export const documentCategory = pgEnum('document_category', [
   'receipt',
   'contract',
   'minutes',
   'statute',
   'correspondence',
+  'invoice',
+  'insurance',
+  'funding',
   'other',
 ]);
 export const documentMediaType = pgEnum('document_media_type', [
@@ -41,6 +45,9 @@ export const documents = pgTable(
     archived: boolean('archived').notNull().default(false),
     cashbookEntryId: uuid('cashbook_entry_id'),
     membershipId: uuid('membership_id'),
+    transferId: uuid('transfer_id'),
+    groupId: uuid('group_id'),
+    eventOccurrenceId: uuid('event_occurrence_id'),
     version: integer('version').notNull().default(1),
     createdBy: uuid('created_by')
       .notNull()
@@ -58,6 +65,19 @@ export const documents = pgTable(
       columns: [t.organizationId, t.membershipId],
       foreignColumns: [memberships.organizationId, memberships.id],
     }),
+    foreignKey({
+      columns: [t.organizationId, t.transferId],
+      foreignColumns: [ledgerTransfers.organizationId, ledgerTransfers.id],
+    }),
+    foreignKey({
+      columns: [t.organizationId, t.groupId],
+      foreignColumns: [groups.organizationId, groups.id],
+    }),
+    foreignKey({
+      columns: [t.organizationId, t.eventOccurrenceId],
+      foreignColumns: [eventOccurrences.organizationId, eventOccurrences.id],
+    }),
+    index('documents_event_idx').on(t.organizationId, t.eventOccurrenceId),
     index('documents_org_archived_idx').on(t.organizationId, t.archived, t.createdAt),
     index('documents_cashbook_idx').on(t.organizationId, t.cashbookEntryId),
     index('documents_membership_idx').on(t.organizationId, t.membershipId),

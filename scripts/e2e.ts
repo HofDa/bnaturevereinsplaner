@@ -1,8 +1,11 @@
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+const suites = ['platform', 'finance', 'ledger', 'documents', 'sprint22', 'events'];
+const requested = process.argv.slice(2);
+if (requested.some((s) => !suites.includes(s))) throw new Error('Unknown E2E suite');
 // Each suite gets the real rate limits and a fresh API process; fast synthetic sessions do not share IP counters.
 for (const project of ['desktop', 'mobile']) {
-  for (const suite of ['platform', 'finance', 'ledger', 'documents']) {
+  for (const suite of requested.length ? requested : suites) {
     console.log(`\nBrowser suite: ${suite} / ${project}`);
     const child = spawn(
       'bun',
