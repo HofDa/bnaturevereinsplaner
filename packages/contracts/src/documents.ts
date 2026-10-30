@@ -11,9 +11,16 @@ export const documentCategorySchema = z.enum([
   'invoice',
   'insurance',
   'funding',
+  'register',
   'other',
 ]);
-export const documentMediaTypeSchema = z.enum(['application/pdf', 'image/png', 'image/jpeg']);
+export const documentMediaTypeSchema = z.enum([
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'application/pkcs7-mime',
+  'application/timestamp-reply',
+]);
 export type DocumentMediaType = z.infer<typeof documentMediaTypeSchema>;
 const signatures: [DocumentMediaType, number[]][] = [
   ['application/pdf', [0x25, 0x50, 0x44, 0x46, 0x2d]],
@@ -25,6 +32,19 @@ export function detectMediaType(bytes: Uint8Array): DocumentMediaType | null {
   for (const [type, signature] of signatures)
     if (signature.every((byte, index) => bytes[index] === byte)) return type;
   return null;
+}
+// CAdES (.p7m) and RFC 3161 responses are DER sequences; accepted only for register signature imports.
+export function detectSignatureMediaType(
+  bytes: Uint8Array,
+  declared: string,
+): DocumentMediaType | null {
+  if (declared === 'application/pdf') return detectMediaType(bytes) === declared ? declared : null;
+  if (declared !== 'application/pkcs7-mime' && declared !== 'application/timestamp-reply')
+    return null;
+  const lengthByte = bytes[1] ?? 0;
+  const der =
+    bytes[0] === 0x30 && (lengthByte === 0x80 || (lengthByte >= 0x81 && lengthByte <= 0x84));
+  return der && bytes.length >= 64 ? declared : null;
 }
 export const filenameSchema = z
   .string()
@@ -48,6 +68,10 @@ export const documentInputSchema = z
     transferId: reference,
     groupId: reference,
     eventOccurrenceId: reference,
+    volunteerEngagementId: reference,
+    insurancePolicyId: reference,
+    insurerNotificationId: reference,
+    complianceDeadlineId: reference,
     filename: filenameSchema,
   })
   .strict();
@@ -64,6 +88,9 @@ export const documentPatchSchema = z
     transferId: idSchema.nullable(),
     groupId: idSchema.nullable(),
     eventOccurrenceId: idSchema.nullable(),
+    volunteerEngagementId: idSchema.nullable(),
+    insurancePolicyId: idSchema.nullable(),
+    complianceDeadlineId: idSchema.nullable(),
   })
   .strict()
   .partial()
@@ -109,6 +136,11 @@ export const documentResponseSchema = z.object({
   groupId: idSchema.nullable().default(null),
   eventOccurrenceId: idSchema.nullable().default(null),
   eventTitleI18n: z.object({ de: z.string(), it: z.string() }).nullable().default(null),
+  volunteerEngagementId: idSchema.nullable().default(null),
+  insurancePolicyId: idSchema.nullable().default(null),
+  insurerNotificationId: idSchema.nullable().default(null),
+  complianceDeadlineId: idSchema.nullable().default(null),
+  protected: z.boolean().default(false),
   memberName: z.string().nullable(),
   groupName: z.string().nullable().default(null),
   transferLabel: z.string().nullable().default(null),
@@ -134,6 +166,10 @@ export const documentListQuerySchema = z.object({
   transferId: idSchema.optional(),
   groupId: idSchema.optional(),
   eventOccurrenceId: idSchema.optional(),
+  volunteerEngagementId: idSchema.optional(),
+  insurancePolicyId: idSchema.optional(),
+  insurerNotificationId: idSchema.optional(),
+  complianceDeadlineId: idSchema.optional(),
 });
 export type DocumentListQuery = z.infer<typeof documentListQuerySchema>;
 export const documentVersionParams = z.object({ id: idSchema, versionId: idSchema });

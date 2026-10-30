@@ -40,9 +40,10 @@ it('upgrades a real Phase-1 database without losing existing persons or membersh
     await upgraded.db
       .insert(s.organizations)
       .values({ id: orgId, name: 'Existing association', slug: 'existing' });
-    await upgraded.db
-      .insert(s.persons)
-      .values({ id: personId, organizationId: orgId, firstName: 'Existing', lastName: 'Member' });
+    // Raw SQL: the current schema has columns that Phase 1 did not have yet.
+    await upgraded.db.execute(
+      sql`insert into persons(id,organization_id,first_name,last_name,fiscal_code,city) values(${personId},${orgId},'Existing','Member','XSTMMB80A01A952K','Brixen')`,
+    );
     await upgraded.db.insert(s.memberships).values({
       id: membershipId,
       organizationId: orgId,
@@ -103,6 +104,17 @@ it('upgrades a real Phase-1 database without losing existing persons or membersh
     expect(member?.personId).toBe(personId);
     const [person] = await upgraded.db.select().from(s.persons).where(eq(s.persons.id, personId));
     expect(person?.firstName).toBe('Existing');
+    // Sprint 2.4 extends persons in place; existing data stays and register fields start empty.
+    expect([person?.fiscalCode, person?.city, person?.birthPlace, person?.domicile]).toEqual([
+      'XSTMMB80A01A952K',
+      'Brixen',
+      '',
+      '',
+    ]);
+    const volunteerTriggers = await upgraded.db.execute(
+      sql`select tgname from pg_trigger where tgname in ('volunteer_register_entry_insert','volunteer_snapshot_guard','compliance_deadline_evidence','register_document_guard')`,
+    );
+    expect(volunteerTriggers.rowCount).toBe(4);
     expect(await upgraded.db.select().from(s.membershipFeePlans)).toEqual([]);
     const triggers = await upgraded.db.execute(
       sql`select tgname from pg_trigger where tgname='payment_balanced_after_insert'`,

@@ -172,6 +172,10 @@ export async function createApp(db: Database, config: Config) {
         status = 409;
         code = 'CONFLICT';
         message = 'Dieser Eintrag ist bereits vorhanden.';
+      } else if (pgCode === '23P01') {
+        status = 409;
+        code = 'OVERLAP';
+        message = 'Der Zeitraum überschneidet sich mit einem vorhandenen Eintrag.';
       } else if (pgCode === '23503' || pgCode === '23514') {
         status = 422;
         code = 'INVALID_RELATION';

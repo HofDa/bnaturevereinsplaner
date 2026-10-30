@@ -122,3 +122,43 @@ Anmeldung: `{personId}` oder für Berechtigte `{guest:{firstName,lastName,email?
 Sync-Body: `{operations:[{operationId,organizationId,eventOccurrenceId,registrationId,requestedStatus,expectedVersion,clientCreatedAt}]}`. Die Identität stammt ausschließlich aus der serverseitigen Session. Pro Operation enthält `results` den Status `applied`, `conflict` oder `rejected`, optional `code` und den autorisierten aktuellen Datensatz sowie `replayed`. Statuswerte sind `unrecorded|present|absent|excused`. Erfolgreiche Wiederholungen derselben UUID/Inhalte erzeugen keine neue Version und keinen zweiten Audit-Eintrag. Konfliktauflösung benötigt eine neue UUID mit bewusst übernommener Serverversion. Ungültige Session: 401; verlorenes Recht: 403. Die gesamte Anfrage wird vor Verarbeitung gegen das strikte Schema geprüft; fachliche Fehler einzelner gültiger Operationen beeinflussen erfolgreiche Nachbaroperationen nicht.
 
 RRULE: DAILY/WEEKLY/MONTHLY, benutzerdefiniertes INTERVAL und unterstützte BY-Felder, zwingend COUNT oder UNTIL, maximal 366 Instanzen/732 Tage. Serienänderungen schützen Vergangenheit, abgeschlossene Termine und Einzel-Ausnahmen. Strukturelle Änderung mit aktiven Anmeldungen: `EVENT_SERIES_HAS_REGISTRATIONS` (409). Die explizite Serienabsage schließt verschobene künftige Instanzen ein.
+
+## Freiwillige, Versicherungen, Register und Compliance (Sprint 2.4)
+
+Alle Schreibvorgänge benötigen `Origin` und UUID-`Idempotency-Key`; Änderungen verwenden `version`. Antworten wiederholter Schlüssel werden frisch gelesen (`Idempotency-Replayed: true`).
+
+| Methode / Pfad                                                            | Zweck                                                                                      |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| GET /volunteers/overview                                                  | Kennzahlen; Versicherungs-, Register- und Fristwerte nur mit passendem Recht               |
+| GET/POST /volunteers                                                      | Liste ohne Registerdaten (Filter Art, Status, Zuordnungsstatus) bzw. Registrierung         |
+| GET/PATCH /volunteers/:id                                                 | Detail mit Historie, Veranstaltungen, Zuordnungsprüfung; Registerdaten nur für Berechtigte |
+| POST /volunteers/:id/end                                                  | Austritt mit Datum und Grund                                                               |
+| GET /volunteer-people                                                     | Vorhandene Personen (Mitglied/Gast) für die Registrierung                                  |
+| GET/POST /volunteer-assignments, PATCH /:id                               | Einsätze planen, ändern, abschließen, absagen                                              |
+| POST /volunteer-assignments/:id/attendance-draft                          | Unbestätigter Stundenentwurf aus Anwesenheit „anwesend“                                    |
+| GET/POST /volunteer-time-entries, GET /:id                                | Zeiten mit Summen (`totals.confirmedMinutes`) bzw. Erfassung                               |
+| POST /volunteer-time-entries/:id/correction                               | Korrektur mit Pflichtgrund; bestätigte Einträge benötigen erneute Bestätigung              |
+| POST /volunteer-time-entries/:id/decision                                 | `submit`, `confirm`, `reject`                                                              |
+| GET /volunteer-time-entries/export                                        | CSV/PDF (`format`, `language`, Filter)                                                     |
+| GET/POST /insurance-policies, GET/PATCH /:id                              | Policen                                                                                    |
+| GET/POST /insurance-policies/:id/coverages                                | Zuordnungen von Personen und Zeiträumen                                                    |
+| POST /insurance-coverages/:id/end                                         | Zuordnung begründet beenden                                                                |
+| GET /insurance-coverage                                                   | Zuordnungsprüfung je Person (`date`), Lücken, auslaufende Policen                          |
+| GET /insurance-policies/:id/notification-list                             | Meldeliste JSON/CSV/PDF mit SHA-256                                                        |
+| GET /insurance-policies/:id/notifications, POST /insurer-notifications    | Meldungen dokumentieren; Nachweise über `/documents` mit `insurerNotificationId`           |
+| GET/PATCH /volunteer-register/settings                                    | Sektion, Signaturintervall/-verfahren, Aufbewahrung, rechtliche Freigabe (Admin)           |
+| GET /volunteer-register?section=main\|occasional                          | Laufender Stand, chronologische Einträge, ausstehende Vorgänge                             |
+| GET /volunteer-register/verify                                            | Hash-Kette beider Sektionen neu berechnen                                                  |
+| POST /volunteer-register/entries                                          | `admission`, `exit`, `correction` (mit `correctsEntryId` und `reason`)                     |
+| GET /register-snapshots, GET /register-snapshots/validation               | Stände bzw. Prüfung eines Stichtags                                                        |
+| POST /register-snapshots                                                  | Stand festschreiben (Status `signature_pending`)                                           |
+| GET /register-snapshots/:id/integrity                                     | Reproduktion und Dateiintegrität prüfen                                                    |
+| GET /register-snapshots/:id/files/:kind                                   | `snapshot`, `signed`, `timestamp` (privat)                                                 |
+| POST /register-snapshots/:id/signature-files                              | Rohdatei; Metadaten `{"kind":"signed\|timestamp","filename"}` in `X-Document-Metadata`     |
+| POST /register-snapshots/:id/verification                                 | Externes Prüfergebnis dokumentieren                                                        |
+| GET/POST /compliance-rules, PATCH /:id, POST /compliance-rules/initialize | Versionierte Regeln, Aktivierung, Startregeln                                              |
+| GET/POST /compliance-deadlines, PATCH /:id                                | Fristen, Status, Zuständigkeit, Verschiebung mit Begründung                                |
+| POST /compliance-deadlines/generate                                       | Fristen für einen Zeitraum berechnen (idempotent)                                          |
+| POST /compliance-deadlines/:id/evidence, /complete                        | Nachweis hinterlegen bzw. mit Datum und Protokollnummer abschließen                        |
+
+Fehlercodes u. a.: `VOLUNTEER_EXISTS`, `ASSIGNMENT_OVERLAP`, `TIME_OVERLAP`, `TIME_SELF_CONFIRM`, `ATTENDANCE_NOT_PRESENT`, `REGISTER_DATA_INCOMPLETE`, `REGISTER_NOT_READY`, `SIGNATURE_MISSING`, `COVERAGE_OUTSIDE_POLICY`, `EVIDENCE_REQUIRED`, `OVERLAP` (Datenbanksperre gegen Überschneidung).

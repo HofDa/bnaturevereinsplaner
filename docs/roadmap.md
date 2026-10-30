@@ -26,11 +26,11 @@ Sprint 2.2b implementiert private, versionierte Dokumente mit Signatur- und Hash
 
 ## Freiwillige
 
-Personenstamm wiederverwenden, Freiwilligenstatus von Mitgliedschaft trennen. `volunteer_periods`, `insurance_assignments`, `deployments`, `time_entries`, `volunteer_register_versions`. Ein-/Austritte, Versicherungsbezug und Registerstände versionieren, Korrekturen nachvollziehbar dokumentieren. Keine automatische Gleichsetzung von Vereinsmitglied und versichertem Freiwilligen.
+Sprint 2.4 implementiert Freiwillige auf dem vorhandenen Personenstamm (getrennt von Mitgliedschaft), Einsätze zu Veranstaltungen, bestätigungspflichtige Stunden mit Korrekturhistorie, Versicherungspolicen mit Zuordnungen, Meldelisten und indikativer Deckungsprüfung sowie das gesetzliche Register mit Hash-Kette, festgeschriebenen Ständen und externem Signaturimport ([Umsetzung](sprints/2.4-implementation.md), [ADR 0005](decisions/0005-volunteer-register.md), [rechtliche Validierung](legal/volunteer-register-validation.md)). Offen: Selbstansicht für Freiwillige, Wechsel der Tätigkeitsart ohne Austritt, Löschprozess nach Aufbewahrungsfrist.
 
 ## Recht und Compliance
 
-`compliance_deadlines`, `document_preparations`, `signature_requests`, `archive_packages`. RUNTS-Fristen und Dokumente fachlich versionieren. Elektronische Signaturen und Zeitstempel später über austauschbare Adapter integrieren. Kein selbst erzeugtes Register, PDF oder Archiv ist automatisch rechtlich zertifiziert. Konkrete Anforderungen und geeignete Dienst-/Signaturmodelle müssen vor Produktivnutzung gesondert geprüft werden.
+Sprint 2.4 implementiert den Fristen- und Pflichtenmanager mit versionierten Regeln (gesetzlich, Verwaltungsempfehlung, intern), amtlichen Quellen, Berechnung aus Geschäftsjahren, Mandaten, Policen und Registerständen, Nachweisen, Protokollnummern und Historie. Keine automatische RUNTS-Einreichung. Signaturen und Zeitstempel laufen über eine austauschbare Schnittstelle; heute ausschließlich extern und manuell. Kein selbst erzeugtes Register, PDF oder Archiv ist automatisch rechtlich zertifiziert. Offen: qualifizierter Signatur-/Zeitstempeladapter nach rechtlicher Freigabe, Mailerinnerungen, Landesfristen Südtirol.
 
 ## Offline-Synchronisierung
 
@@ -43,6 +43,6 @@ Personenstamm wiederverwenden, Freiwilligenstatus von Mitgliedschaft trennen. `v
 
 Sprint 2.3 setzt diese Strategie für Anwesenheit um. Die Phase-1-Datenbank bleibt auf Shell-Metadaten beschränkt; Veranstaltungsdaten liegen in einer eigenen verschlüsselten Datenbank mit Ablauf und Bereinigung.
 
-## Sprint 2.4 – nächste Aufgaben
+## Nächste Aufgaben nach Sprint 2.4
 
-Freiwilligenregister, Versicherungszeiträume und Einsatzstunden auf dem vorhandenen Personen- und Veranstaltungsmodell aufbauen. Geräteprüfung und betriebliche Aufbewahrungs-/Löschprozesse für Offline-Kopien abschließen. Öffentliche Anmeldung und Gebühren ausdrücklich getrennt planen; kostenlose Anmeldungen erzeugen keine Finanzbuchung.
+Release-Gates aus [Prüfnachweise](verification.md#offene-release-gates) abarbeiten, insbesondere rechtliche Freigabe des Registerverfahrens und der Startregeln. Danach: qualifizierter Signaturadapter, Mailerinnerungen für Fristen, Selbstansicht für Freiwillige und Aufbewahrungs-/Löschprozesse. Öffentliche Anmeldung und Gebühren bleiben getrennt zu planen.

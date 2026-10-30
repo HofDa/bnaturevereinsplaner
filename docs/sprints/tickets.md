@@ -40,7 +40,7 @@ Zusätzliche Abnahme Sprint 2.2: interne Überträge ohne Ergebniswirkung, freie
 
 Umgesetzt: S23-01 bis S23-04. Nachweise und Gerätegrenzen: [Sprint-2.3-Dokumentation](2.3-implementation.md).
 
-## Sprint 2.4 – Freiwillige und Compliance (offen)
+## Sprint 2.4 – Freiwillige und Compliance (implementiert)
 
 | Ticket                | Abnahme                                                                                                                                                                                           |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -48,3 +48,31 @@ Umgesetzt: S23-01 bis S23-04. Nachweise und Gerätegrenzen: [Sprint-2.3-Dokument
 | S24-02 Versicherungen | Policen, Zeiträume, Nachweise, Zuordnungen und Ablaufhinweise; Rollenrechte und Datenminimierung geprüft.                                                                                         |
 | S24-03 Registerstände | Versionierte Snapshots und dokumentierte Exporte; spätere Signatur-/Zeitstempel-/Archivschnittstellen ohne behauptete Zertifizierung.                                                             |
 | S24-04 Compliance     | Fristen, Mandatsabläufe, RUNTS-Jahresmeldungen, Abschluss-/Dokumentchecklisten, Verantwortliche, Status, Protokollnummer und Nachweise. Manuelle Einreichung und Archivierung; kein Portal-Login. |
+
+Umgesetzt: S24-01 bis S24-04. Nachweise und rechtliche Grenzen: [Sprint-2.4-Dokumentation](2.4-implementation.md), [Validierungsgrundlage](../legal/volunteer-register-validation.md).
+
+## Performance – Bundle-Aufteilung (geplant, nicht Teil von Sprint 2.4)
+
+Messung am 30.10.2026 (`vite build --sourcemap`, Stand `feat/sprint-2.4`): ein einziger JavaScript-Chunk mit **1.576,8 kB minifiziert / 458,4 kB gzip**; der PWA-Precache umfasst 1.608,9 KiB. Ursache: `apps/web/src/app/main.tsx` importiert alle 20 Feature-Module statisch, es gibt kein `React.lazy` und keine Chunk-Regeln. Zuordnung über die Sourcemap:
+
+| Anteil | Herkunft                                                                                                 | Gebraucht von                                 |
+| -----: | -------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| 268 kB | FullCalendar (`core` 155, `interaction`, `timegrid`, `daygrid`, `list`) samt `preact` 17 kB              | nur Veranstaltungskalender                    |
+| 199 kB | `@js-temporal/polyfill` 122, `rrule` 44, `jsbi` 34 – über das Barrel `@bnature/contracts` → `event-time` | nur Wiederholungen/Zeiten von Veranstaltungen |
+| 203 kB | `react-dom`                                                                                              | alle Routen (bleibt im Einstieg)              |
+| 109 kB | Locales DE und IT inklusive Kassabuch-/Freiwilligentexte, alle sofort geladen                            | jeweils nur eine Sprache und ein Bereich      |
+|  96 kB | `dexie`                                                                                                  | Offline-Anwesenheit, Logout-Bereinigung       |
+|  88 kB | `zod` (+ 36 kB `packages/contracts`)                                                                     | Formulare und Validierung                     |
+|  69 kB | `luxon`                                                                                                  | Kalender-Adapter, Datumsanzeigen              |
+| 188 kB | Feature-Code Finanzen 73, Freiwillige 54, Veranstaltungen 33, Compliance 15, Dokumente 13                | jeweils nur eigene Route                      |
+
+| Ticket                              | Maßnahme und Abnahme                                                                                                                                                                                                                                                                                                                                                                                          |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PERF-01 Route-Level-Splitting       | Routen in `main.tsx` mit `React.lazy`/`Suspense` laden: Finanzen inkl. Kassabuch, Veranstaltungen, Freiwillige (Übersicht, Einsätze, Versicherung, Register), Compliance, Dokumente, Audit, Benutzer. Dashboard, Login, Shell und Mitglieder bleiben im Einstieg. Fallback ist die bestehende `Loading`-Komponente. Abnahme: Einstiegs-Chunk ≤ 600 kB minifiziert, alle Playwright-Suiten Desktop/Mobil grün. |
+| PERF-02 Kalender isolieren          | FullCalendar und `@fullcalendar/luxon3` nur im Veranstaltungs-Chunk; Kalenderkomponente zusätzlich per `lazy` erst bei der Kalenderansicht laden. Abnahme: kein `@fullcalendar`/`preact` im Einstiegs-Chunk (Sourcemap-Prüfung).                                                                                                                                                                              |
+| PERF-03 Contracts-Barrel entkoppeln | `event-time` (Temporal-Polyfill, `rrule`) nicht mehr über `@bnature/contracts` re-exportieren, sondern als Unterpfad `@bnature/contracts/event-time` anbieten; `sideEffects` im Paket deklarieren. API-Imports anpassen. Abnahme: Polyfill/`rrule`/`jsbi` nur im Veranstaltungs-Chunk; Unit- und Integrationstests unverändert grün.                                                                          |
+| PERF-04 Locales nachladen           | Sprachpakete je Sprache und Bereich (Basis, Kassabuch, Freiwillige) über `i18next`-Ressourcen dynamisch laden; Basis-DE/IT bleiben synchron für Login und Shell. Abnahme: Sprachwechsel DE↔IT und Offline-App-Shell im Playwright-Lauf weiterhin grün.                                                                                                                                                        |
+| PERF-05 Offline-Speicher            | `dexie` erst bei Offline-Anwesenheit laden; die Logout-Bereinigung in `shell.tsx` per dynamischem Import ausführen. Abnahme: Logout und Rechteentzug löschen lokale Daten weiterhin nachweisbar (bestehende E2E-Fälle).                                                                                                                                                                                       |
+| PERF-06 Budget und Precache         | Chunk-Größenbudget in CI (Warnung bei > 600 kB je Chunk) und Prüfung, dass der Workbox-Precache alle Lazy-Chunks enthält, damit die App-Shell offline vollständig bleibt. Abnahme: Offline-Test öffnet eine lazy geladene Route ohne Netz.                                                                                                                                                                    |
+
+Reihenfolge: PERF-03 → PERF-01/02 → PERF-05 → PERF-04 → PERF-06. Erwartung nach PERF-01 bis PERF-03: Einstieg etwa 0,6–0,7 MB minifiziert (Schätzung, vor Umsetzung zu messen). Der Umbau ist bewusst nicht Teil von Sprint 2.4: Lazy-Chunks verändern Precache und Offline-Verhalten und brauchen einen eigenen Testlauf.

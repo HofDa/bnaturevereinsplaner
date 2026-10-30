@@ -25,6 +25,11 @@ import { OfflineAttendanceHub, AttendanceSyncManager } from '../features/events/
 import { purgeAttendance, attendanceOwner } from '../lib/attendance-offline';
 import { Link } from 'react-router';
 import { Documents } from '../features/documents';
+import { VolunteerOverview, VolunteerList, VolunteerDetailPage } from '../features/volunteers';
+import { VolunteerAssignments, VolunteerHours } from '../features/volunteers/work';
+import { VolunteerInsurance } from '../features/volunteers/insurance';
+import { VolunteerRegister } from '../features/volunteers/register';
+import { Compliance } from '../features/compliance';
 import { Empty, ErrorState, Loading } from '../components/ui';
 import { shellDatabase } from '../lib/offline';
 applyTheme((localStorage.getItem('bnature-theme') as Theme) || 'system');
@@ -186,6 +191,70 @@ function App() {
             element={
               <Guard permission="events:read">
                 <EventDetails />
+              </Guard>
+            }
+          />
+          <Route
+            path="volunteers"
+            element={
+              <Guard permission="volunteers:read">
+                <VolunteerOverview />
+              </Guard>
+            }
+          />
+          <Route
+            path="volunteers/list"
+            element={
+              <Guard permission="volunteers:read">
+                <VolunteerList />
+              </Guard>
+            }
+          />
+          <Route
+            path="volunteers/assignments"
+            element={
+              <Guard permission="volunteers:read">
+                <VolunteerAssignments />
+              </Guard>
+            }
+          />
+          <Route
+            path="volunteers/hours"
+            element={
+              <Guard permission="volunteers:read">
+                <VolunteerHours />
+              </Guard>
+            }
+          />
+          <Route
+            path="volunteers/insurance"
+            element={
+              <Guard permission="insurance:read">
+                <VolunteerInsurance />
+              </Guard>
+            }
+          />
+          <Route
+            path="volunteers/register"
+            element={
+              <Guard permission="register:read">
+                <VolunteerRegister />
+              </Guard>
+            }
+          />
+          <Route
+            path="volunteers/:id"
+            element={
+              <Guard permission="volunteers:read">
+                <VolunteerDetailPage />
+              </Guard>
+            }
+          />
+          <Route
+            path="compliance"
+            element={
+              <Guard permission="compliance:read">
+                <Compliance />
               </Guard>
             }
           />

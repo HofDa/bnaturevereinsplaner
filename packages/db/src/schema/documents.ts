@@ -16,6 +16,12 @@ import { organizations, memberships, groups } from './core';
 import { user } from './auth';
 import { cashbookEntries, ledgerTransfers } from './ledger';
 import { eventOccurrences } from './events';
+import {
+  volunteerEngagements,
+  insurancePolicies,
+  insurerNotifications,
+  complianceDeadlines,
+} from './volunteers';
 export const documentCategory = pgEnum('document_category', [
   'receipt',
   'contract',
@@ -25,12 +31,15 @@ export const documentCategory = pgEnum('document_category', [
   'invoice',
   'insurance',
   'funding',
+  'register',
   'other',
 ]);
 export const documentMediaType = pgEnum('document_media_type', [
   'application/pdf',
   'image/png',
   'image/jpeg',
+  'application/pkcs7-mime',
+  'application/timestamp-reply',
 ]);
 export const documents = pgTable(
   'documents',
@@ -48,6 +57,10 @@ export const documents = pgTable(
     transferId: uuid('transfer_id'),
     groupId: uuid('group_id'),
     eventOccurrenceId: uuid('event_occurrence_id'),
+    volunteerEngagementId: uuid('volunteer_engagement_id'),
+    insurancePolicyId: uuid('insurance_policy_id'),
+    insurerNotificationId: uuid('insurer_notification_id'),
+    complianceDeadlineId: uuid('compliance_deadline_id'),
     version: integer('version').notNull().default(1),
     createdBy: uuid('created_by')
       .notNull()
@@ -77,6 +90,24 @@ export const documents = pgTable(
       columns: [t.organizationId, t.eventOccurrenceId],
       foreignColumns: [eventOccurrences.organizationId, eventOccurrences.id],
     }),
+    foreignKey({
+      columns: [t.organizationId, t.volunteerEngagementId],
+      foreignColumns: [volunteerEngagements.organizationId, volunteerEngagements.id],
+    }),
+    foreignKey({
+      columns: [t.organizationId, t.insurancePolicyId],
+      foreignColumns: [insurancePolicies.organizationId, insurancePolicies.id],
+    }),
+    foreignKey({
+      columns: [t.organizationId, t.insurerNotificationId],
+      foreignColumns: [insurerNotifications.organizationId, insurerNotifications.id],
+    }),
+    foreignKey({
+      columns: [t.organizationId, t.complianceDeadlineId],
+      foreignColumns: [complianceDeadlines.organizationId, complianceDeadlines.id],
+    }),
+    index('documents_volunteer_idx').on(t.organizationId, t.volunteerEngagementId),
+    index('documents_policy_idx').on(t.organizationId, t.insurancePolicyId),
     index('documents_event_idx').on(t.organizationId, t.eventOccurrenceId),
     index('documents_org_archived_idx').on(t.organizationId, t.archived, t.createdAt),
     index('documents_cashbook_idx').on(t.organizationId, t.cashbookEntryId),

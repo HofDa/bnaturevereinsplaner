@@ -110,6 +110,8 @@ export async function renderPdf(
   lines: string[],
   language: 'de' | 'it',
   note: string = labels[language].note,
+  // A fixed date makes the output byte-reproducible (register snapshots).
+  fixedDate?: Date,
 ) {
   const document = await PDFDocument.create(),
     font = await document.embedFont(StandardFonts.Helvetica),
@@ -118,6 +120,11 @@ export async function renderPdf(
   document.setAuthor('b*nature');
   document.setLanguage(language);
   document.setCreator('b*nature Vereinsplattform');
+  if (fixedDate) {
+    document.setProducer('b*nature');
+    document.setCreationDate(fixedDate);
+    document.setModificationDate(fixedDate);
+  }
   let page = document.addPage([595.28, 841.89]),
     y = 790,
     missing = false;

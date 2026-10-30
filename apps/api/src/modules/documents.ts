@@ -30,9 +30,16 @@ export function fingerprint(bytes: Buffer) {
   return createHash('sha256').update(bytes).digest('hex');
 }
 // Receipts linked to cashbook entries are financial records: hidden from roles without finance access.
+// Register, insurance, volunteer and compliance evidence follow their module permissions.
 const financeVisible = (role: Role, userId = '') =>
   and(
     can(role, 'finance:read') ? undefined : and(isNull(d.cashbookEntryId), isNull(d.transferId)),
+    can(role, 'register:read') ? undefined : sql`${d.category}<>'register'`,
+    can(role, 'insurance:read')
+      ? undefined
+      : and(isNull(d.insurancePolicyId), isNull(d.insurerNotificationId)),
+    can(role, 'volunteers:write') ? undefined : isNull(d.volunteerEngagementId),
+    can(role, 'compliance:read') ? undefined : isNull(d.complianceDeadlineId),
     role === 'project_lead'
       ? sql`exists(select 1 from event_occurrences ev where ev.organization_id="documents"."organization_id" and ev.id="documents"."event_occurrence_id" and (ev.organizer_id=${userId || '00000000-0000-0000-0000-000000000000'} or ev.created_by=${userId || '00000000-0000-0000-0000-000000000000'}))`
       : ['admin', 'board'].includes(role)
@@ -42,6 +49,19 @@ const financeVisible = (role: Role, userId = '') =>
             sql`exists(select 1 from event_occurrences ev where ev.organization_id="documents"."organization_id" and ev.id="documents"."event_occurrence_id" and ev.visibility<>'internal' and ev.status<>'draft')`,
           ),
   );
+// Evidence files need the separate download permission in addition to visibility.
+const evidenceDocument = (row: {
+  category: string;
+  volunteerEngagementId: string | null;
+  insurancePolicyId: string | null;
+  insurerNotificationId: string | null;
+  complianceDeadlineId: string | null;
+}) =>
+  row.category === 'register' ||
+  !!row.volunteerEngagementId ||
+  !!row.insurancePolicyId ||
+  !!row.insurerNotificationId ||
+  !!row.complianceDeadlineId;
 // Single-table selects render columns unqualified, so correlated subqueries name the table explicitly.
 const latest = sql<
   string | null
@@ -61,6 +81,10 @@ const documentSelect = {
   transferId: d.transferId,
   groupId: d.groupId,
   eventOccurrenceId: d.eventOccurrenceId,
+  volunteerEngagementId: d.volunteerEngagementId,
+  insurancePolicyId: d.insurancePolicyId,
+  insurerNotificationId: d.insurerNotificationId,
+  complianceDeadlineId: d.complianceDeadlineId,
   eventTitleI18n: sql<{
     de: string;
     it: string;
@@ -102,6 +126,7 @@ async function present(
     : [];
   return documentResponseSchema.parse({
     ...wire(rest),
+    protected: evidenceDocument(rest as Parameters<typeof evidenceDocument>[0]),
     latestVersion: version ? wire(version) : null,
   });
 }
@@ -133,6 +158,10 @@ export async function listDocuments(
     q.transferId ? eq(d.transferId, q.transferId) : undefined,
     q.groupId ? eq(d.groupId, q.groupId) : undefined,
     q.eventOccurrenceId ? eq(d.eventOccurrenceId, q.eventOccurrenceId) : undefined,
+    q.volunteerEngagementId ? eq(d.volunteerEngagementId, q.volunteerEngagementId) : undefined,
+    q.insurancePolicyId ? eq(d.insurancePolicyId, q.insurancePolicyId) : undefined,
+    q.insurerNotificationId ? eq(d.insurerNotificationId, q.insurerNotificationId) : undefined,
+    q.complianceDeadlineId ? eq(d.complianceDeadlineId, q.complianceDeadlineId) : undefined,
     q.search
       ? or(
           ilike(d.title, `%${escapeLike(q.search)}%`),
@@ -178,8 +207,36 @@ async function assertReferences(
     transferId?: string | null;
     groupId?: string | null;
     eventOccurrenceId?: string | null;
+    volunteerEngagementId?: string | null;
+    insurancePolicyId?: string | null;
+    insurerNotificationId?: string | null;
+    complianceDeadlineId?: string | null;
   },
 ) {
+  const linked = async (
+    permission: Parameters<typeof can>[1],
+    table:
+      | typeof s.volunteerEngagements
+      | typeof s.insurancePolicies
+      | typeof s.insurerNotifications
+      | typeof s.complianceDeadlines,
+    id: string,
+  ) => {
+    if (!can(role, permission)) throw new HttpError(403, 'FORBIDDEN', 'Keine Berechtigung.');
+    const [row] = await tx
+      .select({ id: table.id })
+      .from(table)
+      .where(and(eq(table.organizationId, access.organizationId), eq(table.id, id)));
+    if (!row) throw new HttpError(404, 'NOT_FOUND', 'Bezug nicht gefunden.');
+  };
+  if (refs.volunteerEngagementId)
+    await linked('volunteers:write', s.volunteerEngagements, refs.volunteerEngagementId);
+  if (refs.insurancePolicyId)
+    await linked('insurance:write', s.insurancePolicies, refs.insurancePolicyId);
+  if (refs.insurerNotificationId)
+    await linked('insurance:write', s.insurerNotifications, refs.insurerNotificationId);
+  if (refs.complianceDeadlineId)
+    await linked('compliance:write', s.complianceDeadlines, refs.complianceDeadlineId);
   if (refs.eventOccurrenceId) await eventRow(tx, { ...access, role }, refs.eventOccurrenceId, true);
   if (role === 'project_lead' && refs.eventOccurrenceId === null)
     throw new HttpError(403, 'FORBIDDEN', 'Veranstaltungsbezug erforderlich.');
@@ -260,7 +317,7 @@ async function insertVersion(
   await audit(tx, access, 'upload', 'document_version', row!.id, versionFields);
 }
 // The file is written before the transaction; a failed or replayed request removes it again.
-async function withStoredFile<T>(
+export async function withStoredFile<T>(
   storage: DocumentStorage,
   access: Access,
   file: UploadedFile,
@@ -276,6 +333,23 @@ async function withStoredFile<T>(
     await storage.remove(access.organizationId, storageKey);
     throw error;
   }
+}
+// Used by modules that create protected documents inside their own transaction.
+export async function insertDocument(
+  tx: Transaction,
+  access: Access,
+  metadata: Pick<DocumentInput, 'title' | 'category'> & Partial<Omit<DocumentInput, 'filename'>>,
+  filename: string,
+  file: UploadedFile,
+  storageKey: string,
+) {
+  const [row] = await tx
+    .insert(d)
+    .values({ ...metadata, organizationId: access.organizationId, createdBy: access.userId })
+    .returning({ id: d.id });
+  await audit(tx, access, 'create', 'document', row!.id, Object.keys(metadata));
+  await insertVersion(tx, access, row!.id, 1, filename, file, storageKey);
+  return row!.id;
 }
 export function createDocument(
   db: Database,
@@ -295,7 +369,15 @@ export function createDocument(
         ...Object.fromEntries(
           Object.entries(input).filter(
             ([key, value]) =>
-              !['groupId', 'transferId', 'eventOccurrenceId'].includes(key) || value !== null,
+              ![
+                'groupId',
+                'transferId',
+                'eventOccurrenceId',
+                'volunteerEngagementId',
+                'insurancePolicyId',
+                'insurerNotificationId',
+                'complianceDeadlineId',
+              ].includes(key) || value !== null,
           ),
         ),
         sha256: file.sha256,
@@ -422,6 +504,11 @@ export async function readDocumentVersion(
       filename: v.filename,
       mediaType: v.mediaType,
       sha256: v.sha256,
+      category: d.category,
+      volunteerEngagementId: d.volunteerEngagementId,
+      insurancePolicyId: d.insurancePolicyId,
+      insurerNotificationId: d.insurerNotificationId,
+      complianceDeadlineId: d.complianceDeadlineId,
     })
     .from(v)
     .innerJoin(d, and(eq(d.organizationId, v.organizationId), eq(d.id, v.documentId)))
@@ -434,11 +521,19 @@ export async function readDocumentVersion(
       ),
     );
   if (!row) throw new HttpError(404, 'NOT_FOUND', 'Dokument nicht gefunden.');
+  if (evidenceDocument(row) && !can(role, 'evidence:download'))
+    throw new HttpError(403, 'FORBIDDEN', 'Nachweise dürfen mit Ihrer Rolle nicht geladen werden.');
   const bytes = await storage.read(org, row.storageKey).catch(() => {
     throw new HttpError(500, 'DOCUMENT_STORAGE_ERROR', 'Die Datei ist nicht verfügbar.');
   });
   // Integrity check against the hash recorded at upload time.
   if (fingerprint(bytes) !== row.sha256)
     throw new HttpError(500, 'DOCUMENT_STORAGE_ERROR', 'Die Datei ist nicht verfügbar.');
-  return { ...row, bytes };
+  return {
+    storageKey: row.storageKey,
+    filename: row.filename,
+    mediaType: row.mediaType,
+    sha256: row.sha256,
+    bytes,
+  };
 }

@@ -17,6 +17,8 @@ import {
   ChevronDown,
   FileText,
   CalendarDays,
+  HandHeart,
+  ClipboardCheck,
 } from 'lucide-react';
 import type { Permission } from '@bnature/contracts';
 import { useSession } from '../app/session';
@@ -35,6 +37,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
     { to: '/', key: 'overview', icon: LayoutDashboard },
     { to: '/members', key: 'members', icon: Users, permission: 'members:read' },
     { to: '/events', key: 'events', icon: CalendarDays, permission: 'events:read' },
+    { to: '/volunteers', key: 'volunteers', icon: HandHeart, permission: 'volunteers:read' },
     { to: '/finance', key: 'finance', icon: Wallet, permission: 'finance:read' },
     { to: '/groups', key: 'groups', icon: Layers },
     { to: '/board', key: 'board', icon: ShieldCheck },
@@ -42,6 +45,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   const secondary = [
     { to: '/organization', key: 'organization', icon: Building2, permission: 'organization:read' },
     { to: '/documents', key: 'documents', icon: FileText, permission: 'documents:read' },
+    { to: '/compliance', key: 'compliance', icon: ClipboardCheck, permission: 'compliance:read' },
     { to: '/users', key: 'users', icon: Users, permission: 'users:manage' },
     { to: '/audit', key: 'audit', icon: ScrollText, permission: 'audit:read' },
     { to: '/settings', key: 'settings', icon: Settings2 },

@@ -156,15 +156,21 @@ export function registerDocumentRoutes(context: ModuleContext, prefix = '/api/v1
     },
     async (req, reply) => {
       const a = await access(req, 'documents:write'),
-        input = metadata(req, documentInputSchema),
-        result = await createDocument(
-          db,
-          storage,
-          a,
-          req.headers['idempotency-key'],
-          scoped ? { ...input, eventOccurrenceId: scopedId(req) } : input,
-          uploadedFile(req),
+        input = metadata(req, documentInputSchema);
+      if (input.category === 'register')
+        throw new HttpError(
+          422,
+          'REGISTER_DOCUMENT_RESERVED',
+          'Registerdokumente entstehen nur durch Festschreibung.',
         );
+      const result = await createDocument(
+        db,
+        storage,
+        a,
+        req.headers['idempotency-key'],
+        scoped ? { ...input, eventOccurrenceId: scopedId(req) } : input,
+        uploadedFile(req),
+      );
       return replayed(reply.code(201), result.replayed).send(result.data);
     },
   );

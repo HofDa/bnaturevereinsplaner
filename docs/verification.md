@@ -1,24 +1,24 @@
 # Prüfnachweise
 
-Stand: 30.10.2026 (Sprint 2.3). Alle Angaben beziehen sich auf den lokal implementierten Stand von Phase 1 und Sprints 2.1–2.3. Eine Veröffentlichung auf einem öffentlichen Server oder Zertifizierung ist damit nicht verbunden.
+Stand: 30.10.2026 (Sprint 2.4). Alle Angaben beziehen sich auf den lokal implementierten Stand von Phase 1 und Sprints 2.1–2.4 auf `feat/sprint-2.4`. Damit ist weder eine Veröffentlichung auf einem öffentlichen Server noch eine Zertifizierung verbunden.
 
-| Prüfung                | Ergebnis                                                                                                                                                                         |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Bun                    | 1.3.14, direkte Paketversionen und Lockfile gepinnt                                                                                                                              |
-| TypeScript Strict Mode | bestanden                                                                                                                                                                        |
-| ESLint                 | bestanden                                                                                                                                                                        |
-| Prettier               | bestanden                                                                                                                                                                        |
-| Unit-/UI-Tests         | **74 bestanden**                                                                                                                                                                 |
-| PostgreSQL-Integration | **116 bestanden**, echte PostgreSQL-17-Datenbank und Better-Auth-Sessions, inklusive Upgrade-Test der Migration                                                                  |
-| Playwright Desktop     | **16 bestanden** (5 Plattform, 2 Beiträge, 2 Kassabuch, 2 Dokumente, 1 Sprint-2.2-Ablauf, 4 Veranstaltungen/Offline), Produktionsbuild in Chrome                                 |
-| Playwright Mobilformat | **16 bestanden** (5 Plattform, 2 Beiträge, 2 Kassabuch, 2 Dokumente, 1 Sprint-2.2-Ablauf, 4 Veranstaltungen/Offline), Chromium mit iPhone-13-Viewport und Touch-Emulation        |
-| Produktionsbuild       | Web-PWA und Node-kompatibles API-Bundle bestanden                                                                                                                                |
-| Migrationen            | `0000`–`0010` angewendet; Upgrade mit Phase-1-Daten und geschlossenem Kassabuch geprüft; erneute Generierung ohne Schemaänderung                                                 |
-| OpenAPI                | aus den registrierten Routen generiert                                                                                                                                           |
-| Node-Runtime           | Health mit Datenbank, anonymer Zugriffsschutz und No-Store-Header bestanden                                                                                                      |
-| Docker                 | Vorheriger Nachweis vor dieser Erweiterung: Images und Dokumentvolume geprüft; Container-Images in diesem Durchlauf nicht erneut gebaut                                          |
-| Caddy                  | Vorheriger Nachweis: unveränderte Konfiguration im Container erfolgreich validiert                                                                                               |
-| Paket-Audit            | keine mittleren/hohen/kritischen Hinweise nach esbuild-Override; **ein niedriger Build-Hinweis bleibt offen**, siehe [Sicherheit](security.md#abhängigkeitsprüfung-vom-29102026) |
+| Prüfung                | Ergebnis                                                                                                                                                                                                                                |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bun                    | 1.3.14, direkte Paketversionen und Lockfile gepinnt                                                                                                                                                                                     |
+| TypeScript Strict Mode | bestanden                                                                                                                                                                                                                               |
+| ESLint                 | bestanden                                                                                                                                                                                                                               |
+| Prettier               | bestanden                                                                                                                                                                                                                               |
+| Unit-/UI-Tests         | **85 bestanden** (8 Dateien; +11 Freiwillige/Compliance)                                                                                                                                                                                |
+| PostgreSQL-Integration | **131 bestanden** (8 Dateien: API 29, Finanzen 37, Kassabuch 15, Sprint 2.2 10, Dokumente 8, Veranstaltungen 16, Freiwillige 15, Migration-Upgrade 1), echte PostgreSQL-17-Datenbank und Better-Auth-Sessions                           |
+| Playwright Desktop     | **18 bestanden** (5 Plattform, 2 Beiträge, 2 Kassabuch, 2 Dokumente, 1 Sprint-2.2-Ablauf, 4 Veranstaltungen/Offline, 2 Freiwillige/Compliance), Produktionsbuild in Chrome                                                              |
+| Playwright Mobilformat | **18 bestanden** (gleiche Aufteilung), Chromium mit iPhone-13-Viewport und Touch-Emulation                                                                                                                                              |
+| Produktionsbuild       | Web-PWA und Node-kompatibles API-Bundle bestanden; Web-Chunk 1.576,7 kB minifiziert / 458,3 kB gzip mit Größenwarnung, Maßnahmen als [PERF-Tickets](sprints/tickets.md#performance--bundle-aufteilung-geplant-nicht-teil-von-sprint-24) |
+| Migrationen            | `0000`–`0011` angewendet; Upgrade mit Phase-1-Daten und geschlossenem Kassabuch geprüft; erneute Generierung meldet keine Schemaänderung                                                                                                |
+| OpenAPI                | aus den registrierten Routen generiert; erneute Erzeugung deterministisch                                                                                                                                                               |
+| Node-Runtime           | Health mit Datenbank, anonymer Zugriffsschutz und No-Store-Header bestanden                                                                                                                                                             |
+| Docker                 | Vorheriger Nachweis vor dieser Erweiterung: Images und Dokumentvolume geprüft; Container-Images in diesem Durchlauf nicht erneut gebaut                                                                                                 |
+| Caddy                  | Vorheriger Nachweis: unveränderte Konfiguration im Container erfolgreich validiert                                                                                                                                                      |
+| Paket-Audit            | keine mittleren/hohen/kritischen Hinweise nach esbuild-Override; **ein niedriger Build-Hinweis bleibt offen**, siehe [Sicherheit](security.md#abhängigkeitsprüfung-vom-29102026)                                                        |
 
 ## Inhalt der Tests
 
@@ -67,10 +67,31 @@ Fünf zusätzliche Unit-Tests prüfen lokale Uhrzeiten über beide Zeitumstellun
 
 Keine physische iOS-/Safari-Installation oder echter Flugmodus wurde in dieser Umgebung geprüft. Touch-/iPhone-Viewport läuft in Chromium und ersetzt diese Geräteabnahme nicht. Der Node-Starttest hat Datenbank-Health, anonymen Zugriffsschutz und No-Store-Header bestanden. Migrationserzeugung meldet nach `0010` keine Schemaabweichung.
 
+## Sprint 2.4
+
+Lauf vom 30.10.2026 auf `feat/sprint-2.4` (Basis `dd7988d`), gegen die dedizierte Testdatenbank `bnature_test` (Container `postgres-test`) und nacheinander ausgeführt:
+
+| Prüfung                           | Ergebnis                                                                                                                             |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Typecheck, ESLint, Prettier       | bestanden                                                                                                                            |
+| Unit/UI (`bun run test`)          | 85/85 in 8 Dateien                                                                                                                   |
+| PostgreSQL (`test:integration`)   | 131/131 in 8 Dateien, davon 15 in `tests/integration/volunteers.test.ts`                                                             |
+| Playwright (`test:e2e`, 7 Suiten) | 36/36: 18 Desktop, 18 Mobil; keine Wiederholungen (`retries` lokal 0), keine übersprungenen Tests                                    |
+| Build, Node-Smoke                 | bestanden; Bundle-Warnung > 500 kB bleibt offen (PERF-01 bis PERF-06)                                                                |
+| Migration/OpenAPI-Drift           | `db:generate` ohne Schemaänderung; OpenAPI regeneriert                                                                               |
+| `git diff --check`, Artefakt-Scan | ohne Befund; keine Secrets, `.env`-Dateien, Dumps, Testartefakte oder echten Personendaten (Steuernummern in Tests sind synthetisch) |
+
+Ein erster Playwright-Versuch brach vor dem ersten Test ab, weil der Testdatenbank-Container gestoppt war (`ECONNREFUSED 127.0.0.1:55440`). Nach `docker compose --profile test up -d --wait postgres-test` lief die gesamte Suite ohne Codeänderung durch.
+
+Neu abgedeckt: Freiwillige regulär/gelegentlich mit Statushistorie, Einsätze und Stunden, Policen und Zuordnungsprüfung inkl. 24-Uhr-Regel, append-only Register mit Hash-Kette und SQL-Trigger-Sperren, Registerstände mit reproduzierbarem PDF und Integritätsprüfung, technische Prüfung importierter Signatur-/Zeitstempeldateien, Fristenregeln mit Versionen, Rollen- und Mandantentrennung, DE/IT und Axe im Browser. Die rechtlichen Grundlagen und ihr Prüfstand stehen in der [Validierungsgrundlage](legal/volunteer-register-validation.md). Die Tests belegen das technische Verhalten, **keine** rechtliche Konformität oder Zertifizierung.
+
 ## Offene Release-Gates
 
-Vor einer Produktivfreigabe der Sprints 2.2–2.3 sind folgende Prüfungen offen und nicht durch die automatisierten Tests abgedeckt:
+Vor einer Produktivfreigabe der Sprints 2.2–2.4 sind folgende Prüfungen offen und nicht durch die automatisierten Tests abgedeckt:
 
 - [ ] **PWA auf echtem iPhone:** installierte PWA in Safari/iOS im Flugmodus (Vorbereitung, Offline-Check-ins, Neustart, Wiederverbindung, Konflikte, Logout-Bereinigung). Chromium mit iPhone-Viewport ersetzt diese Geräteabnahme nicht.
-- [ ] **Migrationen an Produktionsdatenkopie:** `0004`–`0010` gegen eine aktuelle, gesicherte Kopie der Produktionsdaten ausführen und Bestände, geschlossene Jahre, Kategorienamen und Idempotenzantworten abgleichen. Keine Migration gegen Produktivdaten ohne Backup.
+- [ ] **Migrationen an Produktionsdatenkopie:** `0004`–`0011` gegen eine aktuelle, gesicherte Kopie der Produktionsdaten ausführen und Bestände, geschlossene Jahre, Kategorienamen und Idempotenzantworten abgleichen. Keine Migration gegen Produktivdaten ohne Backup.
 - [ ] **Fachliche Freigabe ETS:** Zuordnungen der Kategorien zu den ETS-Modellen D/E, Schwellenwerte und historische Referenzwerte durch die verantwortliche Person prüfen und freigeben (siehe [ETS-Berichte](ets-reporting.md)).
+- [ ] **Rechtliche Freigabe Sprint 2.4:** Register- und Signaturverfahren, Startregeln des Fristenmanagers, Aufbewahrungs-/Löschfristen und Datenschutz durch fachkundige Person prüfen (offene Fragen in der [Validierungsgrundlage](legal/volunteer-register-validation.md#5-offene-rechtliche-fragen)).
+- [ ] **Probelauf mit realem Signaturmittel:** Registerstand festschreiben, extern qualifiziert signieren und zeitstempeln, importieren und extern validieren.
+- [ ] **Versicherer:** Format und Frist der Meldelisten mit der konkreten Versicherung abstimmen.

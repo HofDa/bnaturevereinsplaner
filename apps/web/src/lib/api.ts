@@ -138,7 +138,8 @@ export function errorMessage(error: unknown) {
       DOCUMENT_ARCHIVED: 'documentArchivedLocked',
       DOCUMENT_STORAGE_ERROR: 'documentStorageError',
     };
-    return i18n.t(keys[error.code] ?? 'serverError');
+    const fallback = `error_${error.code}`;
+    return i18n.t(keys[error.code] ?? (i18n.exists(fallback) ? fallback : 'serverError'));
   }
   return i18n.t('loginNetwork');
 }

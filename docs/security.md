@@ -16,27 +16,37 @@ Fastify begrenzt Anfragen pro IP auf 150/Minute, Auth-Endpunkte auf 20/Minute un
 
 ## Berechtigungen
 
-| Funktion                                  | Admin | Vorstand | Kassier | Projektleitung | Mitglied |
-| ----------------------------------------- | ----- | -------- | ------- | -------------- | -------- |
-| Mitglieder lesen / exportieren            | ja    | ja       | ja      | nein           | nein     |
-| Mitglieder anlegen / ändern / importieren | ja    | ja       | nein    | nein           | nein     |
-| Gruppenübersicht                          | ja    | ja       | ja      | ja             | ja       |
-| Gruppenmetadaten verwalten                | ja    | ja       | nein    | ja             | nein     |
-| Personen zu Gruppen zuordnen              | ja    | ja       | nein    | nein           | nein     |
-| Vorstandsnamen / Funktionen lesen         | ja    | ja       | ja      | ja             | ja       |
-| Amtszeiten verwalten                      | ja    | ja       | nein    | nein           | nein     |
-| Vereinsprofil lesen                       | ja    | ja       | ja      | ja             | ja       |
-| Vereinsprofil ändern                      | ja    | ja       | nein    | nein           | nein     |
-| Audit-Protokoll                           | ja    | ja       | nein    | nein           | nein     |
-| Benutzerkonten / Rollen                   | ja    | nein     | nein    | nein           | nein     |
-| Eigene verknüpfte Kontakt-/Adressdaten    | ja    | ja       | ja      | ja             | ja       |
-| Beiträge / Zahlungen lesen, PDF, CSV      | ja    | nein     | ja      | nein           | nein     |
-| Forderungen, Zahlungen, Erinnerungen      | ja    | nein     | ja      | nein           | nein     |
-| Beitragstarife verwalten                  | ja    | nein     | nein    | nein           | nein     |
-| Kassabuch, Konten, Berichte, Storno       | ja    | nein     | ja      | nein           | nein     |
-| Geschäftsjahr abschließen                 | ja    | nein     | nein    | nein           | nein     |
-| Dokumente lesen / hochladen / archivieren | ja    | ja       | ja      | nein           | nein     |
-| Belege zu Kassabuchbuchungen              | ja    | nein     | ja      | nein           | nein     |
+| Funktion                                  | Admin   | Vorstand | Kassier   | Projektleitung  | Mitglied |
+| ----------------------------------------- | ------- | -------- | --------- | --------------- | -------- |
+| Mitglieder lesen / exportieren            | ja      | ja       | ja        | nein            | nein     |
+| Mitglieder anlegen / ändern / importieren | ja      | ja       | nein      | nein            | nein     |
+| Gruppenübersicht                          | ja      | ja       | ja        | ja              | ja       |
+| Gruppenmetadaten verwalten                | ja      | ja       | nein      | ja              | nein     |
+| Personen zu Gruppen zuordnen              | ja      | ja       | nein      | nein            | nein     |
+| Vorstandsnamen / Funktionen lesen         | ja      | ja       | ja        | ja              | ja       |
+| Amtszeiten verwalten                      | ja      | ja       | nein      | nein            | nein     |
+| Vereinsprofil lesen                       | ja      | ja       | ja        | ja              | ja       |
+| Vereinsprofil ändern                      | ja      | ja       | nein      | nein            | nein     |
+| Audit-Protokoll                           | ja      | ja       | nein      | nein            | nein     |
+| Benutzerkonten / Rollen                   | ja      | nein     | nein      | nein            | nein     |
+| Eigene verknüpfte Kontakt-/Adressdaten    | ja      | ja       | ja        | ja              | ja       |
+| Beiträge / Zahlungen lesen, PDF, CSV      | ja      | nein     | ja        | nein            | nein     |
+| Forderungen, Zahlungen, Erinnerungen      | ja      | nein     | ja        | nein            | nein     |
+| Beitragstarife verwalten                  | ja      | nein     | nein      | nein            | nein     |
+| Kassabuch, Konten, Berichte, Storno       | ja      | nein     | ja        | nein            | nein     |
+| Geschäftsjahr abschließen                 | ja      | nein     | nein      | nein            | nein     |
+| Dokumente lesen / hochladen / archivieren | ja      | ja       | ja        | nein            | nein     |
+| Belege zu Kassabuchbuchungen              | ja      | nein     | ja        | nein            | nein     |
+| Freiwillige lesen (ohne Registerdaten)    | ja      | ja       | ja        | ja              | nein     |
+| Freiwillige verwalten, Registerdaten      | ja      | ja       | nein      | nein            | nein     |
+| Einsätze planen / Zeiten erfassen         | ja      | ja       | nein      | eigene Veranst. | nein     |
+| Stunden bestätigen                        | ja      | ja       | nein      | eigene Veranst. | nein     |
+| Versicherungen lesen / verwalten          | ja / ja | ja / ja  | ja / nein | nein            | nein     |
+| Register lesen / Einträge erstellen       | ja      | ja       | nein      | nein            | nein     |
+| Registerstände festschreiben, Signaturen  | ja      | ja       | nein      | nein            | nein     |
+| Rechtliche Freigabe des Verfahrens        | ja      | nein     | nein      | nein            | nein     |
+| Fristen lesen / verwalten                 | ja / ja | ja / ja  | ja / nein | nein            | nein     |
+| Nachweise herunterladen                   | ja      | ja       | nein      | nein            | nein     |
 
 Gruppenlisten für normale Mitglieder zeigen nur die Anzahl, keine fremden Personendatensätze. Namen im Vorstand sind bewusst für angemeldete Vereinsangehörige sichtbar. Das eigene Profil nutzt ausschließlich eine serverseitig ermittelte Personenverknüpfung; es akzeptiert keine frei wählbare Person-ID. Kein Benutzer kann sich über die Profil-API eine Rolle geben. Der letzte Administrator ist gegen Herabstufung geschützt. Finanzrechte (`finance:read`, `finance:write`, `finance:plans`, `finance:close`) werden bei Schreiboperationen zusätzlich innerhalb der gesperrten Transaktion erneut geprüft; Details in [Sprint 2.1](sprints/2.1-implementation.md#berechtigungen-und-datenschutz).
 
@@ -71,3 +81,13 @@ Ein niedriger Hinweis zu `deepmerge@4.3.1` bleibt im Entwicklungs-/Buildwerkzeug
 Vorbereitung und jede Synchronisierung erfordern serverseitig die aktuelle Veranstaltungsverantwortung und Organisationsrolle. Jede Operation wird gegen die erwartete Datensatzversion geprüft und einmalig bestätigt; ein Konflikt benötigt eine bewusste Entscheidung. Der Client übermittelt keine vertrauenswürdige Benutzeridentität. Abgelaufene Sessions erhalten 401 und bewahren die Queue bis zur erneuten Anmeldung; Rechteentzug oder Kontowechsel entfernt lokale Kopien.
 
 AES-GCM-Payloads und ein nicht exportierbarer CryptoKey liegen in IndexedDB. Metadaten für Queue/Benutzerbindung enthalten Kennungen und Ablaufzeit. Der Schlüssel ist kein Ersatz für Gerätesperre und schützt nicht vor Zugriff durch denselben Origin. Nach sieben Tagen sind Kopien nicht mehr nutzbar und werden beim nächsten Zugriff/Fokus beziehungsweise bei offener Ansicht periodisch gelöscht. Logout und Organisationswechsel löschen Kopien, Queue und Schlüssel. Ein offline gebliebenes Gerät erkennt einen serverseitigen Rechteentzug erst bei erneuter Verbindung. Keine personenbezogenen API-Antworten gelangen in Service-Worker-Caches. Siehe [ADR 0004](decisions/0004-events-offline.md).
+
+## Freiwillige, Register und Compliance (Sprint 2.4)
+
+Getrennte Berechtigungen: `volunteers:read`, `volunteers:write`, `volunteers:assign`, `volunteer_hours:confirm`, `insurance:read`, `insurance:write`, `register:read`, `register:write`, `register:finalize`, `compliance:read`, `compliance:write`, `evidence:download`. Schreibvorgänge lesen Rolle und Organisation innerhalb der sperrenden Transaktion erneut. Projektleitungen sehen und bearbeiten Einsätze und Stunden nur zu Veranstaltungen, die sie verantworten; niemand bestätigt eigene Stunden.
+
+Datenminimierung: Listen, Einsätze, Stunden und Dashboard enthalten keine Steuernummer, Geburtsdaten oder Adressen. Registerdaten erscheinen nur in der Detailansicht für `volunteers:write`/`register:read`, im Register und in Meldelisten (`insurance:write` plus `evidence:download`). Das Idempotenzprotokoll speichert für diese Vorgänge nur IDs; Audit-Einträge nur Feldnamen. Der Client protokolliert keine Antworten.
+
+Dokumente mit Register-, Versicherungs-, Freiwilligen- oder Fristbezug sind zusätzlich zur bestehenden Dokumentfreigabe an die Modulrechte gebunden und nur mit `evidence:download` herunterladbar. Registerdokumente entstehen ausschließlich durch Festschreibung, erhalten keine weiteren Versionen und können weder umkategorisiert noch archiviert werden. Signaturimporte akzeptieren PDF, CAdES (`application/pkcs7-mime`) und RFC 3161 (`application/timestamp-reply`) nur nach Inhaltsprüfung und nur an diesem Endpunkt.
+
+Fremde IDs liefern 404, fremde Organisationskontexte 403; alle neuen Tabellen verwenden zusammengesetzte mandantengebundene Fremdschlüssel. Die Hash-Kette des Registers ist über `GET /volunteer-register/verify` prüfbar. SHA-256 belegt Unverändertheit gegenüber einem bekannten Wert, ersetzt aber keine qualifizierte Signatur und keinen Zeitstempel.

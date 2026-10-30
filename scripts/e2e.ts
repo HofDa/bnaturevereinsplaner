@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-const suites = ['platform', 'finance', 'ledger', 'documents', 'sprint22', 'events'];
+const suites = ['platform', 'finance', 'ledger', 'documents', 'sprint22', 'events', 'volunteers'];
 const requested = process.argv.slice(2);
 if (requested.some((s) => !suites.includes(s))) throw new Error('Unknown E2E suite');
 // Each suite gets the real rate limits and a fresh API process; fast synthetic sessions do not share IP counters.

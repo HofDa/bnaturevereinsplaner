@@ -63,3 +63,22 @@ Migrationen `0008`–`0010` sind additiv. `0008_curious_smasher.sql` ergänzt `e
 Anmeldungen sind je Organisation/Instanz/Person eindeutig. Abmeldung ändert den Status und bewahrt dieselbe Identität für eine erneute Anmeldung. Anwesenheit besitzt vier Statuswerte, monotone Versionen, erfassende Benutzer und eine unveränderliche Historie. Ein verzögerter Constraint verlangt für jede Anwesenheitsänderung die zugehörige Operation und Historie. UUID-Operationen speichern die autorisierte Identität, Request-Hash und Ergebnis. SQL-Regeln verhindern Kapazitätsüberschreitungen und direkte Löschung zentraler Historie.
 
 Bestehende Personen dienen als Gäste ohne Mitgliedschaft. Projektbezüge bleiben optionale Textreferenzen, da kein Projektstammmodul existiert. Finanzschema und Zahlungsabläufe werden nicht mit Anmeldungen gekoppelt. Vor Produktivmigration wie üblich Datenbank/Dateien sichern und Migrationen kontrolliert mit `bun run db:migrate` anwenden; kein automatisches Schema-Push.
+
+## Sprint 2.4 – Freiwillige, Register, Versicherungen und Compliance
+
+Migration `0011_volunteers_compliance.sql` ist additiv. `persons` erhält `birth_place` und `domicile` (Registerdaten); `documents` erhält optionale, mandantengebundene Bezüge zu Freiwilligeneinsatz, Police, Versicherermeldung und Frist sowie die Kategorie `register`.
+
+| Tabelle                                                 | Verantwortung / Constraints                                                                                                                                          |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| volunteer_engagements / volunteer_engagement_history    | Tätigkeit je Person (regelmäßig/gelegentlich), höchstens eine offene je Person, Status/Ende konsistent, Art unveränderlich, beendet = final; Historie append-only    |
+| volunteer_assignments                                   | Einsatz mit optionaler Veranstaltung, Rolle, Plan-Zeiten, verantwortlichem Konto, Projekt; je Tätigkeit/Veranstaltung einmal; Überschneidungen per Trigger gesperrt  |
+| volunteer_time_entries / volunteer_time_entry_history   | Ist-Zeiten mit Pause, Minuten per CHECK berechnet (≤ 24 h), Status mit Bestätiger; Änderungen nur mit vorherigem Historieneintrag; keine Überschneidung              |
+| volunteer_register_entries                              | Append-only, fortlaufend je Organisation/Sektion, Hash des Vorgängers, Korrektur mit Verweis und Begründung; Trigger prüft Nummer und Kette                          |
+| volunteer_register_settings                             | Sektion für Gelegentliche, Signaturintervall/-verfahren, Aufbewahrung ≥ 10 Jahre, Ablaufwarnung, rechtliche Freigabe mit Referenz                                    |
+| volunteer_register_snapshots                            | Fortlaufend, Verweis auf Vorgänger und dessen Hash, SHA-256 von PDF und Inhalt; Inhalt unveränderbar, Status nur vorwärts, Löschen gesperrt                          |
+| insurance_policies / insurance_coverages                | Police mit Risikoarten, Laufzeit, Gruppe, Status; Zuordnung je Tätigkeit und Zeitraum innerhalb der Laufzeit; nicht löschbar                                         |
+| insurer_notifications / insurer_notification_items      | Unveränderliche Meldung mit Datum, Weg, Prüfsumme der Liste und gemeldeten Personen                                                                                  |
+| compliance_rules                                        | Version je Regelschlüssel, genau eine geltende Version; gesetzliche Regeln brauchen Rechtsgrundlage; Inhalt unveränderbar                                            |
+| compliance_deadlines / compliance_evidence / …\_history | Frist mit Regelversion, Quelle (`source_key` eindeutig), Status; „erledigt“ nur mit Nachweis (verzögerter Constraint) und dann final; Nachweise/Historie append-only |
+
+Freiwilligendaten werden nie zwischen Organisationen geteilt. Bestehende Personen, Mitgliedschaften, Veranstaltungen und Finanzdaten bleiben unverändert; der Upgrade-Test prüft den Erhalt vorhandener Personendaten.

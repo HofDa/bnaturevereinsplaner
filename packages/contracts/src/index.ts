@@ -10,81 +10,9 @@ export * from './common';
 export * from './finance';
 export * from './ledger';
 export * from './documents';
+export * from './roles';
+import { roleSchema, type Role, type Permission } from './roles';
 
-export const roles = ['admin', 'board', 'treasurer', 'project_lead', 'member'] as const;
-export const roleSchema = z.enum(roles);
-export type Role = z.infer<typeof roleSchema>;
-export const permissions = [
-  'events:read',
-  'events:write',
-  'events:register',
-  'events:categories',
-  'attendance:write',
-  'members:read',
-  'members:write',
-  'groups:read',
-  'groups:write',
-  'organization:read',
-  'organization:write',
-  'board:read',
-  'board:write',
-  'audit:read',
-  'users:manage',
-  'finance:read',
-  'finance:write',
-  'finance:plans',
-  'finance:close',
-  'documents:read',
-  'documents:write',
-] as const;
-export type Permission = (typeof permissions)[number];
-const grants: Record<Role, readonly Permission[]> = {
-  admin: permissions,
-  board: [
-    'events:read',
-    'events:write',
-    'events:register',
-    'events:categories',
-    'attendance:write',
-    'members:read',
-    'members:write',
-    'groups:read',
-    'groups:write',
-    'organization:read',
-    'organization:write',
-    'board:read',
-    'board:write',
-    'audit:read',
-    'documents:read',
-    'documents:write',
-  ],
-  treasurer: [
-    'events:read',
-    'events:register',
-    'members:read',
-    'groups:read',
-    'organization:read',
-    'board:read',
-    'finance:read',
-    'finance:write',
-    'documents:read',
-    'documents:write',
-  ],
-  project_lead: [
-    'events:read',
-    'events:write',
-    'events:register',
-    'attendance:write',
-    'groups:read',
-    'groups:write',
-    'organization:read',
-    'board:read',
-  ],
-  member: ['events:read', 'events:register', 'groups:read', 'organization:read', 'board:read'],
-};
-export function can(role: Role, permission: Permission) {
-  return grants[role].includes(permission);
-}
 const date = z.iso.date();
 const optionalText = (max = 200) => z.string().trim().max(max).default('');
 export const personSchema = z
@@ -242,3 +170,6 @@ export const errorSchema = z.object({
 export * from './ets';
 export * from './events';
 export * from './event-time';
+
+export * from './volunteers';
+export * from './compliance';

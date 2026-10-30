@@ -62,6 +62,9 @@ export const persons = pgTable(
     firstName: text('first_name').notNull(),
     lastName: text('last_name').notNull(),
     dateOfBirth: date('date_of_birth'),
+    // Register data (D.M. 6.10.2021 art. 3 c. 4); domicile only where it differs from residence.
+    birthPlace: text('birth_place').notNull().default(''),
+    domicile: text('domicile').notNull().default(''),
     fiscalCode: text('fiscal_code').notNull().default(''),
     email: text('email').notNull().default(''),
     phone: text('phone').notNull().default(''),
