@@ -1,5 +1,18 @@
 # Prüfnachweise
 
+## Inventar und Ausleihe – 31.10.2026
+
+Auf `feat/inventory`, ausgehend von `8d65d35`, lokal in einem eigenen Worktree mit eigener Testdatenbank (`bnature_test`, eigener Container) und eigenen Browser-Ports geprüft:
+
+- Typecheck, ESLint und Prettier bestanden.
+- Unit/UI: **93/93** in zehn Dateien, davon vier neue Inventartests (Defaults, Teil-Patches, Datumsregeln, Rollenmatrix).
+- PostgreSQL-Integration: **155/155** in zehn Dateien, davon 14 neue Inventartests: Rollen und anonymer Zugriff, eindeutige Inventarnummern, Suche mit literalen Platzhaltern, Versionen, Sammelbestände bis zur verfügbaren Stückzahl, parallele Ausleihe des letzten Stücks (genau eine erfolgreich), Rückgabe mit Zustandsübernahme bei Einzelstücken, Rückgabedatum nicht vor Ausgabe und nicht in der Zukunft, Überfälligkeit in Vereinszeitzone, Verlängerung, Ausmustern nur ohne offene Ausleihen, Idempotenz-Replay und 409 bei abweichendem Inhalt, Mandantentrennung inklusive fremder Personen, datensparsame Personenauswahl, „Meine Ausleihen“, direkte SQL-Änderungen gegen die Trigger sowie CSV mit neutralisierten Formeln.
+- Playwright: **44/44** (neun Suiten, 22 Desktop, 22 Mobil), darunter die neue Inventarsuite mit Anlage, Ausleihe, Überfälligkeit, Verlängerung, Rückgabe, Detailhistorie, CSV-Download, Ausmustern, DE/IT, Axe auf allen Ansichten und Rollengrenzen. Axe fand während der Entwicklung eine unzulässige `dl`-Struktur und einen nicht fokussierbaren Scrollbereich auf Mobil; beides ist behoben.
+- Produktionsbuild und Node-Smoke bestanden; Migrationserzeugung ohne Schemaabweichung; OpenAPI erneut erzeugt und hashgleich.
+- Die Browser-Ports sind über `E2E_WEB_PORT`/`E2E_API_PORT` überschreibbar (Standard unverändert 5174/3002), damit parallele Worktrees getrennt testen können.
+
+Keine Migration gegen Entwicklungs- oder Produktivdaten, kein Push und keine Veröffentlichung. Die Migration heißt `0013_inventory`; parallel entstehende Erweiterungen verwenden ebenfalls die Nummer `0013` und müssen beim Zusammenführen neu nummeriert werden. Fachliche Beschreibung: [Inventar](inventory.md).
+
 ## Kommunikationserweiterung – 30.10.2026
 
 Auf `feat/communication-email`, ausgehend von `786a035`, lokal geprüft:

@@ -31,6 +31,7 @@ import { VolunteerInsurance } from '../features/volunteers/insurance';
 import { VolunteerRegister } from '../features/volunteers/register';
 import { Compliance } from '../features/compliance';
 import { MailPage } from '../features/mail';
+import { InventoryItems, InventoryLoans } from '../features/inventory';
 import { Empty, ErrorState, Loading } from '../components/ui';
 import { shellDatabase } from '../lib/offline';
 applyTheme((localStorage.getItem('bnature-theme') as Theme) || 'system');
@@ -240,6 +241,22 @@ function App() {
             element={
               <Guard permission="insurance:read">
                 <VolunteerInsurance />
+              </Guard>
+            }
+          />
+          <Route
+            path="inventory"
+            element={
+              <Guard permission="inventory:read">
+                <InventoryItems key={query.data.activeOrganizationId} />
+              </Guard>
+            }
+          />
+          <Route
+            path="inventory/loans"
+            element={
+              <Guard permission="inventory:read">
+                <InventoryLoans key={query.data.activeOrganizationId} />
               </Guard>
             }
           />

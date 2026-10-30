@@ -1,5 +1,6 @@
 import { test, expect, request as requestFactory, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+const appOrigin = `http://localhost:${process.env.E2E_WEB_PORT ?? '5174'}`;
 async function login(page: Page, email = 'e2e@example.test') {
   await page.goto('/');
   await page.getByLabel('E-Mail', { exact: true }).fill(email);
@@ -8,7 +9,7 @@ async function login(page: Page, email = 'e2e@example.test') {
   await expect(page.getByRole('button', { name: 'Abmelden', exact: true })).toBeVisible();
 }
 const writeHeaders = () => ({
-  Origin: 'http://localhost:5174',
+  Origin: appOrigin,
   'Idempotency-Key': crypto.randomUUID(),
 });
 async function fixture(page: Page, title: string) {
@@ -166,12 +167,12 @@ test('retains encrypted offline check-ins through reload, survives session expir
   await login(page);
   const { event, registrations, org } = await fixture(page, 'Gelände offline');
   const adminCopy = await requestFactory.newContext({
-    baseURL: 'http://localhost:5174',
+    baseURL: appOrigin,
     storageState: await context.storageState(),
   });
-  const remote = await requestFactory.newContext({ baseURL: 'http://localhost:5174' });
+  const remote = await requestFactory.newContext({ baseURL: appOrigin });
   const signed = await remote.post('/api/auth/sign-in/email', {
-    headers: { Origin: 'http://localhost:5174' },
+    headers: { Origin: appOrigin },
     data: { email: 'e2e-board@example.test', password: 'E2E-only-Password-2026!' },
   });
   expect(signed.status()).toBe(200);
@@ -214,7 +215,7 @@ test('retains encrypted offline check-ins through reload, survives session expir
     const remoteChange = await remote.put(
       `/api/v1/events/${event.id}/attendance/${registrations[0].id}`,
       {
-        headers: { Origin: 'http://localhost:5174' },
+        headers: { Origin: appOrigin },
         data: {
           operationId: crypto.randomUUID(),
           requestedStatus: 'absent',
@@ -225,7 +226,7 @@ test('retains encrypted offline check-ins through reload, survives session expir
     );
     expect(remoteChange.status(), await remoteChange.text()).toBe(200);
     const signedOut = await adminCopy.post('/api/auth/sign-out', {
-      headers: { Origin: 'http://localhost:5174' },
+      headers: { Origin: appOrigin },
       data: {},
     });
     expect(signedOut.status()).toBe(200);
@@ -306,9 +307,9 @@ test('removes offline copies when leadership rights are revoked and refuses pend
   test.setTimeout(90_000);
   await login(page);
   const { event, registrations } = await fixture(page, 'Berechtigung im Gelände');
-  const admin = await requestFactory.newContext({ baseURL: 'http://localhost:5174' });
+  const admin = await requestFactory.newContext({ baseURL: appOrigin });
   await admin.post('/api/auth/sign-in/email', {
-    headers: { Origin: 'http://localhost:5174' },
+    headers: { Origin: appOrigin },
     data: { email: 'e2e@example.test', password: 'E2E-only-Password-2026!' },
   });
   let userId = '';
@@ -328,7 +329,7 @@ test('removes offline copies when leadership rights are revoked and refuses pend
     await alma.getByRole('button', { name: 'Anwesend', exact: true }).click();
     await expect(page.getByText('1 ausstehende Änderungen', { exact: false })).toBeVisible();
     const revoked = await admin.patch(`/api/v1/users/${userId}/role`, {
-      headers: { Origin: 'http://localhost:5174' },
+      headers: { Origin: appOrigin },
       data: { role: 'member' },
     });
     expect(revoked.status(), await revoked.text()).toBe(200);
@@ -345,7 +346,7 @@ test('removes offline copies when leadership rights are revoked and refuses pend
     await context.setOffline(false);
     if (userId)
       await admin.patch(`/api/v1/users/${userId}/role`, {
-        headers: { Origin: 'http://localhost:5174' },
+        headers: { Origin: appOrigin },
         data: { role: 'project_lead' },
       });
     await admin.dispose();

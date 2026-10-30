@@ -32,6 +32,10 @@ Sprint 2.4 implementiert Freiwillige auf dem vorhandenen Personenstamm (getrennt
 
 Sprint 2.4 implementiert den Fristen- und Pflichtenmanager mit versionierten Regeln (gesetzlich, Verwaltungsempfehlung, intern), amtlichen Quellen, Berechnung aus Geschäftsjahren, Mandaten, Policen und Registerständen, Nachweisen, Protokollnummern und Historie. Keine automatische RUNTS-Einreichung. Signaturen und Zeitstempel laufen über eine austauschbare Schnittstelle; heute ausschließlich extern und manuell. Kein selbst erzeugtes Register, PDF oder Archiv ist automatisch rechtlich zertifiziert. Offen: qualifizierter Signatur-/Zeitstempeladapter nach rechtlicher Freigabe, Mailerinnerungen, Landesfristen Südtirol.
 
+## Inventar und Ausleihe
+
+Auf `feat/inventory` implementiert: Gegenstände und Sammelbestände mit Zustand, Lagerort und Wert, Ausmustern statt Löschen, Ausleihen an Personen mit Rückgabedatum, Verlängerung, Rückgabe mit Zustand, Überfälligkeit in Vereinszeitzone, Kennzahlen, CSV und „Meine Ausleihen“ im Profil ([Inventar](inventory.md)). Offen: Rückgabeerinnerungen per E-Mail, Reservierungen, Wartungs- und Prüfintervalle.
+
 ## Offline-Synchronisierung
 
 1. Outbox pro Benutzer und Organisation mit Operations-UUID, Entität, Basisversion, Payload, Erstellzeit und Zustand.

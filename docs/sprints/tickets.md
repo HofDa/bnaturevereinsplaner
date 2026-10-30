@@ -76,3 +76,14 @@ Messung am 30.10.2026 (`vite build --sourcemap`, Stand `feat/sprint-2.4`): ein e
 | PERF-06 Budget und Precache         | Chunk-Größenbudget in CI (Warnung bei > 600 kB je Chunk) und Prüfung, dass der Workbox-Precache alle Lazy-Chunks enthält, damit die App-Shell offline vollständig bleibt. Abnahme: Offline-Test öffnet eine lazy geladene Route ohne Netz.                                                                                                                                                                    |
 
 Reihenfolge: PERF-03 → PERF-01/02 → PERF-05 → PERF-04 → PERF-06. Erwartung nach PERF-01 bis PERF-03: Einstieg etwa 0,6–0,7 MB minifiziert (Schätzung, vor Umsetzung zu messen). Der Umbau ist bewusst nicht Teil von Sprint 2.4: Lazy-Chunks verändern Precache und Offline-Verhalten und brauchen einen eigenen Testlauf.
+
+## Inventar und Ausleihe (implementiert)
+
+| Ticket                | Abnahme                                                                                                                                                                            |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| INV-01 Gegenstände    | Einzelstücke und Sammelbestände mit Zustand, Lagerort, Kategorie, optionaler eindeutiger Inventarnummer und Wert; Suche/Filter, Kennzahlen, CSV; Ausmustern ohne offene Ausleihen. |
+| INV-02 Ausleihe       | Person aus Personenstamm, Stückzahl, Ausgabe-/Rückgabedatum; Überbuchung auch bei parallelen Anfragen und direktem SQL gesperrt; Überfälligkeit in Vereinszeitzone.                |
+| INV-03 Rückgabe       | Rückgabe mit Datum, Zustand und Bemerkung, Zustandsübernahme bei Einzelstücken, Verlängerung; abgeschlossene Ausleihen unveränderlich.                                             |
+| INV-04 Rechte/Ansicht | Rollenmatrix, Mandantentrennung, datensparsame Personenauswahl, „Meine Ausleihen“ im Profil; DE/IT, Desktop/Mobil, Axe.                                                            |
+
+Nachweise: [Inventar](../inventory.md), [Prüfnachweise](../verification.md).

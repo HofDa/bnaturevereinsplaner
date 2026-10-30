@@ -2972,3 +2972,48 @@ code {
     padding-inline: 16px;
   }
 }
+
+/* Inventory */
+.inventory-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+.inventory-stats > div {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+.inventory-stats dt {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.inventory-stats dd {
+  margin: 0.2rem 0 0;
+  font-size: 1.45rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.inventory-stats dd.inventory-stat-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+.inventory-stats .inventory-stat-warning dd,
+.warning-text,
+.tag-overdue,
+.tag-damaged,
+.tag-defective {
+  color: var(--danger);
+}
+.block-note {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.block-note.warning-text {
+  color: var(--danger);
+}

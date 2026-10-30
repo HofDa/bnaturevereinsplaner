@@ -82,3 +82,14 @@ Migration `0011_volunteers_compliance.sql` ist additiv. `persons` erhält `birth
 | compliance_deadlines / compliance_evidence / …\_history | Frist mit Regelversion, Quelle (`source_key` eindeutig), Status; „erledigt“ nur mit Nachweis (verzögerter Constraint) und dann final; Nachweise/Historie append-only |
 
 Freiwilligendaten werden nie zwischen Organisationen geteilt. Bestehende Personen, Mitgliedschaften, Veranstaltungen und Finanzdaten bleiben unverändert; der Upgrade-Test prüft den Erhalt vorhandener Personendaten.
+
+## Inventar und Ausleihe
+
+Migration `0013_inventory.sql` ist additiv und berührt keine bestehenden Tabellen.
+
+| Tabelle         | Verantwortung / Constraints                                                                                                                                                                                      |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| inventory_items | Gegenstand oder Sammelbestand mit Zustand, Stückzahl (1–100 000), optionalem Stückwert; Inventarnummer je Organisation eindeutig, sofern gesetzt; ausgemustert ⇔ Datum gesetzt; versioniert, nicht löschbar      |
+| inventory_loans | Ausleihe an eine Person derselben Organisation; Rückgabe bis ≥ Ausgabe; Rückgabefelder gemeinsam gesetzt; Trigger sperrt Überbuchung, Änderung von Identität/Stückzahl/Ausgabedaten und abgeschlossene Ausleihen |
+
+Trigger `bnature_inventory_loan_guard` sperrt den Gegenstand und prüft, dass offene Ausleihen den Bestand nicht übersteigen und ausgemusterte Gegenstände nicht verliehen werden. `bnature_inventory_item_guard` verhindert, dass der Bestand unter die verliehene Stückzahl sinkt oder ein Gegenstand mit offenen Ausleihen ausgemustert wird.

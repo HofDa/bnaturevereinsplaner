@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+const appOrigin = `http://localhost:${process.env.E2E_WEB_PORT ?? '5174'}`;
 test.setTimeout(90_000);
 
 test('sends an event invitation with a working link to authenticated event details', async ({
@@ -13,7 +14,7 @@ test('sends an event invitation with a working link to authenticated event detai
   await expect(page.getByRole('button', { name: 'Abmelden', exact: true })).toBeVisible();
   async function post<T>(path: string, data: unknown): Promise<T> {
     const response = await page.request.post(`/api/v1${path}`, {
-      headers: { Origin: 'http://localhost:5174', 'Idempotency-Key': crypto.randomUUID() },
+      headers: { Origin: appOrigin, 'Idempotency-Key': crypto.randomUUID() },
       data,
     });
     expect(response.ok(), await response.text()).toBe(true);
@@ -71,7 +72,7 @@ test('sends an event invitation with a working link to authenticated event detai
   const message = await (
     await request.get(`http://127.0.0.1:8025/api/v1/message/${mails[0]!.ID}`)
   ).json();
-  expect(message.Text).toContain(`http://localhost:5174/events/${event.id}`);
+  expect(message.Text).toContain(`${appOrigin}/events/${event.id}`);
   await page.goto(`/events/${event.id}`);
   await expect(
     page.getByRole('heading', { name: 'Gemeinsame Waldpflege', exact: true }),
@@ -91,7 +92,7 @@ test('previews and sends localized reminders into the local SMTP inbox, manages 
   await expect(page.getByRole('button', { name: 'Abmelden', exact: true })).toBeVisible();
   async function post<T>(path: string, data: unknown): Promise<T> {
     const response = await page.request.post(`/api/v1${path}`, {
-      headers: { Origin: 'http://localhost:5174', 'Idempotency-Key': crypto.randomUUID() },
+      headers: { Origin: appOrigin, 'Idempotency-Key': crypto.randomUUID() },
       data,
     });
     expect(response.ok(), await response.text()).toBe(true);

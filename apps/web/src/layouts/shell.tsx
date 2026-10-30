@@ -20,6 +20,7 @@ import {
   HandHeart,
   ClipboardCheck,
   Mail,
+  Package,
 } from 'lucide-react';
 import type { Permission } from '@bnature/contracts';
 import { useSession } from '../app/session';
@@ -40,6 +41,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
     { to: '/events', key: 'events', icon: CalendarDays, permission: 'events:read' },
     { to: '/volunteers', key: 'volunteers', icon: HandHeart, permission: 'volunteers:read' },
     { to: '/finance', key: 'finance', icon: Wallet, permission: 'finance:read' },
+    { to: '/inventory', key: 'inventory', icon: Package, permission: 'inventory:read' },
     { to: '/groups', key: 'groups', icon: Layers },
     { to: '/board', key: 'board', icon: ShieldCheck },
   ] as const;
