@@ -23,6 +23,12 @@ Der Bootstrap erzeugt genau eine neue Organisation und einen Administrator in ei
 
 ## Prüfungen
 
+### E-Mail lokal testen
+
+Die erste Kommunikationserweiterung ergänzt Beitragserinnerungen und Termineinladungen mit Versandvorschau und Postausgang. `docker compose --profile mail up -d mailpit` starten, in `.env` `EMAIL_MODE=local` setzen und den Dev-Server neu starten. Das lokale Testpostfach ist unter **http://localhost:8025** erreichbar; Nachrichten werden dort abgefangen und nicht extern zugestellt. In der App **E-Mail** öffnen. Automatische Beitragserinnerungen sind initial ausgeschaltet. Einrichtung, Rechte und Grenzen: [E-Mail](docs/mail.md).
+
+### Prüfungen ausführen
+
 ```sh
 bun run typecheck
 bun run lint
@@ -36,6 +42,8 @@ bun run test:integration
 bunx playwright install chromium  # entfällt bei lokal vorhandenem Google Chrome
 bun run test:e2e
 ```
+
+Für die neue Mail-Browsersuite muss zusätzlich `docker compose --profile mail up -d mailpit` laufen. Gezielt prüfen: `bun run test:e2e mail`.
 
 Integrationstests und E2E-Tests verwenden ausschließlich die Datenbank **bnature_test** auf Port **55440**. Sie setzen deren Daten zurück und müssen nacheinander laufen. Desktop und Mobilprojekt starten bewusst getrennte API-Prozesse, damit die Rate-Limits auch bei der schnellen Gesamtprüfung aktiv bleiben, ohne die Anfragen beider künstlicher Nutzungsreihen zu addieren. Die Suite verweigert andere Datenbanknamen und benötigt `NODE_ENV=test`. PostgreSQL-Tests prüfen echte Better-Auth-Sessions, Transaktionen, Constraints, Statuswechsel und organisationsübergreifende Zugriffe. Playwright prüft Desktop und Mobilformat einschließlich Offline-App-Shell und verschlüsselter Offline-Anwesenheit mit Neuladen, Sessionablauf, Rechteentzug und Konflikten; Testdaten sind ausdrücklich synthetisch. `CHROME_PATH` kann einen anderen Chromium-Pfad angeben. CI installiert den passenden Playwright-Browser.
 

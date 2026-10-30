@@ -9,6 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
+      mailpit:
+        image: axllent/mailpit:v1.27.4
+        ports: ['1025:1025', '8025:8025']
       postgres:
         image: postgres:17-alpine
         env:

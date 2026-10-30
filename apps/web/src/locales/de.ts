@@ -3,12 +3,14 @@ import finance from './finance-de';
 import ledger from './ledger-de';
 import documents from './documents-de';
 import volunteers from './volunteers-de';
+import mail from './mail-de';
 export default {
   ...events,
   ...finance,
   ...ledger,
   ...documents,
   ...volunteers,
+  ...mail,
   membershipNumber: 'Mitgliedsnummer',
   joinedAt: 'Eintrittsdatum',
   preferredLanguage: 'Bevorzugte Sprache',

@@ -1,5 +1,12 @@
 name: bnature
 services:
+  mailpit:
+    image: axllent/mailpit:v1.27.4
+    profiles: [mail]
+    ports:
+      - '127.0.0.1:1025:1025'
+      - '127.0.0.1:8025:8025'
+    restart: unless-stopped
   postgres:
     image: postgres:17-alpine
     environment:
@@ -58,6 +65,13 @@ services:
       PORT: 3000
       TRUST_PROXY: 'true'
       DOCUMENT_STORAGE_DIR: /var/lib/bnature/documents
+      EMAIL_MODE: ${EMAIL_MODE:-disabled}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@bnature.test}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
     expose: ['3000']
     volumes:
       - documents_data:/var/lib/bnature/documents

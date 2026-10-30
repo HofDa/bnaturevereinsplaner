@@ -85,6 +85,13 @@
       "when": 1793360051616,
       "tag": "0011_volunteers_compliance",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793397882748,
+      "tag": "0012_soft_klaw",
+      "breakpoints": true
     }
   ]
 }

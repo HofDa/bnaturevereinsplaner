@@ -19,6 +19,7 @@ import {
   CalendarDays,
   HandHeart,
   ClipboardCheck,
+  Mail,
 } from 'lucide-react';
 import type { Permission } from '@bnature/contracts';
 import { useSession } from '../app/session';
@@ -46,6 +47,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
     { to: '/organization', key: 'organization', icon: Building2, permission: 'organization:read' },
     { to: '/documents', key: 'documents', icon: FileText, permission: 'documents:read' },
     { to: '/compliance', key: 'compliance', icon: ClipboardCheck, permission: 'compliance:read' },
+    { to: '/mail', key: 'mailTitle', icon: Mail, permission: 'mail:read' },
     { to: '/users', key: 'users', icon: Users, permission: 'users:manage' },
     { to: '/audit', key: 'audit', icon: ScrollText, permission: 'audit:read' },
     { to: '/settings', key: 'settings', icon: Settings2 },

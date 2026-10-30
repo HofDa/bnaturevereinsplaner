@@ -15,10 +15,14 @@ child.stderr.on('data', (chunk) => {
 });
 try {
   let ready = false;
-  for (let n = 0; n < 50; n++) {
+  // Cold imports and route/schema registration may exceed five seconds on a busy host.
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
     if (child.exitCode !== null) throw new Error('Node API exited before readiness');
     try {
-      const response = await fetch('http://127.0.0.1:3003/api/v1/health');
+      const response = await fetch('http://127.0.0.1:3003/api/v1/health', {
+        signal: AbortSignal.timeout(2000),
+      });
       if (response.ok) {
         assert.deepEqual(await response.json(), { status: 'ok' });
         ready = true;

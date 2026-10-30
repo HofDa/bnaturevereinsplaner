@@ -30,6 +30,7 @@ import { VolunteerAssignments, VolunteerHours } from '../features/volunteers/wor
 import { VolunteerInsurance } from '../features/volunteers/insurance';
 import { VolunteerRegister } from '../features/volunteers/register';
 import { Compliance } from '../features/compliance';
+import { MailPage } from '../features/mail';
 import { Empty, ErrorState, Loading } from '../components/ui';
 import { shellDatabase } from '../lib/offline';
 applyTheme((localStorage.getItem('bnature-theme') as Theme) || 'system');
@@ -130,6 +131,14 @@ function App() {
       <Routes>
         <Route element={<Shell onLogout={refresh} />}>
           <Route index element={<Dashboard />} />
+          <Route
+            path="mail"
+            element={
+              <Guard permission="mail:read">
+                <MailPage key={query.data.activeOrganizationId} />
+              </Guard>
+            }
+          />
           <Route
             path="members"
             element={

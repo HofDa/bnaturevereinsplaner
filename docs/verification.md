@@ -1,5 +1,22 @@
 # Prüfnachweise
 
+## Kommunikationserweiterung – 30.10.2026
+
+Auf `feat/communication-email`, ausgehend von `786a035`, lokal geprüft:
+
+- Typecheck und ESLint bestanden.
+- Unit/UI: **89/89** in neun Dateien, davon vier neue Mailtests.
+- PostgreSQL-Integration: **141/141** in neun Dateien, davon zehn neue Mailtests. Die dedizierte Datenbank `bnature_test` wurde verwendet; Entwicklungsdaten wurden nicht zurückgesetzt.
+- Mail-Browsersuite: **4/4** (zwei Desktop, zwei Mobil). Beitragserinnerung und Termineinladung wurden über echtes SMTP an das lokale Mailpit übergeben, einschließlich DE/IT, Empfängervorschau, Postausgang, funktionierendem Veranstaltungslink, gespeicherten Einstellungen und verweigertem Mitgliederzugriff. Axe-Prüfungen auf Vorschau und Postausgang bestanden. Vollständiger Browserlauf vor dem Commit: **40/40** (alle acht Suiten, 20 Desktop, 20 Mobil). Ein vorheriger Gesamtlauf brach einmal in `volunteers / desktop` ab, weil der Hauptbereich von `/volunteers/register` nach der Navigation leer blieb. Gezielte Wiederholung und erneuter Gesamtlauf bestanden ohne Codeänderung; die Ursache ist nicht geklärt und wird als möglicher Flake beobachtet.
+- Ein erster Mobilversuch fand fehlenden Tastaturzugriff auf die scrollbare Empfängerliste. Nach Ergänzung von Fokus und Regionsbeschriftung bestand der erneute Lauf auf beiden Formaten.
+- Bestehender lokaler Adminzugang, Dashboard, Datenbank-Health und neue Mail-Seite unter `localhost:5173` im Browser erfolgreich geprüft, ohne JavaScript-Fehler.
+- Paketprüfung `bun audit --audit-level=moderate` erfolgreich.
+- Formatprüfung und Produktionsbuild bestanden; OpenAPI erneut erzeugt und hashgleich, Migrationserzeugung ohne Schemaabweichung. Node-Runtime-Smoke mit Datenbank-Health, anonymem Zugriffsschutz und No-Store-Headern bestanden. Das Startlimit wurde nach einem Timeout beim kalten Node-Start von fünf auf 30 Sekunden erhöht; der separat gestartete Node-Server beantwortete die Health-Prüfung ebenfalls erfolgreich.
+
+Lokales Testpostfach: `localhost:8025`. Kein externer E-Mail-Versand, kein Push und keine Veröffentlichung im Rahmen dieser Erweiterung. Automatische Beitragserinnerungen bleiben im Entwicklungsverein ausgeschaltet. Einrichtung, Betrieb und bekannte Grenzen: [E-Mail](mail.md).
+
+## Nachweise bis Sprint 2.4
+
 Stand: 30.10.2026 (Sprint 2.4). Alle Angaben beziehen sich auf den lokal implementierten Stand von Phase 1 und Sprints 2.1–2.4 auf `feat/sprint-2.4`. Damit ist weder eine Veröffentlichung auf einem öffentlichen Server noch eine Zertifizierung verbunden.
 
 | Prüfung                | Ergebnis                                                                                                                                                                                                                                |

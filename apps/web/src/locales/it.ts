@@ -3,6 +3,7 @@ import finance from './finance-it';
 import ledger from './ledger-it';
 import documents from './documents-it';
 import volunteers from './volunteers-it';
+import mail from './mail-it';
 import type de from './de';
 const it: Record<keyof typeof de, string> = {
   ...events,
@@ -10,6 +11,7 @@ const it: Record<keyof typeof de, string> = {
   ...ledger,
   ...documents,
   ...volunteers,
+  ...mail,
   membershipNumber: 'Numero socio',
   joinedAt: 'Data di adesione',
   preferredLanguage: 'Lingua preferita',

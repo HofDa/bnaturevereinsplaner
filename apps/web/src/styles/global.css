@@ -1,5 +1,84 @@
 @import 'tailwindcss';
 @custom-variant dark (&:where(.dark, .dark *));
+.mail-compose,
+.mail-outbox {
+  margin-top: 1.25rem;
+}
+.mail-compose {
+  padding: 1.5rem;
+}
+.mail-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 1.25rem;
+}
+.mail-compose .mail-section-title {
+  padding: 0 0 1rem;
+}
+.mail-section-title h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.3rem;
+}
+.mail-section-title p,
+.mail-help {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.mail-compose-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 1rem;
+}
+.mail-compose-fields .field {
+  flex: 1 1 240px;
+  margin: 0;
+}
+.mail-help {
+  margin-top: 1rem;
+  line-height: 1.6;
+}
+.mail-kind-label {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--muted);
+}
+.mail-recipient-list {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  margin: 1rem 0;
+}
+.mail-body {
+  font-family: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  background: var(--surface-subtle);
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  margin: 1rem 0;
+}
+.modal > .mail-recipient-list,
+.modal > .mail-body {
+  margin-inline: 1.5rem;
+}
+.mail-dialog-heading {
+  display: block;
+  margin-inline: 1.5rem;
+}
+@media (max-width: 640px) {
+  .mail-compose {
+    padding: 1rem;
+  }
+  .mail-compose-fields > .button {
+    width: 100%;
+  }
+}
 @theme {
   --font-sans: 'Inter', 'Aptos', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }

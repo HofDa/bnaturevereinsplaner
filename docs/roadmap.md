@@ -45,4 +45,8 @@ Sprint 2.3 setzt diese Strategie für Anwesenheit um. Die Phase-1-Datenbank blei
 
 ## Nächste Aufgaben nach Sprint 2.4
 
+Kommunikationserweiterung auf `feat/communication-email`: SMTP-Grundlage, lokales Mailpit-Testpostfach, Vorschau/Bestätigung, rollenabhängiger Postausgang, Beitragserinnerungen und Termineinladungen sowie explizit aktivierbare automatische Beitragserinnerungen sind implementiert. Details und Grenzen: [E-Mail](mail.md). Fristenmails, Newsletter, News, Umfragen und optional Chat bleiben offen. Der vorhandene Fristenmanager verschickt weiterhin keine E-Mails.
+
+Für b*nature vereinbarter weiterer Schwerpunkt: Kommunikation, Inventar/Ausleihe, Beitrags-Sammelvorschreibungen, Mitgliedszusatzfelder/Einwilligungen/Erziehungsberechtigte, Geburtstage/Jubiläen, Excel-Import und Auswertungen. SEPA und elektronische Rechnungen nur bei konkretem Bedarf. Sportmodule (Mannschaften, Tesseramento und sportbezogene Verwaltung) sind ausdrücklich ausgeschlossen.
+
 Release-Gates aus [Prüfnachweise](verification.md#offene-release-gates) abarbeiten, insbesondere rechtliche Freigabe des Registerverfahrens und der Startregeln. Danach: qualifizierter Signaturadapter, Mailerinnerungen für Fristen, Selbstansicht für Freiwillige und Aufbewahrungs-/Löschprozesse. Öffentliche Anmeldung und Gebühren bleiben getrennt zu planen.

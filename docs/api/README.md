@@ -16,6 +16,12 @@ PATCH akzeptiert ausschließlich gelieferte bekannte Felder ohne create-Defaults
 
 ## Endpunkte
 
+### E-Mail-Erweiterung
+
+`GET /mail/status`, `GET /mail/messages?page=1`, `POST /mail/preview`, `POST /mail/send`, `GET/PUT /mail/settings`; jeweils unter `/api/v1`. Vorschau-Body: `{kind:"fee_reminder"}` oder `{kind:"event_invitation",eventId}`. Versand-Body: `{request,previewHash}` plus `Idempotency-Key`; Antwort 202 mit `queued` und `batchId`. Vorschau-Hash und Berechtigungen werden beim Bestätigen erneut geprüft. Einstellungen mit `automaticFeeReminders` und `reminderIntervalDays` (7–90), initial aus/14 Tage. Voransicht und Postausgang nur für die jeweils erlaubte Nachrichtenart, Einstellungen nur für Admins. Details: [E-Mail](../mail.md).
+
+### Bisherige Endpunkte
+
 | Methode / Pfad               | Zweck                                                                        |
 | ---------------------------- | ---------------------------------------------------------------------------- |
 | GET /health                  | Status einschließlich DB-Verbindung                                          |

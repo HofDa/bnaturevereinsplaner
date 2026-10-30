@@ -37,11 +37,15 @@ export const permissions = [
   'compliance:read',
   'compliance:write',
   'evidence:download',
+  'mail:read',
+  'mail:invite',
 ] as const;
 export type Permission = (typeof permissions)[number];
 const grants: Record<Role, readonly Permission[]> = {
   admin: permissions,
   board: [
+    'mail:read',
+    'mail:invite',
     'events:read',
     'events:write',
     'events:register',
@@ -72,6 +76,7 @@ const grants: Record<Role, readonly Permission[]> = {
     'evidence:download',
   ],
   treasurer: [
+    'mail:read',
     'events:read',
     'events:register',
     'members:read',
