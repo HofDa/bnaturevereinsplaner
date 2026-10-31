@@ -1,5 +1,19 @@
 # REST API v1
 
+## Vereinsleben
+
+Alle Pfade unter `/api/v1/community`, mit Session und Organisationskontext:
+
+- `GET /audiences`: verfügbare aktive Gruppen; normale Benutzer erhalten nur eigene Gruppenzuordnungen.
+- `GET /posts?kind=news|poll&state=published|draft|archived&page=1&groupId=...`, `GET /posts/:id`: paginierte Beiträge und Details mit aktueller Zugriffsprüfung. Entwürfe/Archiv nur für Redaktion.
+- `POST /posts`, `PATCH /posts/:id` (`{version,content}`): zweisprachiger Entwurf oder versionierte Korrektur. Nur Admin/Vorstand.
+- `POST /posts/:id/publish|close|archive` (`{version}`): ausdrücklich bestätigter Statuswechsel.
+- `PUT /posts/:id/vote` (`{version,optionId}`): eigene Stimme abgeben oder ersetzen. Vor Freigabe der Ergebnisse sind Gesamtzahl und Optionszahlen `null`; die eigene Antwort ist nur im eigenen Kontext enthalten.
+- `GET /chat?groupId=...&before=...`: Nachrichten des Vereins- oder Gruppenkanals, höchstens 50 je Abschnitt, älteste zuerst. `nextBefore` ruft den vorangehenden Abschnitt auf. Cursor müssen aus demselben Kanal stammen.
+- `POST /chat` (`{body,groupId?}`), `POST /chat/:id/remove` (`{version}`): Nachricht bis 2000 Zeichen senden beziehungsweise eigene Nachricht oder als Redaktion moderieren. Entfernte Texte werden nicht zurückgegeben.
+
+Alle Schreiboperationen benötigen `Origin` und UUID-`Idempotency-Key`. Gruppenzugang und Ergebnisfreigabe werden auch bei direktem Detailzugriff serverseitig geprüft. [Nutzung und Grenzen](../community.md).
+
 Die versionierte [OpenAPI-Spezifikation](openapi.json) wird mit `bun run openapi` aus Fastify-/Zod-Verträgen generiert. Entwicklungs-Swagger-UI: `/api/docs`; Produktion deaktiviert. Authentifizierung liegt separat unter `/api/auth` und wird von Better Auth verwaltet.
 
 ## Konventionen

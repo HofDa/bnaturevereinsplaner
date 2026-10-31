@@ -42,6 +42,10 @@ export const permissions = [
   'inventory:read',
   'inventory:write',
   'inventory:lend',
+  'community:read',
+  'community:vote',
+  'community:manage',
+  'community:chat',
 ] as const;
 export type Permission = (typeof permissions)[number];
 const grants: Record<Role, readonly Permission[]> = {
@@ -50,6 +54,10 @@ const grants: Record<Role, readonly Permission[]> = {
     'inventory:read',
     'inventory:write',
     'inventory:lend',
+    'community:chat',
+    'community:read',
+    'community:vote',
+    'community:manage',
     'mail:read',
     'mail:invite',
     'events:read',
@@ -83,6 +91,9 @@ const grants: Record<Role, readonly Permission[]> = {
   ],
   treasurer: [
     'inventory:read',
+    'community:chat',
+    'community:read',
+    'community:vote',
     'mail:read',
     'events:read',
     'events:register',
@@ -101,6 +112,9 @@ const grants: Record<Role, readonly Permission[]> = {
   project_lead: [
     'inventory:read',
     'inventory:lend',
+    'community:chat',
+    'community:read',
+    'community:vote',
     'events:read',
     'events:write',
     'events:register',
@@ -113,7 +127,16 @@ const grants: Record<Role, readonly Permission[]> = {
     'volunteers:assign',
     'volunteer_hours:confirm',
   ],
-  member: ['events:read', 'events:register', 'groups:read', 'organization:read', 'board:read'],
+  member: [
+    'community:chat',
+    'events:read',
+    'events:register',
+    'groups:read',
+    'organization:read',
+    'board:read',
+    'community:read',
+    'community:vote',
+  ],
 };
 export function can(role: Role, permission: Permission) {
   return grants[role].includes(permission);

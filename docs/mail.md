@@ -1,5 +1,7 @@
 # E-Mail und Erinnerungen
 
+Die begonnene Schemaerweiterung für weitere Mailarten bleibt erhalten. Versandfunktionen, Einstellungen und Postausgang liefern wieder die vollständigen vereinbarten Antwortfelder. Konfigurationsdetails werden nur Admins angezeigt. Noch nicht eingerichtete Arten (unter anderem Fristenmails und Newsletter) werden vor der Versandvorbereitung ausdrücklich abgewiesen; sie werden nicht als Termineinladung verarbeitet. Bestehende Beitragserinnerungen und Termineinladungen bleiben verfügbar. Automatische Fristenmails sind bis zur Implementierung nicht aktivierbar.
+
 Die erste Kommunikationserweiterung ergänzt Beitragserinnerungen und Termineinladungen. Menü **E-Mail** (`/mail`): Nachrichtenart wählen, Vorschau mit Empfängern und Beispieltext prüfen und den Versand ausdrücklich bestätigen. Alle Nachrichten werden einzeln in der bevorzugten Sprache der Person (DE/IT) versendet. Eine Nachricht enthält keine anderen Empfängeradressen.
 
 ## Lokal testen
@@ -61,4 +63,4 @@ Ein echter Absender und die beim Anbieter erforderliche Domainkonfiguration sind
 
 ## Weitere Kommunikation
 
-Noch offen: Fristenmails, Newsletter und Gruppenverteiler, Vereinsnews, Umfragen, optionaler Chat, sichere Kontoeinladungen und Passwortwiederherstellung. Sportmodule gehören nicht zum vereinbarten Umfang.
+Noch offen: Fristenmails, Newsletter und Gruppenverteiler, sichere Kontoeinladungen und Passwortwiederherstellung. Vereinsnews, Umfragen und Vereins-/Gruppenchat sind im Bereich [Vereinsleben](community.md) umgesetzt. Sportmodule gehören nicht zum vereinbarten Umfang.

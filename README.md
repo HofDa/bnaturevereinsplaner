@@ -4,6 +4,8 @@ Selbst gehostete, zweisprachige PWA für die Vereinsverwaltung. Phase 1 enthält
 
 ## Lokal starten
 
+Der neue Bereich **Vereinsleben** unter `/community` enthält News, Umfragen und Vereins-/Gruppenchat. Admin und Vorstand veröffentlichen Inhalte; Mitglieder lesen, stimmen ab und schreiben in ihren zugänglichen Kanälen. Nach dem Update `bun run db:migrate` ausführen und die App neu laden. Details: [Vereinskommunikation](docs/community.md).
+
 Voraussetzungen: **Bun 1.3.14**, Docker mit Compose, aktuelle Chrome-/Chromium-Version für Browserprüfungen. Node 24 LTS wird für die Werkzeugkette empfohlen.
 
 ```sh
