@@ -17,6 +17,7 @@ import {
   type CashbookCategory,
   type FiscalYear,
   type FinanceAccount,
+  localDate,
 } from '@bnature/contracts';
 import {
   Button,
@@ -433,12 +434,7 @@ export function EtsMappings() {
           {me.permissions.includes('finance:write') && current && (
             <form onSubmit={(e) => void submit(e)} className="form-grid">
               <Field label={t('s22EffectiveFrom')}>
-                <input
-                  name="effectiveFrom"
-                  type="date"
-                  required
-                  defaultValue={new Date().toISOString().slice(0, 10)}
-                />
+                <input name="effectiveFrom" type="date" required defaultValue={localDate()} />
               </Field>
               <Field label={t('s22Position')}>
                 <select name="position" required>

@@ -14,7 +14,7 @@ import {
   type Page,
   type Role,
 } from '@bnature/contracts';
-import { HttpError, type Access } from '../middleware/access';
+import { HttpError, currentAccess, type Access } from '../middleware/access';
 import { audit } from '../services/audit';
 import type { DocumentStorage } from '../services/storage';
 import { wire } from './responses';
@@ -184,19 +184,8 @@ export async function listDocuments(
   }, readOnly);
 }
 // Roles are re-read inside the locked transaction, like every financial write.
-async function currentRole(tx: Transaction, access: Access) {
-  const [row] = await tx
-    .select({ role: s.organizationUserRoles.role })
-    .from(s.organizationUserRoles)
-    .where(
-      and(
-        eq(s.organizationUserRoles.organizationId, access.organizationId),
-        eq(s.organizationUserRoles.userId, access.userId),
-      ),
-    );
-  if (!row) throw new HttpError(403, 'FORBIDDEN', 'Keine Berechtigung für diese Aktion.');
-  return row.role;
-}
+const currentRole = async (tx: Transaction, access: Access) =>
+  (await currentAccess(tx, access, 'Keine Berechtigung für diese Aktion.')).role;
 async function assertReferences(
   tx: Transaction,
   access: Access,

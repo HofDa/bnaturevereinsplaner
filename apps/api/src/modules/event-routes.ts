@@ -1,5 +1,5 @@
+import { attachment, replay, sendBinary } from './http';
 import { z } from 'zod';
-import type { FastifyReply } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   idSchema,
@@ -64,10 +64,7 @@ import {
 } from './event-attendance';
 import { registerDocumentRoutes } from './document-routes';
 import { attendanceExport, calendarExport } from './event-exports';
-const sendBinary = (reply: FastifyReply, data: Buffer | string) => reply.send(data);
 const registrationParams = z.object({ id: idSchema, registrationId: idSchema });
-const replay = (reply: FastifyReply, r: { data: unknown; replayed: boolean }, status = 200) =>
-  reply.code(status).header('Idempotency-Replayed', String(r.replayed)).send(r.data);
 export function registerEventRoutes(context: ModuleContext) {
   const { server, db, access } = context;
   registerDocumentRoutes(context, '/api/v1/events/:eventId/documents');
@@ -156,7 +153,7 @@ export function registerEventRoutes(context: ModuleContext) {
     async (req, reply) =>
       reply
         .type('text/calendar; charset=utf-8')
-        .header('Content-Disposition', 'attachment; filename="bnature-events.ics"')
+        .header('Content-Disposition', attachment('bnature-events.ics'))
         .send(
           await calendarExport(db, await access(req, 'events:read'), req.query, req.query.language),
         ),
@@ -459,10 +456,7 @@ export function registerEventRoutes(context: ModuleContext) {
         format = req.query.format,
         data = await attendanceExport(db, a, req.params.id, format, req.query.language);
       reply
-        .header(
-          'Content-Disposition',
-          `attachment; filename="bnature-attendance-${req.params.id}.${format}"`,
-        )
+        .header('Content-Disposition', attachment(`bnature-attendance-${req.params.id}.${format}`))
         .type(format === 'pdf' ? 'application/pdf' : 'text/csv; charset=utf-8');
       return sendBinary(reply, data);
     },

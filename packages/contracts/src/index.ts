@@ -14,6 +14,7 @@ export * from './roles';
 export * from './mail';
 export * from './inventory';
 export * from './community';
+export * from './csv';
 import { roleSchema, type Role, type Permission } from './roles';
 
 const date = z.iso.date();

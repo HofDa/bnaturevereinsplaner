@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Plus, Pencil } from 'lucide-react';
-import { boardSchema, type BoardMandate, type Member, type Page } from '@bnature/contracts';
+import {
+  boardSchema,
+  type BoardMandate,
+  type Member,
+  type Page,
+  localDate,
+} from '@bnature/contracts';
 import { api, allPages, queryClient } from '../lib/api';
 import { useSession } from '../app/session';
 import {
@@ -39,7 +45,7 @@ export function Board() {
     queryFn: () => allPages<Member>('/members'),
     enabled: !!editing && write,
   });
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDate();
   return (
     <>
       <PageHeading

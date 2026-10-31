@@ -7,25 +7,14 @@ import {
   type CommunityInput,
   type CommunityQuery,
 } from '@bnature/contracts';
-import { HttpError, type Access } from '../middleware/access';
+import { HttpError, currentAccess as baseCurrentAccess, type Access } from '../middleware/access';
 import { audit } from '../services/audit';
 import { financialOperation, readSnapshot } from './finance/operations';
 import { wire } from './responses';
 const p = s.communityPosts;
 const manager = (a: Access) => can(a.role, 'community:manage');
-export async function currentAccess(db: Executor, a: Access): Promise<Access> {
-  const [role] = await db
-    .select({ role: s.organizationUserRoles.role })
-    .from(s.organizationUserRoles)
-    .where(
-      and(
-        eq(s.organizationUserRoles.organizationId, a.organizationId),
-        eq(s.organizationUserRoles.userId, a.userId),
-      ),
-    );
-  if (!role) throw new HttpError(403, 'FORBIDDEN', 'Kein Vereinszugang.');
-  return { ...a, role: role.role };
-}
+export const currentAccess = (db: Executor, a: Access) =>
+  baseCurrentAccess(db, a, 'Kein Vereinszugang.');
 function audienceCondition(a: Access) {
   return or(
     isNull(p.groupId),

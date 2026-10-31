@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslation } from 'react-i18next';
 import { useMutation } from '@tanstack/react-query';
-import { memberInputSchema, type Member, type MemberInput } from '@bnature/contracts';
+import { memberInputSchema, type Member, type MemberInput, localDate } from '@bnature/contracts';
 import { api, errorMessage, queryClient } from '../lib/api';
 import { Field, FormActions, Notice } from '../components/ui';
 type Input = z.input<typeof memberInputSchema>;
@@ -36,7 +36,7 @@ export function MemberForm({
           membershipNumber: '',
           membershipType: 'ordinary',
           status: 'active',
-          joinedAt: new Date().toISOString().slice(0, 10),
+          joinedAt: localDate(),
           endedAt: null,
         },
   });

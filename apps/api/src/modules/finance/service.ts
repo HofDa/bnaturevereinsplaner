@@ -16,6 +16,7 @@ import {
   type Page,
   type FeePlan,
   type Payment,
+  localDate,
 } from '@bnature/contracts';
 import { HttpError, type Access } from '../../middleware/access';
 import { audit } from '../../services/audit';
@@ -34,14 +35,7 @@ export async function businessDate(
     .from(s.organizations)
     .where(eq(s.organizations.id, organizationId));
   if (!org) throw new HttpError(404, 'NOT_FOUND', 'Organisation nicht gefunden.');
-  const parts = new Intl.DateTimeFormat('en', {
-    timeZone: org.timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(now);
-  const part = (type: string) => parts.find((p) => p.type === type)!.value;
-  return `${part('year')}-${part('month')}-${part('day')}`;
+  return localDate(now, org.timezone);
 }
 const a = s.membershipFeeAssessments;
 // Allocations of reversed payments no longer settle an assessment.

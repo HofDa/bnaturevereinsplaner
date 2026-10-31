@@ -1,4 +1,4 @@
-import { memberInputSchema, type MemberInput } from '@bnature/contracts';
+import { csvCell, memberInputSchema, type MemberInput } from '@bnature/contracts';
 export const csvColumns = Object.keys(memberInputSchema.shape) as (keyof MemberInput)[];
 export function parseCsv(text: string): Record<string, string>[] {
   if (new TextEncoder().encode(text).length > 2_000_000) throw new Error('csvLimit');
@@ -91,16 +91,11 @@ export function encodeCsv(
   rows: Record<string, unknown>[],
   columns: readonly string[] = csvColumns,
 ): string {
-  const cell = (v: unknown) => {
-    let value = v == null ? '' : String(v);
-    if (/^[\s]*[=+@\-\t\r]/.test(value)) value = "'" + value;
-    return '"' + value.replaceAll('"', '""') + '"';
-  };
   return (
     '\uFEFF' +
     [
-      columns.map(cell).join(';'),
-      ...rows.map((row) => columns.map((key) => cell(row[key])).join(';')),
+      columns.map(csvCell).join(';'),
+      ...rows.map((row) => columns.map((key) => csvCell(row[key])).join(';')),
     ].join('\r\n')
   );
 }

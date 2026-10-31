@@ -13,6 +13,7 @@ import {
   type coverageInputSchema,
   type coverageEndSchema,
   type notificationInputSchema,
+  csvCell,
 } from '@bnature/contracts';
 import type { z } from 'zod';
 import { HttpError, type Access } from '../../middleware/access';
@@ -367,10 +368,6 @@ const listLabels = {
     checksum: 'Checksum (SHA-256)',
   },
 };
-const cell = (value: unknown) =>
-  `"${String(value ?? '')
-    .replace(/^[=+@-]/, "'$&")
-    .replaceAll('"', '""')}"`;
 export async function notificationListFile(
   db: Database,
   a: Access,
@@ -399,7 +396,7 @@ export async function notificationListFile(
         ...rows,
         [t.checksum, list.sha256, '', '', '', '', '', ''],
       ]
-        .map((row) => row.map(cell).join(';'))
+        .map((row) => row.map(csvCell).join(';'))
         .join('\r\n')
     );
   return renderPdf(

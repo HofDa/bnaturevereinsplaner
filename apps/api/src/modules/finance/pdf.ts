@@ -1,7 +1,7 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from 'pdf-lib';
 import { and, eq } from 'drizzle-orm';
 import { schema as s, type Database, type Executor } from '@bnature/db';
-import { formatMoney } from '@bnature/contracts';
+import { formatMoney, localDate } from '@bnature/contracts';
 import { HttpError } from '../../middleware/access';
 import { getPayment, getAssessment } from './service';
 import { annualReport } from './ledger';
@@ -223,7 +223,7 @@ export async function reminderPdf(db: Database, org: string, id: string, languag
       `${assessment.planName} · ${l.year} ${assessment.fiscalYear}`,
       `${l.due}: ${assessment.dueDate}`,
       `${l.open}: ${formatMoney(reminder.openCents, language)}`,
-      `${l.prepared}: ${reminder.createdAt.toISOString().slice(0, 10)}`,
+      `${l.prepared}: ${localDate(reminder.createdAt)}`,
       `#${reminder.sequence}`,
       '',
       l.draft,

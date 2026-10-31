@@ -8,11 +8,12 @@ import {
   type Permission,
   type RegisterIdentity,
   type RegisterSection,
+  localDate,
 } from '@bnature/contracts';
 import { HttpError, type Access } from '../../middleware/access';
 
 export const ve = s.volunteerEngagements;
-export const today = () => new Date().toISOString().slice(0, 10);
+export const today = () => localDate();
 export function requirePermission(a: Access, permission: Permission) {
   if (!can(a.role, permission))
     throw new HttpError(403, 'FORBIDDEN', 'Diese Aktion ist für Ihre Rolle nicht freigegeben.');
@@ -224,18 +225,4 @@ export async function engagementHistory(
     changes,
     actorUserId: a.userId,
   });
-}
-// Re-read inside write transactions; project leads only act on events they manage.
-export async function currentRole(tx: Transaction, a: Access) {
-  const [row] = await tx
-    .select({ role: s.organizationUserRoles.role })
-    .from(s.organizationUserRoles)
-    .where(
-      and(
-        eq(s.organizationUserRoles.organizationId, a.organizationId),
-        eq(s.organizationUserRoles.userId, a.userId),
-      ),
-    );
-  if (!row) throw new HttpError(403, 'FORBIDDEN', 'Keine Berechtigung.');
-  return { ...a, role: row.role };
 }

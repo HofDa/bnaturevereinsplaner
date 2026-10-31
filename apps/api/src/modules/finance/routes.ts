@@ -1,11 +1,5 @@
+import { replay, sendPdf } from '../http';
 import { z } from 'zod';
-import type { FastifyReply } from 'fastify';
-function sendPdf(reply: FastifyReply, pdf: Buffer, filename: string) {
-  return reply
-    .type('application/pdf')
-    .header('Content-Disposition', `attachment; filename="${filename}"`)
-    .send(pdf);
-}
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   idParams,
@@ -86,10 +80,7 @@ export function registerFinanceRoutes({ server, db, access }: ModuleContext) {
     async (req, reply) => {
       const a = await access(req, 'finance:plans'),
         result = await createPlan(db, a, req.headers['idempotency-key'], req.body);
-      return reply
-        .code(201)
-        .header('Idempotency-Replayed', String(result.replayed))
-        .send(result.data);
+      return replay(reply, result, 201);
     },
   );
   app.patch(
@@ -106,7 +97,7 @@ export function registerFinanceRoutes({ server, db, access }: ModuleContext) {
     async (req, reply) => {
       const a = await access(req, 'finance:plans'),
         result = await updatePlan(db, a, req.headers['idempotency-key'], req.params.id, req.body);
-      return reply.header('Idempotency-Replayed', String(result.replayed)).send(result.data);
+      return replay(reply, result);
     },
   );
   app.get(
@@ -150,10 +141,7 @@ export function registerFinanceRoutes({ server, db, access }: ModuleContext) {
     async (req, reply) => {
       const a = await access(req, 'finance:write'),
         result = await createAssessment(db, a, req.headers['idempotency-key'], req.body);
-      return reply
-        .code(201)
-        .header('Idempotency-Replayed', String(result.replayed))
-        .send(result.data);
+      return replay(reply, result, 201);
     },
   );
   app.get(
@@ -205,10 +193,7 @@ export function registerFinanceRoutes({ server, db, access }: ModuleContext) {
     async (req, reply) => {
       const a = await access(req, 'finance:write'),
         result = await createPayment(db, a, req.headers['idempotency-key'], req.body);
-      return reply
-        .code(201)
-        .header('Idempotency-Replayed', String(result.replayed))
-        .send(result.data);
+      return replay(reply, result, 201);
     },
   );
   app.get(
@@ -244,10 +229,7 @@ export function registerFinanceRoutes({ server, db, access }: ModuleContext) {
     async (req, reply) => {
       const a = await access(req, 'finance:write'),
         result = await createReminder(db, a, req.headers['idempotency-key'], req.params.id);
-      return reply
-        .code(201)
-        .header('Idempotency-Replayed', String(result.replayed))
-        .send(result.data);
+      return replay(reply, result, 201);
     },
   );
   app.get(

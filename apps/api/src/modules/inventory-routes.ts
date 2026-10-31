@@ -1,4 +1,4 @@
-import type { FastifyReply, FastifyRequest } from 'fastify';
+import { attachment, idempotencyKey, replay } from './http';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import {
@@ -36,10 +36,6 @@ import {
   borrowerOptions,
 } from './inventory';
 
-const replay = (reply: FastifyReply, r: { data: unknown; replayed: boolean }, status = 200) =>
-  reply.code(status).header('Idempotency-Replayed', String(r.replayed)).send(r.data);
-const key = (req: FastifyRequest) => String(req.headers['idempotency-key']);
-
 export function registerInventoryRoutes({ server, db, access }: ModuleContext) {
   const app = server.withTypeProvider<ZodTypeProvider>();
   const p = '/api/v1/inventory';
@@ -74,7 +70,7 @@ export function registerInventoryRoutes({ server, db, access }: ModuleContext) {
     async (req, reply) => {
       const csv = await exportItems(db, await access(req, 'inventory:read'), req.query);
       return reply
-        .header('Content-Disposition', 'attachment; filename="inventar.csv"')
+        .header('Content-Disposition', attachment('inventar.csv'))
         .header('Cache-Control', 'no-store')
         .type('text/csv; charset=utf-8')
         .send(csv);
@@ -98,7 +94,7 @@ export function registerInventoryRoutes({ server, db, access }: ModuleContext) {
     async (req, reply) =>
       replay(
         reply,
-        await createItem(db, await access(req, 'inventory:write'), key(req), req.body),
+        await createItem(db, await access(req, 'inventory:write'), idempotencyKey(req), req.body),
         201,
       ),
   );
@@ -119,7 +115,7 @@ export function registerInventoryRoutes({ server, db, access }: ModuleContext) {
         await updateItem(
           db,
           await access(req, 'inventory:write'),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           req.body,
         ),
@@ -142,7 +138,7 @@ export function registerInventoryRoutes({ server, db, access }: ModuleContext) {
         await retireItem(
           db,
           await access(req, 'inventory:write'),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           req.body,
         ),
@@ -203,7 +199,7 @@ export function registerInventoryRoutes({ server, db, access }: ModuleContext) {
     async (req, reply) =>
       replay(
         reply,
-        await createLoan(db, await access(req, 'inventory:lend'), key(req), req.body),
+        await createLoan(db, await access(req, 'inventory:lend'), idempotencyKey(req), req.body),
         201,
       ),
   );
@@ -224,7 +220,7 @@ export function registerInventoryRoutes({ server, db, access }: ModuleContext) {
         await returnLoan(
           db,
           await access(req, 'inventory:lend'),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           req.body,
         ),
@@ -247,7 +243,7 @@ export function registerInventoryRoutes({ server, db, access }: ModuleContext) {
         await extendLoan(
           db,
           await access(req, 'inventory:lend'),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           req.body,
         ),

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { idSchema, patchSchema } from './common';
+import { addDays } from './compliance';
 
 const date = z.iso.date();
 const text = (max = 200) => z.string().trim().max(max);
@@ -579,10 +580,8 @@ export const coverageOverviewSchema = z.object({
 });
 
 type Period = { from: string; to: string | null };
-const dayAfter = (value: string) =>
-  new Date(Date.parse(`${value}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
-const dayBefore = (value: string) =>
-  new Date(Date.parse(`${value}T00:00:00Z`) - 86400000).toISOString().slice(0, 10);
+const dayAfter = (value: string) => addDays(value, 1);
+const dayBefore = (value: string) => addDays(value, -1);
 // Inclusive date ranges; null means open-ended.
 export function uncoveredPeriods(window: Period, periods: Period[]): Period[] {
   const sorted = periods

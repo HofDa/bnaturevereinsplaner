@@ -17,15 +17,17 @@ import {
   type timeEntryDecisionSchema,
   type timeEntryQuerySchema,
   type timeExportQuerySchema,
+  localDate,
+  csvCell,
 } from '@bnature/contracts';
 import type { z } from 'zod';
-import { HttpError, type Access } from '../../middleware/access';
+import { HttpError, currentAccess, type Access } from '../../middleware/access';
 import { audit } from '../../services/audit';
 import { financialOperation, readSnapshot } from '../finance/operations';
 import { eventRow, ownPerson } from '../events';
 import { renderPdf, organizationName } from '../finance/pdf';
 import { wire } from '../responses';
-import { ve, engagementRow, coverageFor, currentRole } from './common';
+import { ve, engagementRow, coverageFor } from './common';
 
 const va = s.volunteerAssignments,
   te = s.volunteerTimeEntries,
@@ -79,7 +81,7 @@ async function presentAssignments(
       db,
       a.organizationId,
       [engagement],
-      row.plannedStart.toISOString().slice(0, 10),
+      localDate(row.plannedStart),
     );
     items.push(
       assignmentSchema.parse({ ...wire(row), coverageStatus: coverage.get(engagement.id)!.status }),
@@ -194,7 +196,7 @@ export function createAssignment(
     input,
     'volunteers:assign',
     async (tx) => {
-      const current = await currentRole(tx, a);
+      const current = await currentAccess(tx, a);
       await assertEventScope(tx, current, input.eventOccurrenceId);
       const engagement = await engagementRow(tx, current, input.engagementId, true);
       if (engagement.status !== 'active')
@@ -263,7 +265,7 @@ export function updateAssignment(
     input,
     'volunteers:assign',
     async (tx) => {
-      const current = await currentRole(tx, a);
+      const current = await currentAccess(tx, a);
       const [row] = await tx
         .select()
         .from(va)
@@ -472,7 +474,7 @@ export function createTimeEntry(
     input,
     'volunteers:assign',
     async (tx) => {
-      const current = await currentRole(tx, a);
+      const current = await currentAccess(tx, a);
       const engagement = await engagementRow(tx, current, input.engagementId, true);
       await assignmentScope(tx, current, input.assignmentId, engagement.id);
       if (
@@ -513,7 +515,7 @@ export function draftFromAttendance(db: Database, a: Access, key: string, assign
     {},
     'volunteers:assign',
     async (tx) => {
-      const current = await currentRole(tx, a);
+      const current = await currentAccess(tx, a);
       const [assignment] = await tx
         .select()
         .from(va)
@@ -642,7 +644,7 @@ export function correctTimeEntry(
     input,
     'volunteers:assign',
     async (tx) => {
-      const current = await currentRole(tx, a);
+      const current = await currentAccess(tx, a);
       const row = await lockedEntry(tx, current, id, input.version);
       if (row.status === 'rejected')
         throw new HttpError(409, 'TIME_REJECTED', 'Abgelehnte Einträge werden neu erfasst.');
@@ -709,7 +711,7 @@ export function decideTimeEntry(
     input,
     permission,
     async (tx) => {
-      const current = await currentRole(tx, a);
+      const current = await currentAccess(tx, a);
       const row = await lockedEntry(tx, current, id, input.version);
       const allowed = {
         submit: ['draft'],
@@ -787,10 +789,6 @@ const exportLabels = {
     note: 'Prospetto interno delle ore. Contano come ore prestate solo le voci confermate.',
   },
 };
-const cell = (value: unknown) =>
-  `"${String(value)
-    .replace(/^[=+@-]/, "'$&")
-    .replaceAll('"', '""')}"`;
 export async function exportTimeEntries(
   db: Database,
   a: Access,
@@ -825,7 +823,7 @@ export async function exportTimeEntries(
           ...lines,
           [t.total, '', '', '', formatMinutes(total), '', '', '', ''],
         ]
-          .map((row) => row.map(cell).join(';'))
+          .map((row) => row.map(csvCell).join(';'))
           .join('\r\n')
       );
     return renderPdf(

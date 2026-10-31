@@ -3,6 +3,7 @@ import {
   eventInputSchema,
   eventTimes,
   eventLocal,
+  localDate,
   expandSeries,
   attendanceOperationSchema,
 } from '../../packages/contracts/src';
@@ -16,6 +17,12 @@ const event = () =>
     timezone: 'Europe/Rome',
   });
 describe('event time and recurrence', () => {
+  it('uses the local calendar date around midnight, not the UTC date', () => {
+    // 00:30 in Rome is still the previous day in UTC (summer and winter time).
+    expect(localDate(new Date('2027-06-01T22:30:00Z'))).toBe('2027-06-02');
+    expect(localDate(new Date('2027-01-31T23:30:00Z'))).toBe('2027-02-01');
+    expect(localDate('2027-06-01T22:30:00Z', 'UTC')).toBe('2027-06-01');
+  });
   it('keeps 09:00 local across spring and autumn DST transitions', () => {
     for (const startLocal of ['2027-03-21T09:00', '2027-10-24T09:00']) {
       const input = { ...event(), startLocal, endLocal: startLocal.replace('09:00', '11:00') },

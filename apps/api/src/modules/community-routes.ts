@@ -1,3 +1,4 @@
+import { replay } from './http';
 import { z } from 'zod';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
@@ -59,7 +60,7 @@ export function registerCommunityRoutes({ server, db, access }: ModuleContext) {
         req.headers['idempotency-key'],
         req.body,
       );
-      return reply.code(201).header('Idempotency-Replayed', String(r.replayed)).send(r.data);
+      return replay(reply, r, 201);
     },
   );
   app.post(
@@ -81,7 +82,7 @@ export function registerCommunityRoutes({ server, db, access }: ModuleContext) {
         req.params.id,
         req.body.version,
       );
-      return reply.header('Idempotency-Replayed', String(r.replayed)).send(r.data);
+      return replay(reply, r);
     },
   );
   app.get(
@@ -122,7 +123,7 @@ export function registerCommunityRoutes({ server, db, access }: ModuleContext) {
         req.headers['idempotency-key'],
         req.body,
       );
-      return reply.code(201).header('Idempotency-Replayed', String(r.replayed)).send(r.data);
+      return replay(reply, r, 201);
     },
   );
   app.patch(
@@ -145,7 +146,7 @@ export function registerCommunityRoutes({ server, db, access }: ModuleContext) {
         req.body.version,
         req.body.content,
       );
-      return reply.header('Idempotency-Replayed', String(r.replayed)).send(r.data);
+      return replay(reply, r);
     },
   );
   for (const action of ['publish', 'archive', 'close'] as const)
@@ -169,7 +170,7 @@ export function registerCommunityRoutes({ server, db, access }: ModuleContext) {
           req.body.version,
           action,
         );
-        return reply.header('Idempotency-Replayed', String(r.replayed)).send(r.data);
+        return replay(reply, r);
       },
     );
   app.put(
@@ -192,7 +193,7 @@ export function registerCommunityRoutes({ server, db, access }: ModuleContext) {
         req.body.version,
         req.body.optionId,
       );
-      return reply.header('Idempotency-Replayed', String(r.replayed)).send(r.data);
+      return replay(reply, r);
     },
   );
 }

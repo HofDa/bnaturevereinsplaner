@@ -5,7 +5,6 @@ import {
   uuid,
   text,
   integer,
-  timestamp,
   date,
   unique,
   uniqueIndex,
@@ -15,13 +14,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { organizations, persons } from './core';
 import { user } from './auth';
-
-const created = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
-const updated = () => timestamp('updated_at', { withTimezone: true }).notNull().defaultNow();
-const creator = () =>
-  uuid('created_by')
-    .notNull()
-    .references(() => user.id);
+import { created, updated, creator } from './columns';
 
 export const inventoryCondition = pgEnum('inventory_condition', [
   'new',

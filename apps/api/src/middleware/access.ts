@@ -1,6 +1,6 @@
 import { fromNodeHeaders } from 'better-auth/node';
 import { and, eq, asc } from 'drizzle-orm';
-import { schema, type Database } from '@bnature/db';
+import { schema, type Database, type Executor } from '@bnature/db';
 import { can, idSchema, type Permission, type Role } from '@bnature/contracts';
 import type { FastifyRequest } from 'fastify';
 import type { Auth } from '../auth';
@@ -20,6 +20,24 @@ export type Access = {
   user: { id: string; name: string; email: string };
   organizations: { id: string; name: string; role: Role }[];
 };
+// Re-reads the caller's role inside a write transaction so a revoked role takes effect at once.
+export async function currentAccess(
+  db: Executor,
+  a: Access,
+  message = 'Keine Berechtigung.',
+): Promise<Access> {
+  const [row] = await db
+    .select({ role: schema.organizationUserRoles.role })
+    .from(schema.organizationUserRoles)
+    .where(
+      and(
+        eq(schema.organizationUserRoles.organizationId, a.organizationId),
+        eq(schema.organizationUserRoles.userId, a.userId),
+      ),
+    );
+  if (!row) throw new HttpError(403, 'FORBIDDEN', message);
+  return { ...a, role: row.role };
+}
 export function accessControl(db: Database, auth: Auth) {
   return async (request: FastifyRequest, permission?: Permission): Promise<Access> => {
     const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });

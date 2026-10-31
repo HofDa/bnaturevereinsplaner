@@ -19,8 +19,7 @@ import {
 import { organizations } from './core';
 import { user } from './auth';
 import { payments } from './finance';
-const created = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
-const updated = () => timestamp('updated_at', { withTimezone: true }).notNull().defaultNow();
+import { created, updated } from './columns';
 export const accountKind = pgEnum('finance_account_kind', ['cash', 'bank']);
 export const ledgerDirection = pgEnum('ledger_direction', ['income', 'expense']);
 export const ledgerClassification = pgEnum('ledger_classification', [
