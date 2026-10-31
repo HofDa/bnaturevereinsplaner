@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { organizationSchema, type Organization } from '@bnature/contracts';
 import { api, queryClient } from '../lib/api';
 import { useSession } from '../app/session';
-import { ErrorState, Loading, Notice, PageHeading } from '../components/ui';
+import { Notice, PageHeading, QueryView } from '../components/ui';
 import { DataForm, type FormField } from '../components/data-form';
 export function OrganizationPage() {
   const { t } = useTranslation(),
@@ -43,40 +43,38 @@ export function OrganizationPage() {
   return (
     <>
       <PageHeading title={t('organization')} description={t('organizationIntro')} />
-      {query.isPending ? (
-        <Loading />
-      ) : query.isError ? (
-        <ErrorState error={query.error} />
-      ) : (
-        <section className="panel form-panel">
-          {saved && <Notice>{t('saved')}</Notice>}
-          {me.permissions.includes('organization:write') ? (
-            <DataForm
-              key={query.data.id + query.data.name}
-              schema={organizationSchema}
-              fields={fields}
-              defaults={query.data}
-              onSubmit={async (data) => {
-                await api(`/organizations/${me.activeOrganizationId}`, {
-                  method: 'PATCH',
-                  body: JSON.stringify(data),
-                });
-                void queryClient.invalidateQueries();
-                setSaved(true);
-              }}
-            />
-          ) : (
-            <dl>
-              {fields.map((field) => (
-                <div key={field.name}>
-                  <dt>{t(field.label ?? field.name)}</dt>
-                  <dd>{String(query.data[field.name as keyof Organization] || '—')}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
-        </section>
-      )}
+      <QueryView query={query}>
+        {(queryData) => (
+          <section className="panel form-panel">
+            {saved && <Notice>{t('saved')}</Notice>}
+            {me.permissions.includes('organization:write') ? (
+              <DataForm
+                key={queryData.id + queryData.name}
+                schema={organizationSchema}
+                fields={fields}
+                defaults={queryData}
+                onSubmit={async (data) => {
+                  await api(`/organizations/${me.activeOrganizationId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify(data),
+                  });
+                  void queryClient.invalidateQueries();
+                  setSaved(true);
+                }}
+              />
+            ) : (
+              <dl>
+                {fields.map((field) => (
+                  <div key={field.name}>
+                    <dt>{t(field.label ?? field.name)}</dt>
+                    <dd>{String(queryData[field.name as keyof Organization] || '—')}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </section>
+        )}
+      </QueryView>
     </>
   );
 }

@@ -35,6 +35,7 @@ import {
   Pagination,
   SearchInput,
   formatDate,
+  QueryView,
 } from '../../components/ui';
 import { api, allPages, downloadPrivateFile, errorMessage, queryClient } from '../../lib/api';
 import { encodeCsv, downloadCsv } from '../../lib/csv';
@@ -336,29 +337,27 @@ export function Finance() {
             </label>
             <p>{t('financeYearHelp')}</p>
           </div>
-          {summary.isPending ? (
-            <Loading />
-          ) : summary.isError ? (
-            <ErrorState error={summary.error} retry={() => void summary.refetch()} />
-          ) : (
-            <section className="stats-grid finance-stats" aria-label={t('financeSummaryHint')}>
-              {[
-                { label: 'financeAssessed', value: summary.data.assessedCents, icon: Coins },
-                { label: 'financePaid', value: summary.data.paidCents, icon: Receipt },
-                { label: 'financeOutstanding', value: summary.data.openCents, icon: Wallet },
-                { label: 'financeOverdue', value: summary.data.overdueCents, icon: Clock3 },
-              ].map((item, index) => (
-                <article key={item.label} className={`stat-card stat-${index}`}>
-                  <div>
-                    <span>{t(item.label)}</span>
-                    <item.icon size={19} />
-                  </div>
-                  <strong>{formatMoney(item.value, i18n.language)}</strong>
-                  <small>{year || t('financeAllYears')}</small>
-                </article>
-              ))}
-            </section>
-          )}
+          <QueryView query={summary}>
+            {(data) => (
+              <section className="stats-grid finance-stats" aria-label={t('financeSummaryHint')}>
+                {[
+                  { label: 'financeAssessed', value: data.assessedCents, icon: Coins },
+                  { label: 'financePaid', value: data.paidCents, icon: Receipt },
+                  { label: 'financeOutstanding', value: data.openCents, icon: Wallet },
+                  { label: 'financeOverdue', value: data.overdueCents, icon: Clock3 },
+                ].map((item, index) => (
+                  <article key={item.label} className={`stat-card stat-${index}`}>
+                    <div>
+                      <span>{t(item.label)}</span>
+                      <item.icon size={19} />
+                    </div>
+                    <strong>{formatMoney(item.value, i18n.language)}</strong>
+                    <small>{year || t('financeAllYears')}</small>
+                  </article>
+                ))}
+              </section>
+            )}
+          </QueryView>
         </>
       )}
       <section className="panel finance-panel">
@@ -465,244 +464,244 @@ export function Finance() {
                   </select>
                 </label>
               </div>
-              {current.isPending ? (
-                <Loading />
-              ) : current.isError ? (
-                <ErrorState error={current.error} retry={() => void current.refetch()} />
-              ) : (
-                <>
-                  {tab === 'assessments' &&
-                    assessments.data &&
-                    (assessments.data.items.length ? (
-                      <div className="table-scroll">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>{t('financeMember')}</th>
-                              <th>{t('financePlan')}</th>
-                              <th>{t('financeDueDate')}</th>
-                              <th className="align-right">{t('financeAmount')}</th>
-                              <th className="align-right">{t('financeOutstanding')}</th>
-                              <th>{t('status')}</th>
-                              <th>{t('actions')}</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {assessments.data.items.map((item) => (
-                              <tr key={item.id}>
-                                <td>
-                                  <button
-                                    className="finance-name-link"
-                                    onClick={() =>
-                                      setEditor({ type: 'assessment-detail', id: item.id })
-                                    }
-                                  >
-                                    <strong>{item.memberName}</strong>
-                                    <small>
-                                      {item.membershipNumber} · {item.fiscalYear}
-                                    </small>
-                                  </button>
-                                </td>
-                                <td>{item.planName}</td>
-                                <td>{formatDate(item.dueDate, i18n.language)}</td>
-                                <td className="align-right finance-money">
-                                  {formatMoney(item.amountCents, i18n.language)}
-                                </td>
-                                <td className="align-right finance-money">
-                                  {formatMoney(item.openCents, i18n.language)}
-                                </td>
-                                <td>
-                                  <FeeStatus item={item} />
-                                </td>
-                                <td>
-                                  <div className="finance-row-actions">
-                                    {canWrite && item.openCents > 0 && (
-                                      <Button
-                                        variant="secondary"
-                                        onClick={() =>
-                                          setEditor({ type: 'payment', assessment: item })
-                                        }
-                                      >
-                                        {t('financeAddPayment')}
-                                      </Button>
-                                    )}
-                                    {canWrite && item.overdue && (
-                                      <Button
-                                        variant="ghost"
-                                        disabled={busy}
-                                        aria-label={`${t('financePrepareReminder')}: ${item.memberName} ${item.planName}`}
-                                        onClick={() => void prepareReminder(item)}
-                                      >
-                                        <Bell size={17} />
-                                      </Button>
-                                    )}
-                                    <Button
-                                      variant="ghost"
-                                      aria-label={`${t('financeAssessmentDetails')}: ${item.memberName} ${item.planName}`}
+              <QueryView<Page<unknown>> query={current}>
+                {(currentData) => (
+                  <>
+                    {tab === 'assessments' &&
+                      assessments.data &&
+                      (assessments.data.items.length ? (
+                        <div className="table-scroll">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>{t('financeMember')}</th>
+                                <th>{t('financePlan')}</th>
+                                <th>{t('financeDueDate')}</th>
+                                <th className="align-right">{t('financeAmount')}</th>
+                                <th className="align-right">{t('financeOutstanding')}</th>
+                                <th>{t('status')}</th>
+                                <th>{t('actions')}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {assessments.data.items.map((item) => (
+                                <tr key={item.id}>
+                                  <td>
+                                    <button
+                                      className="finance-name-link"
                                       onClick={() =>
                                         setEditor({ type: 'assessment-detail', id: item.id })
                                       }
                                     >
-                                      <ArrowUpRight size={17} />
-                                    </Button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <Empty
-                        description={t(
-                          debounced || status ? 'noResults' : 'financeAssessmentEmpty',
-                        )}
-                      />
-                    ))}
-                  {tab === 'plans' &&
-                    plans.data &&
-                    (plans.data.items.length ? (
-                      <div className="table-scroll">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>{t('financePlanName')}</th>
-                              <th>{t('financeInterval')}</th>
-                              <th>{t('financeCategory')}</th>
-                              <th className="align-right">{t('financeAmount')}</th>
-                              <th>{t('status')}</th>
-                              {canPlans && <th>{t('actions')}</th>}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {plans.data.items.map((item) => (
-                              <tr key={item.id}>
-                                <td>
-                                  <strong>{item.name}</strong>
-                                  {item.description && (
-                                    <small className="finance-cell-note">{item.description}</small>
-                                  )}
-                                </td>
-                                <td>
-                                  {t(item.interval === 'annual' ? 'financeAnnual' : 'financeOnce')}
-                                </td>
-                                <td>
-                                  {item.membershipType
-                                    ? t(item.membershipType)
-                                    : t('financeAllCategories')}
-                                </td>
-                                <td className="align-right finance-money">
-                                  {formatMoney(item.amountCents, i18n.language)}
-                                </td>
-                                <td>
-                                  <span
-                                    className={`badge badge-${item.active ? 'active' : 'inactive'}`}
-                                  >
-                                    <span />
-                                    {t(item.active ? 'active' : 'inactive')}
-                                  </span>
-                                </td>
-                                {canPlans && (
-                                  <td>
-                                    <Button
-                                      variant="ghost"
-                                      aria-label={`${t('financeEditPlan')}: ${item.name}`}
-                                      onClick={() => setEditor({ type: 'plan', plan: item })}
-                                    >
-                                      <Pencil size={17} />
-                                    </Button>
+                                      <strong>{item.memberName}</strong>
+                                      <small>
+                                        {item.membershipNumber} · {item.fiscalYear}
+                                      </small>
+                                    </button>
                                   </td>
-                                )}
+                                  <td>{item.planName}</td>
+                                  <td>{formatDate(item.dueDate, i18n.language)}</td>
+                                  <td className="align-right finance-money">
+                                    {formatMoney(item.amountCents, i18n.language)}
+                                  </td>
+                                  <td className="align-right finance-money">
+                                    {formatMoney(item.openCents, i18n.language)}
+                                  </td>
+                                  <td>
+                                    <FeeStatus item={item} />
+                                  </td>
+                                  <td>
+                                    <div className="finance-row-actions">
+                                      {canWrite && item.openCents > 0 && (
+                                        <Button
+                                          variant="secondary"
+                                          onClick={() =>
+                                            setEditor({ type: 'payment', assessment: item })
+                                          }
+                                        >
+                                          {t('financeAddPayment')}
+                                        </Button>
+                                      )}
+                                      {canWrite && item.overdue && (
+                                        <Button
+                                          variant="ghost"
+                                          disabled={busy}
+                                          aria-label={`${t('financePrepareReminder')}: ${item.memberName} ${item.planName}`}
+                                          onClick={() => void prepareReminder(item)}
+                                        >
+                                          <Bell size={17} />
+                                        </Button>
+                                      )}
+                                      <Button
+                                        variant="ghost"
+                                        aria-label={`${t('financeAssessmentDetails')}: ${item.memberName} ${item.planName}`}
+                                        onClick={() =>
+                                          setEditor({ type: 'assessment-detail', id: item.id })
+                                        }
+                                      >
+                                        <ArrowUpRight size={17} />
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <Empty
+                          description={t(
+                            debounced || status ? 'noResults' : 'financeAssessmentEmpty',
+                          )}
+                        />
+                      ))}
+                    {tab === 'plans' &&
+                      plans.data &&
+                      (plans.data.items.length ? (
+                        <div className="table-scroll">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>{t('financePlanName')}</th>
+                                <th>{t('financeInterval')}</th>
+                                <th>{t('financeCategory')}</th>
+                                <th className="align-right">{t('financeAmount')}</th>
+                                <th>{t('status')}</th>
+                                {canPlans && <th>{t('actions')}</th>}
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <Empty description={t('financePlanEmpty')} />
-                    ))}
-                  {tab === 'payments' &&
-                    payments.data &&
-                    (payments.data.items.length ? (
-                      <div className="table-scroll">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>{t('financeReceiptNumber')}</th>
-                              <th>{t('financePayerName')}</th>
-                              <th>{t('financePaidOn')}</th>
-                              <th>{t('financeMethod')}</th>
-                              <th className="align-right">{t('financeAmount')}</th>
-                              <th>{t('actions')}</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {payments.data.items.map((item) => (
-                              <tr key={item.id}>
-                                <td>
-                                  <button
-                                    className="finance-name-link"
-                                    onClick={() =>
-                                      setEditor({ type: 'payment-detail', id: item.id })
-                                    }
-                                  >
-                                    <strong>{receiptNumber(item.receiptNumber)}</strong>
-                                  </button>
-                                </td>
-                                <td>
-                                  {item.payerName}
-                                  {item.reference && (
-                                    <small className="finance-cell-note">{item.reference}</small>
-                                  )}
-                                  {item.status === 'reversed' && (
-                                    <span className="badge badge-inactive">
-                                      {t('ledgerPaymentReversed')}
-                                    </span>
-                                  )}
-                                </td>
-                                <td>{formatDate(item.paidOn, i18n.language)}</td>
-                                <td>{t(methodKey(item.method))}</td>
-                                <td className="align-right finance-money">
-                                  {formatMoney(item.amountCents, i18n.language)}
-                                </td>
-                                <td>
-                                  <div className="finance-row-actions">
-                                    <Button
-                                      variant="secondary"
-                                      onClick={() => void receipt(item.id)}
+                            </thead>
+                            <tbody>
+                              {plans.data.items.map((item) => (
+                                <tr key={item.id}>
+                                  <td>
+                                    <strong>{item.name}</strong>
+                                    {item.description && (
+                                      <small className="finance-cell-note">
+                                        {item.description}
+                                      </small>
+                                    )}
+                                  </td>
+                                  <td>
+                                    {t(
+                                      item.interval === 'annual' ? 'financeAnnual' : 'financeOnce',
+                                    )}
+                                  </td>
+                                  <td>
+                                    {item.membershipType
+                                      ? t(item.membershipType)
+                                      : t('financeAllCategories')}
+                                  </td>
+                                  <td className="align-right finance-money">
+                                    {formatMoney(item.amountCents, i18n.language)}
+                                  </td>
+                                  <td>
+                                    <span
+                                      className={`badge badge-${item.active ? 'active' : 'inactive'}`}
                                     >
-                                      <Download size={16} />
-                                      {t('financeReceipt')}
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      aria-label={`${t('financePaymentDetails')}: ${receiptNumber(item.receiptNumber)}`}
+                                      <span />
+                                      {t(item.active ? 'active' : 'inactive')}
+                                    </span>
+                                  </td>
+                                  {canPlans && (
+                                    <td>
+                                      <Button
+                                        variant="ghost"
+                                        aria-label={`${t('financeEditPlan')}: ${item.name}`}
+                                        onClick={() => setEditor({ type: 'plan', plan: item })}
+                                      >
+                                        <Pencil size={17} />
+                                      </Button>
+                                    </td>
+                                  )}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <Empty description={t('financePlanEmpty')} />
+                      ))}
+                    {tab === 'payments' &&
+                      payments.data &&
+                      (payments.data.items.length ? (
+                        <div className="table-scroll">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>{t('financeReceiptNumber')}</th>
+                                <th>{t('financePayerName')}</th>
+                                <th>{t('financePaidOn')}</th>
+                                <th>{t('financeMethod')}</th>
+                                <th className="align-right">{t('financeAmount')}</th>
+                                <th>{t('actions')}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {payments.data.items.map((item) => (
+                                <tr key={item.id}>
+                                  <td>
+                                    <button
+                                      className="finance-name-link"
                                       onClick={() =>
                                         setEditor({ type: 'payment-detail', id: item.id })
                                       }
                                     >
-                                      <ArrowUpRight size={17} />
-                                    </Button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <Empty description={t('financePaymentEmpty')} />
-                    ))}
-                  {current.data && (
+                                      <strong>{receiptNumber(item.receiptNumber)}</strong>
+                                    </button>
+                                  </td>
+                                  <td>
+                                    {item.payerName}
+                                    {item.reference && (
+                                      <small className="finance-cell-note">{item.reference}</small>
+                                    )}
+                                    {item.status === 'reversed' && (
+                                      <span className="badge badge-inactive">
+                                        {t('ledgerPaymentReversed')}
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td>{formatDate(item.paidOn, i18n.language)}</td>
+                                  <td>{t(methodKey(item.method))}</td>
+                                  <td className="align-right finance-money">
+                                    {formatMoney(item.amountCents, i18n.language)}
+                                  </td>
+                                  <td>
+                                    <div className="finance-row-actions">
+                                      <Button
+                                        variant="secondary"
+                                        onClick={() => void receipt(item.id)}
+                                      >
+                                        <Download size={16} />
+                                        {t('financeReceipt')}
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        aria-label={`${t('financePaymentDetails')}: ${receiptNumber(item.receiptNumber)}`}
+                                        onClick={() =>
+                                          setEditor({ type: 'payment-detail', id: item.id })
+                                        }
+                                      >
+                                        <ArrowUpRight size={17} />
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <Empty description={t('financePaymentEmpty')} />
+                      ))}
                     <Pagination
                       page={page}
-                      pageSize={current.data.pageSize}
-                      total={current.data.total}
+                      pageSize={currentData.pageSize}
+                      total={currentData.total}
                       onChange={setPage}
                     />
-                  )}
-                </>
-              )}
+                  </>
+                )}
+              </QueryView>
             </>
           )}
         </div>

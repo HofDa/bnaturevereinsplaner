@@ -15,13 +15,12 @@ import {
   Avatar,
   Button,
   Empty,
-  ErrorState,
-  Loading,
   Modal,
   PageHeading,
   Pagination,
   SearchInput,
   formatDate,
+  QueryView,
 } from '../components/ui';
 import { DataForm } from '../components/data-form';
 import { useDebounced } from '../hooks/use-debounced';
@@ -70,125 +69,124 @@ export function Board() {
             }}
           />
         </div>
-        {query.isPending ? (
-          <Loading />
-        ) : query.isError ? (
-          <ErrorState error={query.error} />
-        ) : (
-          <>
-            {query.data.items.length ? (
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>{t('name')}</th>
-                      <th>{t('position')}</th>
-                      <th>{t('startDate')}</th>
-                      <th>{t('endDate')}</th>
-                      <th>{t('status')}</th>
-                      {write && <th>{t('actions')}</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {query.data.items.map((mandate) => (
-                      <tr key={mandate.id}>
-                        <td>
-                          <div className="person-cell">
-                            <Avatar firstName={mandate.firstName} lastName={mandate.lastName} />
-                            <strong>
-                              {mandate.firstName} {mandate.lastName}
-                            </strong>
-                          </div>
-                        </td>
-                        <td>{mandate.position}</td>
-                        <td>{formatDate(mandate.startDate, i18n.language)}</td>
-                        <td>
-                          {mandate.endDate
-                            ? formatDate(mandate.endDate, i18n.language)
-                            : t('ongoing')}
-                        </td>
-                        <td>
-                          <span className="subtle-tag">
-                            {t(
-                              mandate.startDate > today
-                                ? 'future'
-                                : mandate.endDate && mandate.endDate < today
-                                  ? 'past'
-                                  : 'current',
-                            )}
-                          </span>
-                        </td>
-                        {write && (
-                          <td>
-                            <Button
-                              variant="ghost"
-                              aria-label={`${t('edit')}: ${mandate.position}`}
-                              onClick={() => setEditing(mandate)}
-                            >
-                              <Pencil size={16} />
-                            </Button>
-                          </td>
-                        )}
+        <QueryView query={query}>
+          {(data) => (
+            <>
+              {data.items.length ? (
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>{t('name')}</th>
+                        <th>{t('position')}</th>
+                        <th>{t('startDate')}</th>
+                        <th>{t('endDate')}</th>
+                        <th>{t('status')}</th>
+                        {write && <th>{t('actions')}</th>}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <Empty description={t('boardEmpty')} />
-            )}
-            <Pagination
-              page={page}
-              pageSize={query.data.pageSize}
-              total={query.data.total}
-              onChange={setPage}
-            />
-          </>
-        )}
+                    </thead>
+                    <tbody>
+                      {data.items.map((mandate) => (
+                        <tr key={mandate.id}>
+                          <td>
+                            <div className="person-cell">
+                              <Avatar firstName={mandate.firstName} lastName={mandate.lastName} />
+                              <strong>
+                                {mandate.firstName} {mandate.lastName}
+                              </strong>
+                            </div>
+                          </td>
+                          <td>{mandate.position}</td>
+                          <td>{formatDate(mandate.startDate, i18n.language)}</td>
+                          <td>
+                            {mandate.endDate
+                              ? formatDate(mandate.endDate, i18n.language)
+                              : t('ongoing')}
+                          </td>
+                          <td>
+                            <span className="subtle-tag">
+                              {t(
+                                mandate.startDate > today
+                                  ? 'future'
+                                  : mandate.endDate && mandate.endDate < today
+                                    ? 'past'
+                                    : 'current',
+                              )}
+                            </span>
+                          </td>
+                          {write && (
+                            <td>
+                              <Button
+                                variant="ghost"
+                                aria-label={`${t('edit')}: ${mandate.position}`}
+                                onClick={() => setEditing(mandate)}
+                              >
+                                <Pencil size={16} />
+                              </Button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <Empty description={t('boardEmpty')} />
+              )}
+              <Pagination
+                page={page}
+                pageSize={data.pageSize}
+                total={data.total}
+                onChange={setPage}
+              />
+            </>
+          )}
+        </QueryView>
       </section>
       {editing && (
         <Modal
           title={t(editing === 'new' ? 'addMandate' : 'edit')}
           onClose={() => setEditing(null)}
         >
-          {members.isPending ? (
-            <Loading />
-          ) : members.isError ? (
-            <ErrorState error={members.error} />
-          ) : (
-            <DataForm
-              schema={boardSchema}
-              fields={[
-                {
-                  name: 'personId',
-                  label: 'choosePerson',
-                  type: 'select',
-                  required: true,
-                  options: [
-                    { value: '', label: t('choosePerson') },
-                    ...members.data.map((member) => ({
-                      value: member.personId,
-                      label: `${member.firstName} ${member.lastName} · ${member.membershipNumber}`,
-                    })),
-                  ],
-                },
-                { name: 'position', required: true },
-                { name: 'startDate', type: 'date', required: true },
-                { name: 'endDate', type: 'date', nullable: true },
-              ]}
-              defaults={editing === 'new' ? { startDate: today } : editing}
-              create={editing === 'new'}
-              onCancel={() => setEditing(null)}
-              onSubmit={async (data) => {
-                await api(editing === 'new' ? '/board-mandates' : `/board-mandates/${editing.id}`, {
-                  method: editing === 'new' ? 'POST' : 'PATCH',
-                  body: JSON.stringify(data),
-                });
-                void queryClient.invalidateQueries();
-                setEditing(null);
-              }}
-            />
-          )}
+          <QueryView query={members}>
+            {(membersData) => (
+              <DataForm
+                schema={boardSchema}
+                fields={[
+                  {
+                    name: 'personId',
+                    label: 'choosePerson',
+                    type: 'select',
+                    required: true,
+                    options: [
+                      { value: '', label: t('choosePerson') },
+                      ...membersData.map((member) => ({
+                        value: member.personId,
+                        label: `${member.firstName} ${member.lastName} · ${member.membershipNumber}`,
+                      })),
+                    ],
+                  },
+                  { name: 'position', required: true },
+                  { name: 'startDate', type: 'date', required: true },
+                  { name: 'endDate', type: 'date', nullable: true },
+                ]}
+                defaults={editing === 'new' ? { startDate: today } : editing}
+                create={editing === 'new'}
+                onCancel={() => setEditing(null)}
+                onSubmit={async (data) => {
+                  await api(
+                    editing === 'new' ? '/board-mandates' : `/board-mandates/${editing.id}`,
+                    {
+                      method: editing === 'new' ? 'POST' : 'PATCH',
+                      body: JSON.stringify(data),
+                    },
+                  );
+                  void queryClient.invalidateQueries();
+                  setEditing(null);
+                }}
+              />
+            )}
+          </QueryView>
         </Modal>
       )}
     </>

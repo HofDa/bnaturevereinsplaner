@@ -19,6 +19,7 @@ import {
   Pagination,
   SearchInput,
   FormActions,
+  QueryView,
 } from '../components/ui';
 import { DataForm } from '../components/data-form';
 type GroupDetail = Group & { members: { personId: string; firstName: string; lastName: string }[] };
@@ -81,51 +82,51 @@ export function Groups() {
           </select>
         </label>
       </div>
-      {query.isPending ? (
-        <Loading />
-      ) : query.isError ? (
-        <ErrorState error={query.error} />
-      ) : query.data.items.length ? (
-        <>
-          <div className="groups-grid">
-            {query.data.items.map((group) => (
-              <article className="panel group-card" key={group.id}>
-                <div className="group-card-top">
-                  <span className="group-symbol">
-                    <Layers size={24} />
-                  </span>
-                  <Badge status={group.active ? 'active' : 'inactive'} />
-                </div>
-                <h2>{group.name}</h2>
-                <p>{group.description || '—'}</p>
-                <footer>
-                  <span>
-                    <Users size={16} />
-                    {group.memberCount} {t('members')}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    onClick={() => setSelected(group.id)}
-                    aria-label={`${t('details')}: ${group.name}`}
-                  >
-                    <ArrowUpRight size={19} />
-                  </Button>
-                </footer>
-              </article>
-            ))}
-          </div>
-          <Pagination
-            page={page}
-            pageSize={query.data.pageSize}
-            total={query.data.total}
-            onChange={setPage}
-          />
-        </>
-      ) : (
-        <section className="panel">
-          <Empty description={t('groupEmpty')} />
-        </section>
-      )}
+      <QueryView query={query}>
+        {(data) =>
+          data.items.length ? (
+            <>
+              <div className="groups-grid">
+                {data.items.map((group) => (
+                  <article className="panel group-card" key={group.id}>
+                    <div className="group-card-top">
+                      <span className="group-symbol">
+                        <Layers size={24} />
+                      </span>
+                      <Badge status={group.active ? 'active' : 'inactive'} />
+                    </div>
+                    <h2>{group.name}</h2>
+                    <p>{group.description || '—'}</p>
+                    <footer>
+                      <span>
+                        <Users size={16} />
+                        {group.memberCount} {t('members')}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        onClick={() => setSelected(group.id)}
+                        aria-label={`${t('details')}: ${group.name}`}
+                      >
+                        <ArrowUpRight size={19} />
+                      </Button>
+                    </footer>
+                  </article>
+                ))}
+              </div>
+              <Pagination
+                page={page}
+                pageSize={data.pageSize}
+                total={data.total}
+                onChange={setPage}
+              />
+            </>
+          ) : (
+            <section className="panel">
+              <Empty description={t('groupEmpty')} />
+            </section>
+          )
+        }
+      </QueryView>
       {params.get('new') && write && (
         <Modal title={t('createGroup')} onClose={() => setParams({})}>
           <DataForm
@@ -198,38 +199,38 @@ function GroupEditor({ id, onDone }: { id: string; onDone: () => void }) {
       <hr />
       <h3>{t('groupMembers')}</h3>
       {canMembers ? (
-        members.isPending ? (
-          <Loading />
-        ) : members.isError ? (
-          <ErrorState error={members.error} />
-        ) : (
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              mutation.mutate(new FormData(event.currentTarget).getAll('personIds').map(String));
-            }}
-          >
-            <div className="assignment-list">
-              {members.data.map((member) => (
-                <label key={member.personId}>
-                  <input
-                    type="checkbox"
-                    name="personIds"
-                    value={member.personId}
-                    disabled={!write}
-                    defaultChecked={query.data.members.some((m) => m.personId === member.personId)}
-                  />
-                  <span>
-                    {member.firstName} {member.lastName}
-                    <small>{member.membershipNumber}</small>
-                  </span>
-                </label>
-              ))}
-            </div>
-            {mutation.isError && <Notice error>{errorMessage(mutation.error)}</Notice>}
-            {write && <FormActions pending={mutation.isPending} />}
-          </form>
-        )
+        <QueryView query={members}>
+          {(membersData) => (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                mutation.mutate(new FormData(event.currentTarget).getAll('personIds').map(String));
+              }}
+            >
+              <div className="assignment-list">
+                {membersData.map((member) => (
+                  <label key={member.personId}>
+                    <input
+                      type="checkbox"
+                      name="personIds"
+                      value={member.personId}
+                      disabled={!write}
+                      defaultChecked={query.data.members.some(
+                        (m) => m.personId === member.personId,
+                      )}
+                    />
+                    <span>
+                      {member.firstName} {member.lastName}
+                      <small>{member.membershipNumber}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              {mutation.isError && <Notice error>{errorMessage(mutation.error)}</Notice>}
+              {write && <FormActions pending={mutation.isPending} />}
+            </form>
+          )}
+        </QueryView>
       ) : (
         <p className="muted">{t('groupAccess')}</p>
       )}

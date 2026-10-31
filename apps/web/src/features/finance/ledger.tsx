@@ -52,6 +52,7 @@ import {
   Pagination,
   SearchInput,
   formatDate,
+  QueryView,
 } from '../../components/ui';
 import { api, allPages, downloadPrivateFile, errorMessage, queryClient } from '../../lib/api';
 import { encodeCsv, downloadCsv } from '../../lib/csv';
@@ -340,109 +341,116 @@ function Cashbook() {
       </div>
       {notice && <Notice>{notice}</Notice>}
       {error && <Notice error>{error}</Notice>}
-      {entries.isPending ? (
-        <Loading />
-      ) : entries.isError ? (
-        <ErrorState error={entries.error} retry={() => void entries.refetch()} />
-      ) : entries.data.items.length ? (
-        <>
-          <div className="table-scroll" tabIndex={0} role="region" aria-label={t('ledgerCashbook')}>
-            <table>
-              <thead>
-                <tr>
-                  <th>{t('ledgerEntryNumber')}</th>
-                  <th>{t('ledgerBookingDate')}</th>
-                  <th>{t('ledgerDescription')}</th>
-                  <th>{t('ledgerCategory')}</th>
-                  <th>{t('ledgerAccount')}</th>
-                  <th className="align-right">{t('financeAmount')}</th>
-                  {canDocuments && <th>{t('actions')}</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {entries.data.items.map((entry) => (
-                  <tr key={entry.id}>
-                    <td>
-                      <strong>
-                        <button
-                          type="button"
-                          className="link-button"
-                          aria-label={`${t('s22History')}: ${entry.fiscalYear}/${entry.entryNumber}`}
-                          onClick={() => setEditor({ type: 'history', entry })}
-                        >
-                          {entry.fiscalYear}/{entry.entryNumber}
-                        </button>
-                      </strong>
-                    </td>
-                    <td>{formatDate(entry.bookingDate, i18n.language)}</td>
-                    <td>
-                      {entry.description}
-                      <small className="finance-cell-note">
-                        {[entry.counterparty, entry.documentNumber, entry.project]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </small>
-                      <span className="ledger-flags">
-                        {entry.reversesEntryId && (
-                          <span className="badge badge-pending">{t('ledgerReversal')}</span>
-                        )}
-                        {entry.reversedByEntryId && (
-                          <span className="badge badge-inactive">{t('ledgerReversed')}</span>
-                        )}
-                        {entry.paymentId && (
-                          <span className="badge finance-status-paid">{t('ledgerFeePayment')}</span>
-                        )}
-                      </span>
-                    </td>
-                    <td>{entry.categoryName}</td>
-                    <td>{entry.accountName}</td>
-                    <td className="align-right">
-                      <Amount cents={entry.amountCents} direction={entry.direction} />
-                    </td>
-                    {canDocuments && (
-                      <td>
-                        <div className="finance-row-actions">
-                          <Button
-                            variant="ghost"
-                            aria-label={`${t('documentReceipts')}: ${entry.fiscalYear}/${entry.entryNumber}`}
-                            onClick={() => setEditor({ type: 'documents', entry })}
-                          >
-                            <Paperclip size={17} />
-                          </Button>
-                          {canWrite &&
-                            !entry.reversesEntryId &&
-                            !entry.reversedByEntryId &&
-                            !entry.paymentId && (
+      <QueryView query={entries}>
+        {(data) =>
+          data.items.length ? (
+            <>
+              <div
+                className="table-scroll"
+                tabIndex={0}
+                role="region"
+                aria-label={t('ledgerCashbook')}
+              >
+                <table>
+                  <thead>
+                    <tr>
+                      <th>{t('ledgerEntryNumber')}</th>
+                      <th>{t('ledgerBookingDate')}</th>
+                      <th>{t('ledgerDescription')}</th>
+                      <th>{t('ledgerCategory')}</th>
+                      <th>{t('ledgerAccount')}</th>
+                      <th className="align-right">{t('financeAmount')}</th>
+                      {canDocuments && <th>{t('actions')}</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.items.map((entry) => (
+                      <tr key={entry.id}>
+                        <td>
+                          <strong>
+                            <button
+                              type="button"
+                              className="link-button"
+                              aria-label={`${t('s22History')}: ${entry.fiscalYear}/${entry.entryNumber}`}
+                              onClick={() => setEditor({ type: 'history', entry })}
+                            >
+                              {entry.fiscalYear}/{entry.entryNumber}
+                            </button>
+                          </strong>
+                        </td>
+                        <td>{formatDate(entry.bookingDate, i18n.language)}</td>
+                        <td>
+                          {entry.description}
+                          <small className="finance-cell-note">
+                            {[entry.counterparty, entry.documentNumber, entry.project]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </small>
+                          <span className="ledger-flags">
+                            {entry.reversesEntryId && (
+                              <span className="badge badge-pending">{t('ledgerReversal')}</span>
+                            )}
+                            {entry.reversedByEntryId && (
+                              <span className="badge badge-inactive">{t('ledgerReversed')}</span>
+                            )}
+                            {entry.paymentId && (
+                              <span className="badge finance-status-paid">
+                                {t('ledgerFeePayment')}
+                              </span>
+                            )}
+                          </span>
+                        </td>
+                        <td>{entry.categoryName}</td>
+                        <td>{entry.accountName}</td>
+                        <td className="align-right">
+                          <Amount cents={entry.amountCents} direction={entry.direction} />
+                        </td>
+                        {canDocuments && (
+                          <td>
+                            <div className="finance-row-actions">
                               <Button
                                 variant="ghost"
-                                aria-label={`${t('ledgerReverse')}: ${entry.fiscalYear}/${entry.entryNumber}`}
-                                onClick={() => setEditor({ type: 'reverse', entry })}
+                                aria-label={`${t('documentReceipts')}: ${entry.fiscalYear}/${entry.entryNumber}`}
+                                onClick={() => setEditor({ type: 'documents', entry })}
                               >
-                                <Undo2 size={17} />
+                                <Paperclip size={17} />
                               </Button>
-                            )}
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Pagination
-            page={page}
-            pageSize={entries.data.pageSize}
-            total={entries.data.total}
-            onChange={setPage}
-          />
-        </>
-      ) : (
-        <Empty
-          description={t(
-            debounced || account || category || direction ? 'noResults' : 'ledgerEmpty',
-          )}
-        />
-      )}
+                              {canWrite &&
+                                !entry.reversesEntryId &&
+                                !entry.reversedByEntryId &&
+                                !entry.paymentId && (
+                                  <Button
+                                    variant="ghost"
+                                    aria-label={`${t('ledgerReverse')}: ${entry.fiscalYear}/${entry.entryNumber}`}
+                                    onClick={() => setEditor({ type: 'reverse', entry })}
+                                  >
+                                    <Undo2 size={17} />
+                                  </Button>
+                                )}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination
+                page={page}
+                pageSize={data.pageSize}
+                total={data.total}
+                onChange={setPage}
+              />
+            </>
+          ) : (
+            <Empty
+              description={t(
+                debounced || account || category || direction ? 'noResults' : 'ledgerEmpty',
+              )}
+            />
+          )
+        }
+      </QueryView>
       <p className="finance-footnote">{t('ledgerImmutableHint')}</p>
       {editor && (
         <Modal
@@ -1217,115 +1225,108 @@ function Reports() {
       </div>
       {notice && <Notice>{notice}</Notice>}
       {error && <Notice error>{error}</Notice>}
-      {report.isPending ? (
-        <Loading />
-      ) : report.isError ? (
-        <ErrorState error={report.error} retry={() => void report.refetch()} />
-      ) : (
-        <>
-          {report.data.status === 'open' && <Notice>{t('ledgerReportProvisional')}</Notice>}
-          {report.data.unbookedPaymentCount > 0 && (
-            <Notice>
-              {t('ledgerUnbookedPayments', { count: report.data.unbookedPaymentCount })}
-            </Notice>
-          )}
-          <section
-            className="stats-grid finance-stats ledger-report-stats"
-            aria-label={t('ledgerReportSummary')}
-          >
-            {[
-              ['ledgerIncome', report.data.incomeCents],
-              ['ledgerExpense', report.data.expenseCents],
-              ['ledgerResult', report.data.resultCents],
-              ['ledgerClassFee', report.data.membershipFeeIncomeCents],
-              ['ledgerClassDonation', report.data.donationIncomeCents],
-            ].map(([label, value], index) => (
-              <article key={label} className={`stat-card stat-${Math.min(index, 3)}`}>
-                <div>
-                  <span>{t(label!)}</span>
-                </div>
-                <strong>{formatMoney(value!, i18n.language)}</strong>
-                <small>{report.data.fiscalYear}</small>
-              </article>
-            ))}
-          </section>
-          <div className="ledger-report-grid">
-            <section aria-labelledby="ledger-report-categories">
-              <h2 id="ledger-report-categories">{t('ledgerCategories')}</h2>
-              <ul className="finance-allocation-history">
-                {report.data.categories
-                  .filter((c) => c.totalCents !== '0')
-                  .map((c) => (
-                    <li key={`${c.categoryId}:${c.name}`}>
-                      <span>{c.name}</span>
-                      <Amount cents={c.totalCents} direction={c.direction} />
+      <QueryView query={report}>
+        {(data) => (
+          <>
+            {data.status === 'open' && <Notice>{t('ledgerReportProvisional')}</Notice>}
+            {data.unbookedPaymentCount > 0 && (
+              <Notice>{t('ledgerUnbookedPayments', { count: data.unbookedPaymentCount })}</Notice>
+            )}
+            <section
+              className="stats-grid finance-stats ledger-report-stats"
+              aria-label={t('ledgerReportSummary')}
+            >
+              {[
+                ['ledgerIncome', data.incomeCents],
+                ['ledgerExpense', data.expenseCents],
+                ['ledgerResult', data.resultCents],
+                ['ledgerClassFee', data.membershipFeeIncomeCents],
+                ['ledgerClassDonation', data.donationIncomeCents],
+              ].map(([label, value], index) => (
+                <article key={label} className={`stat-card stat-${Math.min(index, 3)}`}>
+                  <div>
+                    <span>{t(label!)}</span>
+                  </div>
+                  <strong>{formatMoney(value!, i18n.language)}</strong>
+                  <small>{data.fiscalYear}</small>
+                </article>
+              ))}
+            </section>
+            <div className="ledger-report-grid">
+              <section aria-labelledby="ledger-report-categories">
+                <h2 id="ledger-report-categories">{t('ledgerCategories')}</h2>
+                <ul className="finance-allocation-history">
+                  {data.categories
+                    .filter((c) => c.totalCents !== '0')
+                    .map((c) => (
+                      <li key={`${c.categoryId}:${c.name}`}>
+                        <span>{c.name}</span>
+                        <Amount cents={c.totalCents} direction={c.direction} />
+                      </li>
+                    ))}
+                </ul>
+              </section>
+              <section aria-labelledby="ledger-report-accounts">
+                <h2 id="ledger-report-accounts">{t('ledgerAccounts')}</h2>
+                <ul className="finance-allocation-history">
+                  {data.accounts.map((a) => (
+                    <li key={a.accountId}>
+                      <span>
+                        {a.name}
+                        <small className="finance-cell-note">
+                          {t('ledgerOpening')} {formatMoney(a.openingCents, i18n.language)}
+                        </small>
+                      </span>
+                      <strong className="finance-money">
+                        {formatMoney(a.closingCents, i18n.language)}
+                      </strong>
                     </li>
                   ))}
-              </ul>
-            </section>
-            <section aria-labelledby="ledger-report-accounts">
-              <h2 id="ledger-report-accounts">{t('ledgerAccounts')}</h2>
-              <ul className="finance-allocation-history">
-                {report.data.accounts.map((a) => (
-                  <li key={a.accountId}>
-                    <span>
-                      {a.name}
-                      <small className="finance-cell-note">
-                        {t('ledgerOpening')} {formatMoney(a.openingCents, i18n.language)}
-                      </small>
-                    </span>
-                    <strong className="finance-money">
-                      {formatMoney(a.closingCents, i18n.language)}
-                    </strong>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </div>
-          {report.data.template && (
-            <section className="ledger-template-result" aria-labelledby="ledger-report-template">
-              <h2 id="ledger-report-template">
-                {report.data.template.name} · v{report.data.template.version}
-              </h2>
-              {report.data.template.revenueThresholdCents !== null && (
-                <Notice error={report.data.template.thresholdExceeded}>
-                  {t(
-                    report.data.template.thresholdExceeded
-                      ? 'ledgerThresholdExceeded'
-                      : 'ledgerThresholdOk',
-                    {
-                      amount: formatMoney(
-                        report.data.template.revenueThresholdCents,
-                        i18n.language,
-                      ),
-                    },
-                  )}
-                </Notice>
-              )}
-              <ul className="finance-allocation-history">
-                {report.data.template.lines.map((line) => (
-                  <li key={line.code}>
-                    <span>
-                      <strong>{line.code}</strong> {line.label}
-                    </span>
-                    <Amount cents={line.totalCents} direction={line.direction} />
-                  </li>
-                ))}
-              </ul>
-              {report.data.template.unmappedCategoryIds.length > 0 && (
-                <p className="ledger-warning">
-                  <TriangleAlert size={13} />{' '}
-                  {t('ledgerUnmapped', {
-                    names: report.data.template.unmappedCategoryIds
-                      .map((id) => names.get(id))
-                      .join(', '),
-                  })}
-                </p>
-              )}
-            </section>
-          )}
-        </>
-      )}
+                </ul>
+              </section>
+            </div>
+            {data.template && (
+              <section className="ledger-template-result" aria-labelledby="ledger-report-template">
+                <h2 id="ledger-report-template">
+                  {data.template.name} · v{data.template.version}
+                </h2>
+                {data.template.revenueThresholdCents !== null && (
+                  <Notice error={data.template.thresholdExceeded}>
+                    {t(
+                      data.template.thresholdExceeded
+                        ? 'ledgerThresholdExceeded'
+                        : 'ledgerThresholdOk',
+                      {
+                        amount: formatMoney(data.template.revenueThresholdCents, i18n.language),
+                      },
+                    )}
+                  </Notice>
+                )}
+                <ul className="finance-allocation-history">
+                  {data.template.lines.map((line) => (
+                    <li key={line.code}>
+                      <span>
+                        <strong>{line.code}</strong> {line.label}
+                      </span>
+                      <Amount cents={line.totalCents} direction={line.direction} />
+                    </li>
+                  ))}
+                </ul>
+                {data.template.unmappedCategoryIds.length > 0 && (
+                  <p className="ledger-warning">
+                    <TriangleAlert size={13} />{' '}
+                    {t('ledgerUnmapped', {
+                      names: data.template.unmappedCategoryIds
+                        .map((id) => names.get(id))
+                        .join(', '),
+                    })}
+                  </p>
+                )}
+              </section>
+            )}
+          </>
+        )}
+      </QueryView>
       <EtsReports year={selectedYear} />
       <PaymentBackfill />
       <section aria-labelledby="ledger-templates-heading" className="ledger-templates">

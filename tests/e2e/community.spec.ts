@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 test.setTimeout(120_000);
+const appOrigin = `http://localhost:${process.env.E2E_WEB_PORT ?? '5174'}`;
 const password = 'E2E-only-Password-2026!';
 async function login(page: Page, email = 'e2e@example.test', pass = password) {
   await page.goto('/');
@@ -17,7 +18,7 @@ async function post<T>(
 ): Promise<T> {
   const r = await page.request.fetch(`/api/v1${path}`, {
     method,
-    headers: { Origin: 'http://localhost:5174', 'Idempotency-Key': crypto.randomUUID() },
+    headers: { Origin: appOrigin, 'Idempotency-Key': crypto.randomUUID() },
     data,
   });
   expect(r.ok(), await r.text()).toBe(true);
@@ -119,7 +120,7 @@ test('lets members vote, change their answer and see the final results after clo
   await expect(page.getByRole('radio', { name: 'Sonntag', exact: true })).toBeChecked();
   await expect(page.getByText('Abgegebene Stimmen insgesamt: 1', { exact: true })).toBeVisible();
   await a11y(page);
-  const adminContext = await browser.newContext({ baseURL: 'http://localhost:5174' });
+  const adminContext = await browser.newContext({ baseURL: appOrigin });
   try {
     const admin = await adminContext.newPage();
     await login(admin);
@@ -187,7 +188,7 @@ test('shows group news and chat only to assigned users and supports live moderat
   await page.getByLabel('Deine Nachricht', { exact: true }).press('Control+Enter');
   await expect(page.getByText('Hallo aus dem Browser!', { exact: true })).toHaveCount(2);
   await a11y(page);
-  const moderatorContext = await browser.newContext({ baseURL: 'http://localhost:5174' });
+  const moderatorContext = await browser.newContext({ baseURL: appOrigin });
   try {
     const moderator = await moderatorContext.newPage();
     await login(moderator);

@@ -29,11 +29,11 @@ import {
   Empty,
   ErrorState,
   Field,
-  Loading,
   Modal,
   Notice,
   PageHeading,
   Pagination,
+  QueryView,
 } from '../components/ui';
 
 type Kind = 'news' | 'poll';
@@ -398,71 +398,75 @@ export function CommunityIndex() {
       <section id="community-panel" role="tabpanel" aria-labelledby={`community-tab-${kind}`}>
         {kind === 'chat' ? (
           <CommunityChat key={`${me.activeOrganizationId}:${groupId}`} groupId={groupId || null} />
-        ) : posts.isPending ? (
-          <Loading />
-        ) : posts.isError ? (
-          <ErrorState error={posts.error} />
-        ) : !posts.data.items.length ? (
-          <div className="panel">
-            <Empty
-              title={t(kind === 'news' ? 'commEmptyNews' : 'commEmptyPolls')}
-              description={t('commEmptyHint')}
-            />
-          </div>
         ) : (
-          <>
-            <div className="community-feed">
-              {posts.data.items.map((post) => (
-                <article
-                  className={`panel community-card ${post.pinned ? 'community-card-pinned' : ''}`}
-                  key={post.id}
-                >
-                  <Metadata post={post} />
-                  <h2>
-                    <Link to={`/community/${post.id}`}>{post.titleI18n[lang(i18n.language)]}</Link>
-                  </h2>
-                  <p className="community-excerpt">
-                    {post.bodyI18n[lang(i18n.language)].slice(0, 240)}
-                    {post.bodyI18n[lang(i18n.language)].length > 240 ? '…' : ''}
-                  </p>
-                  <div className="community-card-footer">
-                    <span>
-                      {post.state !== 'published'
-                        ? t(`commState_${post.state}`)
-                        : post.kind === 'poll'
-                          ? t(
-                              post.isClosed
-                                ? 'commClosed'
-                                : post.myOptionId
-                                  ? 'commVoted'
-                                  : 'commOpen',
-                            )
-                          : ''}
-                    </span>
-                    <Link className="button button-secondary" to={`/community/${post.id}`}>
-                      {t(
-                        post.kind === 'news'
-                          ? 'commReadNews'
-                          : post.isClosed
-                            ? 'commViewResults'
-                            : 'commOpenPoll',
-                      )}
-                    </Link>
+          <QueryView query={posts}>
+            {(data) =>
+              !data.items.length ? (
+                <div className="panel">
+                  <Empty
+                    title={t(kind === 'news' ? 'commEmptyNews' : 'commEmptyPolls')}
+                    description={t('commEmptyHint')}
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="community-feed">
+                    {data.items.map((post) => (
+                      <article
+                        className={`panel community-card ${post.pinned ? 'community-card-pinned' : ''}`}
+                        key={post.id}
+                      >
+                        <Metadata post={post} />
+                        <h2>
+                          <Link to={`/community/${post.id}`}>
+                            {post.titleI18n[lang(i18n.language)]}
+                          </Link>
+                        </h2>
+                        <p className="community-excerpt">
+                          {post.bodyI18n[lang(i18n.language)].slice(0, 240)}
+                          {post.bodyI18n[lang(i18n.language)].length > 240 ? '…' : ''}
+                        </p>
+                        <div className="community-card-footer">
+                          <span>
+                            {post.state !== 'published'
+                              ? t(`commState_${post.state}`)
+                              : post.kind === 'poll'
+                                ? t(
+                                    post.isClosed
+                                      ? 'commClosed'
+                                      : post.myOptionId
+                                        ? 'commVoted'
+                                        : 'commOpen',
+                                  )
+                                : ''}
+                          </span>
+                          <Link className="button button-secondary" to={`/community/${post.id}`}>
+                            {t(
+                              post.kind === 'news'
+                                ? 'commReadNews'
+                                : post.isClosed
+                                  ? 'commViewResults'
+                                  : 'commOpenPoll',
+                            )}
+                          </Link>
+                        </div>
+                      </article>
+                    ))}
                   </div>
-                </article>
-              ))}
-            </div>
-            <Pagination
-              page={page}
-              pageSize={12}
-              total={posts.data.total}
-              onChange={(next) => {
-                const q = new URLSearchParams(params);
-                q.set('page', String(next));
-                setParams(q);
-              }}
-            />
-          </>
+                  <Pagination
+                    page={page}
+                    pageSize={12}
+                    total={data.total}
+                    onChange={(next) => {
+                      const q = new URLSearchParams(params);
+                      q.set('page', String(next));
+                      setParams(q);
+                    }}
+                  />
+                </>
+              )
+            }
+          </QueryView>
         )}
       </section>
       {creating && kind !== 'chat' && (
@@ -564,55 +568,53 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
           </Button>
         )}
       </div>
-      {query.isPending ? (
-        <Loading />
-      ) : query.isError ? (
-        <ErrorState error={query.error} />
-      ) : (
-        <div
-          ref={log}
-          className="community-chat-log"
-          role="log"
-          aria-label={t('commChatMessages')}
-          tabIndex={0}
-          onScroll={() => {
-            if (log.current)
-              follow.current =
-                log.current.scrollHeight - log.current.scrollTop - log.current.clientHeight < 100;
-          }}
-        >
-          {!query.data.items.length ? (
-            <Empty title={t('commChatEmpty')} />
-          ) : (
-            query.data.items.map((message) => (
-              <article
-                key={message.id}
-                className={`community-chat-message ${message.isOwn ? 'community-chat-own' : ''}`}
-                aria-label={`${message.authorName}: ${new Date(message.createdAt).toLocaleString(i18n.language)}`}
-              >
-                <header>
-                  <strong>{message.authorName}</strong>
-                  <time dateTime={message.createdAt}>
-                    {new Date(message.createdAt).toLocaleString(i18n.language)}
-                  </time>
-                </header>
-                <p className={message.removedAt ? 'community-chat-removed' : ''}>
-                  {message.removedAt ? t('commChatRemoved') : message.body}
-                </p>
-                {message.canRemove && (
-                  <Button
-                    variant="ghost"
-                    aria-label={`${t('commChatRemove')}: ${message.authorName}`}
-                    onClick={() => setRemoving(message)}
-                  >
-                    {t('commChatRemove')}
-                  </Button>
-                )}
-              </article>
-            ))
-          )}
-        </div>
-      )}
+      <QueryView query={query}>
+        {(data) => (
+          <div
+            ref={log}
+            className="community-chat-log"
+            role="log"
+            aria-label={t('commChatMessages')}
+            tabIndex={0}
+            onScroll={() => {
+              if (log.current)
+                follow.current =
+                  log.current.scrollHeight - log.current.scrollTop - log.current.clientHeight < 100;
+            }}
+          >
+            {!data.items.length ? (
+              <Empty title={t('commChatEmpty')} />
+            ) : (
+              data.items.map((message) => (
+                <article
+                  key={message.id}
+                  className={`community-chat-message ${message.isOwn ? 'community-chat-own' : ''}`}
+                  aria-label={`${message.authorName}: ${new Date(message.createdAt).toLocaleString(i18n.language)}`}
+                >
+                  <header>
+                    <strong>{message.authorName}</strong>
+                    <time dateTime={message.createdAt}>
+                      {new Date(message.createdAt).toLocaleString(i18n.language)}
+                    </time>
+                  </header>
+                  <p className={message.removedAt ? 'community-chat-removed' : ''}>
+                    {message.removedAt ? t('commChatRemoved') : message.body}
+                  </p>
+                  {message.canRemove && (
+                    <Button
+                      variant="ghost"
+                      aria-label={`${t('commChatRemove')}: ${message.authorName}`}
+                      onClick={() => setRemoving(message)}
+                    >
+                      {t('commChatRemove')}
+                    </Button>
+                  )}
+                </article>
+              ))
+            )}
+          </div>
+        )}
+      </QueryView>
       {error != null && !removing && <Notice error>{errorMessage(error)}</Notice>}
       <form className="community-chat-compose" onSubmit={(event) => void send(event)}>
         <Field label={t('commChatMessage')} hint={t('commChatKeyboard')}>
@@ -798,137 +800,135 @@ export function CommunityDetail() {
         <ArrowLeft size={16} />
         {t('commBack')}
       </Link>
-      {query.isPending ? (
-        <Loading />
-      ) : query.isError ? (
-        <ErrorState error={query.error} />
-      ) : (
-        post && (
-          <>
-            <PageHeading
-              title={post.titleI18n[lang(i18n.language)]}
-              description={t(post.kind === 'news' ? 'commNews' : 'commPolls')}
-              actions={
-                post.canManage &&
-                post.state !== 'archived' && (
-                  <>
-                    {(post.kind === 'news' || post.state === 'draft') && (
-                      <Button variant="secondary" onClick={() => setEditing(true)}>
-                        <Pencil size={16} />
-                        {t('edit')}
+      <QueryView query={query}>
+        {() =>
+          post && (
+            <>
+              <PageHeading
+                title={post.titleI18n[lang(i18n.language)]}
+                description={t(post.kind === 'news' ? 'commNews' : 'commPolls')}
+                actions={
+                  post.canManage &&
+                  post.state !== 'archived' && (
+                    <>
+                      {(post.kind === 'news' || post.state === 'draft') && (
+                        <Button variant="secondary" onClick={() => setEditing(true)}>
+                          <Pencil size={16} />
+                          {t('edit')}
+                        </Button>
+                      )}
+                      {post.state === 'draft' && (
+                        <Button onClick={() => setConfirm('publish')}>
+                          <Send size={16} />
+                          {t('commPublish')}
+                        </Button>
+                      )}
+                      {post.kind === 'poll' && post.state === 'published' && !post.isClosed && (
+                        <Button variant="secondary" onClick={() => setConfirm('close')}>
+                          <CircleStop size={16} />
+                          {t('commClosePoll')}
+                        </Button>
+                      )}
+                      <Button variant="ghost" onClick={() => setConfirm('archive')}>
+                        <Archive size={16} />
+                        {t('commArchive')}
                       </Button>
-                    )}
-                    {post.state === 'draft' && (
-                      <Button onClick={() => setConfirm('publish')}>
-                        <Send size={16} />
-                        {t('commPublish')}
-                      </Button>
-                    )}
-                    {post.kind === 'poll' && post.state === 'published' && !post.isClosed && (
-                      <Button variant="secondary" onClick={() => setConfirm('close')}>
-                        <CircleStop size={16} />
-                        {t('commClosePoll')}
-                      </Button>
-                    )}
-                    <Button variant="ghost" onClick={() => setConfirm('archive')}>
-                      <Archive size={16} />
-                      {t('commArchive')}
-                    </Button>
-                  </>
-                )
-              }
-            />
-            <article className="panel community-detail">
-              <Metadata post={post} />
-              {post.state !== 'published' && <Notice>{t(`commState_${post.state}`)}</Notice>}
-              {post.kind === 'poll' && (
-                <div className="community-poll-status">
-                  <span className="subtle-tag">
-                    {t(
-                      post.isClosed
-                        ? 'commClosed'
-                        : post.state === 'draft'
-                          ? 'commState_draft'
-                          : 'commOpen',
-                    )}
-                  </span>
-                  {post.closesAt && (
-                    <span>
-                      {t('commEndsAt')}:{' '}
-                      <time dateTime={post.closesAt}>
-                        {new Date(post.closesAt).toLocaleString(i18n.language)}
-                      </time>
+                    </>
+                  )
+                }
+              />
+              <article className="panel community-detail">
+                <Metadata post={post} />
+                {post.state !== 'published' && <Notice>{t(`commState_${post.state}`)}</Notice>}
+                {post.kind === 'poll' && (
+                  <div className="community-poll-status">
+                    <span className="subtle-tag">
+                      {t(
+                        post.isClosed
+                          ? 'commClosed'
+                          : post.state === 'draft'
+                            ? 'commState_draft'
+                            : 'commOpen',
+                      )}
                     </span>
-                  )}
-                </div>
-              )}
-              {!!post.bodyI18n[lang(i18n.language)] && (
-                <div className="community-body">{post.bodyI18n[lang(i18n.language)]}</div>
-              )}
-              {post.kind === 'poll' && (
-                <PollBallot
-                  key={`${post.id}:${post.version}:${post.myOptionId ?? ''}`}
+                    {post.closesAt && (
+                      <span>
+                        {t('commEndsAt')}:{' '}
+                        <time dateTime={post.closesAt}>
+                          {new Date(post.closesAt).toLocaleString(i18n.language)}
+                        </time>
+                      </span>
+                    )}
+                  </div>
+                )}
+                {!!post.bodyI18n[lang(i18n.language)] && (
+                  <div className="community-body">{post.bodyI18n[lang(i18n.language)]}</div>
+                )}
+                {post.kind === 'poll' && (
+                  <PollBallot
+                    key={`${post.id}:${post.version}:${post.myOptionId ?? ''}`}
+                    post={post}
+                  />
+                )}
+              </article>
+              {editing && (
+                <CommunityEditor
                   post={post}
+                  kind={post.kind}
+                  onClose={() => setEditing(false)}
+                  onSaved={() => setEditing(false)}
                 />
               )}
-            </article>
-            {editing && (
-              <CommunityEditor
-                post={post}
-                kind={post.kind}
-                onClose={() => setEditing(false)}
-                onSaved={() => setEditing(false)}
-              />
-            )}
-            {confirm && (
-              <Modal
-                title={t(
-                  confirm === 'publish'
-                    ? 'commPublish'
-                    : confirm === 'archive'
-                      ? 'commArchive'
-                      : 'commClosePoll',
-                )}
-                onClose={() => {
-                  if (!busy) {
-                    setConfirm(null);
-                    setError(null);
-                  }
-                }}
-              >
-                <p>
-                  {t(
+              {confirm && (
+                <Modal
+                  title={t(
                     confirm === 'publish'
-                      ? 'commPublishConfirm'
+                      ? 'commPublish'
                       : confirm === 'archive'
-                        ? 'commArchiveConfirm'
-                        : 'commCloseConfirm',
+                        ? 'commArchive'
+                        : 'commClosePoll',
                   )}
-                </p>
-                <p>
-                  <strong>{post.groupName ?? t('commWholeClub')}</strong>
-                </p>
-                {error != null && <Notice error>{errorMessage(error)}</Notice>}
-                <div className="form-actions">
-                  <Button
-                    variant="secondary"
-                    disabled={busy}
-                    onClick={() => {
+                  onClose={() => {
+                    if (!busy) {
                       setConfirm(null);
                       setError(null);
-                    }}
-                  >
-                    {t('cancel')}
-                  </Button>
-                  <Button disabled={busy} onClick={() => void act()}>
-                    {t(busy ? 'saving' : 'commConfirm')}
-                  </Button>
-                </div>
-              </Modal>
-            )}
-          </>
-        )
-      )}
+                    }
+                  }}
+                >
+                  <p>
+                    {t(
+                      confirm === 'publish'
+                        ? 'commPublishConfirm'
+                        : confirm === 'archive'
+                          ? 'commArchiveConfirm'
+                          : 'commCloseConfirm',
+                    )}
+                  </p>
+                  <p>
+                    <strong>{post.groupName ?? t('commWholeClub')}</strong>
+                  </p>
+                  {error != null && <Notice error>{errorMessage(error)}</Notice>}
+                  <div className="form-actions">
+                    <Button
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => {
+                        setConfirm(null);
+                        setError(null);
+                      }}
+                    >
+                      {t('cancel')}
+                    </Button>
+                    <Button disabled={busy} onClick={() => void act()}>
+                      {t(busy ? 'saving' : 'commConfirm')}
+                    </Button>
+                  </div>
+                </Modal>
+              )}
+            </>
+          )
+        }
+      </QueryView>
     </>
   );
 }

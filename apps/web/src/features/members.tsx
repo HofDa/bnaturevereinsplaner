@@ -21,6 +21,7 @@ import {
   Pagination,
   SearchInput,
   formatDate,
+  QueryView,
 } from '../components/ui';
 import { MemberForm } from './member-form';
 import { CsvImport } from './csv-import';
@@ -137,75 +138,73 @@ export function Members() {
             </select>
           </label>
         </div>
-        {query.isPending ? (
-          <Loading />
-        ) : query.isError ? (
-          <ErrorState error={query.error} retry={() => void query.refetch()} />
-        ) : (
-          <>
-            {query.data.items.length ? (
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>{t('name')}</th>
-                      <th>{t('memberNumber')}</th>
-                      <th>{t('membershipType')}</th>
-                      <th>{t('status')}</th>
-                      <th>{t('joined')}</th>
-                      <th>
-                        <span className="sr-only">{t('actions')}</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {query.data.items.map((member) => (
-                      <tr key={member.id}>
-                        <td>
-                          <Link to={`/members/${member.id}`} className="person-cell">
-                            <Avatar firstName={member.firstName} lastName={member.lastName} />
-                            <span>
-                              <strong>
-                                {member.firstName} {member.lastName}
-                              </strong>
-                              <small>{member.email || t('noContact')}</small>
-                            </span>
-                          </Link>
-                        </td>
-                        <td className="mono">{member.membershipNumber}</td>
-                        <td>{t(member.membershipType)}</td>
-                        <td>
-                          <Badge status={member.status} />
-                        </td>
-                        <td>{formatDate(member.joinedAt, i18n.language)}</td>
-                        <td>
-                          <Link
-                            to={`/members/${member.id}`}
-                            className="icon-button"
-                            aria-label={`${t('details')}: ${member.firstName} ${member.lastName}`}
-                          >
-                            <ArrowUpRight size={18} />
-                          </Link>
-                        </td>
+        <QueryView query={query}>
+          {(data) => (
+            <>
+              {data.items.length ? (
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>{t('name')}</th>
+                        <th>{t('memberNumber')}</th>
+                        <th>{t('membershipType')}</th>
+                        <th>{t('status')}</th>
+                        <th>{t('joined')}</th>
+                        <th>
+                          <span className="sr-only">{t('actions')}</span>
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <Empty
-                title={debounced || status ? t('noResults') : undefined}
-                description={debounced || status ? undefined : t('emptyMembers')}
+                    </thead>
+                    <tbody>
+                      {data.items.map((member) => (
+                        <tr key={member.id}>
+                          <td>
+                            <Link to={`/members/${member.id}`} className="person-cell">
+                              <Avatar firstName={member.firstName} lastName={member.lastName} />
+                              <span>
+                                <strong>
+                                  {member.firstName} {member.lastName}
+                                </strong>
+                                <small>{member.email || t('noContact')}</small>
+                              </span>
+                            </Link>
+                          </td>
+                          <td className="mono">{member.membershipNumber}</td>
+                          <td>{t(member.membershipType)}</td>
+                          <td>
+                            <Badge status={member.status} />
+                          </td>
+                          <td>{formatDate(member.joinedAt, i18n.language)}</td>
+                          <td>
+                            <Link
+                              to={`/members/${member.id}`}
+                              className="icon-button"
+                              aria-label={`${t('details')}: ${member.firstName} ${member.lastName}`}
+                            >
+                              <ArrowUpRight size={18} />
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <Empty
+                  title={debounced || status ? t('noResults') : undefined}
+                  description={debounced || status ? undefined : t('emptyMembers')}
+                />
+              )}
+              <Pagination
+                page={page}
+                pageSize={data.pageSize}
+                total={data.total}
+                onChange={setPage}
               />
-            )}
-            <Pagination
-              page={page}
-              pageSize={query.data.pageSize}
-              total={query.data.total}
-              onChange={setPage}
-            />
-          </>
-        )}
+            </>
+          )}
+        </QueryView>
       </section>
       {params.get('new') && write && (
         <Modal wide title={t('addMember')} onClose={() => setParams({})}>

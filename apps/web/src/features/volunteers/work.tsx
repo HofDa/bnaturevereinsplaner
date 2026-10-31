@@ -14,14 +14,13 @@ import { useSession } from '../../app/session';
 import {
   Button,
   Empty,
-  ErrorState,
   Field,
-  Loading,
   Modal,
   Notice,
   PageHeading,
   Pagination,
   formatDate,
+  QueryView,
 } from '../../components/ui';
 import {
   CoverageBadge,
@@ -120,119 +119,119 @@ export function VolunteerAssignments() {
             </select>
           </Field>
         </div>
-        {query.isPending ? (
-          <Loading />
-        ) : query.isError ? (
-          <ErrorState error={query.error} retry={() => void query.refetch()} />
-        ) : query.data.items.length ? (
-          <>
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>{t('volVolunteer')}</th>
-                    <th>{t('volTask')}</th>
-                    <th>{t('volPlannedTime')}</th>
-                    <th>{t('volRole')}</th>
-                    <th>{t('volInsuranceStatus')}</th>
-                    <th>{t('status')}</th>
-                    <th>{t('actions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {query.data.items.map((a) => (
-                    <tr key={a.id}>
-                      <td>
-                        <strong>{a.volunteerName}</strong>
-                        <small className="cell-note">
-                          {a.eventTitleI18n?.[language] ?? a.project}
-                        </small>
-                      </td>
-                      <td>
-                        {a.task}
-                        {a.responsibleName && (
-                          <small className="cell-note">
-                            {t('volResponsible')}: {a.responsibleName}
-                          </small>
-                        )}
-                      </td>
-                      <td>
-                        {dateTime(a.plannedStart, i18n.language)} –{' '}
-                        {dateTime(a.plannedEnd, i18n.language).split(' ').at(-1)}
-                      </td>
-                      <td>{t(`assignmentRole_${a.role}`)}</td>
-                      <td>
-                        <CoverageBadge status={a.coverageStatus} />
-                      </td>
-                      <td>
-                        <StatusTag prefix="assignment" value={a.status} />
-                      </td>
-                      <td className="row-actions">
-                        {can('volunteers:assign') && a.status === 'planned' && (
-                          <>
-                            <Button variant="ghost" onClick={() => setEditing(a)}>
-                              {t('edit')}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              onClick={() =>
-                                void act(() =>
-                                  write(
-                                    `/volunteer-assignments/${a.id}`,
-                                    { version: a.version, status: 'completed' },
-                                    'PATCH',
-                                  ),
-                                )
-                              }
-                            >
-                              {t('volMarkCompleted')}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              onClick={() =>
-                                void act(() =>
-                                  write(
-                                    `/volunteer-assignments/${a.id}`,
-                                    { version: a.version, status: 'cancelled' },
-                                    'PATCH',
-                                  ),
-                                )
-                              }
-                            >
-                              {t('cancel')}
-                            </Button>
-                          </>
-                        )}
-                        {can('volunteers:assign') &&
-                          a.eventOccurrenceId &&
-                          a.status !== 'cancelled' && (
-                            <Button
-                              variant="ghost"
-                              onClick={() =>
-                                void act(() =>
-                                  write(`/volunteer-assignments/${a.id}/attendance-draft`, {}),
-                                )
-                              }
-                            >
-                              {t('volDraftFromAttendance')}
-                            </Button>
-                          )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Pagination
-              page={page}
-              pageSize={query.data.pageSize}
-              total={query.data.total}
-              onChange={setPage}
-            />
-          </>
-        ) : (
-          <Empty description={t('volAssignmentsEmpty')} />
-        )}
+        <QueryView query={query}>
+          {(data) =>
+            data.items.length ? (
+              <>
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>{t('volVolunteer')}</th>
+                        <th>{t('volTask')}</th>
+                        <th>{t('volPlannedTime')}</th>
+                        <th>{t('volRole')}</th>
+                        <th>{t('volInsuranceStatus')}</th>
+                        <th>{t('status')}</th>
+                        <th>{t('actions')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.items.map((a) => (
+                        <tr key={a.id}>
+                          <td>
+                            <strong>{a.volunteerName}</strong>
+                            <small className="cell-note">
+                              {a.eventTitleI18n?.[language] ?? a.project}
+                            </small>
+                          </td>
+                          <td>
+                            {a.task}
+                            {a.responsibleName && (
+                              <small className="cell-note">
+                                {t('volResponsible')}: {a.responsibleName}
+                              </small>
+                            )}
+                          </td>
+                          <td>
+                            {dateTime(a.plannedStart, i18n.language)} –{' '}
+                            {dateTime(a.plannedEnd, i18n.language).split(' ').at(-1)}
+                          </td>
+                          <td>{t(`assignmentRole_${a.role}`)}</td>
+                          <td>
+                            <CoverageBadge status={a.coverageStatus} />
+                          </td>
+                          <td>
+                            <StatusTag prefix="assignment" value={a.status} />
+                          </td>
+                          <td className="row-actions">
+                            {can('volunteers:assign') && a.status === 'planned' && (
+                              <>
+                                <Button variant="ghost" onClick={() => setEditing(a)}>
+                                  {t('edit')}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  onClick={() =>
+                                    void act(() =>
+                                      write(
+                                        `/volunteer-assignments/${a.id}`,
+                                        { version: a.version, status: 'completed' },
+                                        'PATCH',
+                                      ),
+                                    )
+                                  }
+                                >
+                                  {t('volMarkCompleted')}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  onClick={() =>
+                                    void act(() =>
+                                      write(
+                                        `/volunteer-assignments/${a.id}`,
+                                        { version: a.version, status: 'cancelled' },
+                                        'PATCH',
+                                      ),
+                                    )
+                                  }
+                                >
+                                  {t('cancel')}
+                                </Button>
+                              </>
+                            )}
+                            {can('volunteers:assign') &&
+                              a.eventOccurrenceId &&
+                              a.status !== 'cancelled' && (
+                                <Button
+                                  variant="ghost"
+                                  onClick={() =>
+                                    void act(() =>
+                                      write(`/volunteer-assignments/${a.id}/attendance-draft`, {}),
+                                    )
+                                  }
+                                >
+                                  {t('volDraftFromAttendance')}
+                                </Button>
+                              )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Pagination
+                  page={page}
+                  pageSize={data.pageSize}
+                  total={data.total}
+                  onChange={setPage}
+                />
+              </>
+            ) : (
+              <Empty description={t('volAssignmentsEmpty')} />
+            )
+          }
+        </QueryView>
         <p className="form-hint">{t('volAttendanceNotHours')}</p>
       </section>
       {editing && (
@@ -455,118 +454,115 @@ export function VolunteerHours() {
             </select>
           </Field>
         </div>
-        {query.isPending ? (
-          <Loading />
-        ) : query.isError ? (
-          <ErrorState error={query.error} retry={() => void query.refetch()} />
-        ) : (
-          <>
-            <div className="totals-row" aria-live="polite">
-              <span>
-                {t('volConfirmedHours')}:{' '}
-                <strong>{hoursLabel(query.data.totals.confirmedMinutes)}</strong>
-              </span>
-              <span>
-                {t('volPendingHours')}:{' '}
-                <strong>{hoursLabel(query.data.totals.pendingMinutes)}</strong>
-              </span>
-            </div>
-            {query.data.items.length ? (
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>{t('volVolunteer')}</th>
-                      <th>{t('volActualTime')}</th>
-                      <th>{t('volBreak')}</th>
-                      <th>{t('volNetHours')}</th>
-                      <th>{t('status')}</th>
-                      <th>{t('actions')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {query.data.items.map((e) => (
-                      <tr key={e.id}>
-                        <td>
-                          <strong>{e.volunteerName}</strong>
-                          <small className="cell-note">
-                            {e.eventTitleI18n?.[language] ?? e.project ?? ''}
-                            {e.source === 'attendance' ? ` · ${t('volFromAttendance')}` : ''}
-                          </small>
-                        </td>
-                        <td>
-                          {dateTime(e.actualStart, i18n.language)} –{' '}
-                          {dateTime(e.actualEnd, i18n.language).split(' ').at(-1)}
-                        </td>
-                        <td className="numeric">{e.breakMinutes}′</td>
-                        <td className="numeric">{hoursLabel(e.minutes)}</td>
-                        <td>
-                          <StatusTag prefix="time" value={e.status} />
-                          {e.confirmedByName && (
-                            <small className="cell-note">{e.confirmedByName}</small>
-                          )}
-                        </td>
-                        <td className="row-actions">
-                          {e.status === 'draft' && can('volunteers:assign') && (
-                            <Button variant="ghost" onClick={() => void decide(e, 'submit')}>
-                              {t('volSubmit')}
-                            </Button>
-                          )}
-                          {['draft', 'submitted'].includes(e.status) &&
-                            can('volunteer_hours:confirm') && (
-                              <>
-                                <Button variant="ghost" onClick={() => void decide(e, 'confirm')}>
-                                  {t('volConfirm')}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  onClick={() => setDialog({ kind: 'reject', entry: e })}
-                                >
-                                  {t('volReject')}
-                                </Button>
-                              </>
+        <QueryView query={query}>
+          {(data) => (
+            <>
+              <div className="totals-row" aria-live="polite">
+                <span>
+                  {t('volConfirmedHours')}:{' '}
+                  <strong>{hoursLabel(data.totals.confirmedMinutes)}</strong>
+                </span>
+                <span>
+                  {t('volPendingHours')}: <strong>{hoursLabel(data.totals.pendingMinutes)}</strong>
+                </span>
+              </div>
+              {data.items.length ? (
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>{t('volVolunteer')}</th>
+                        <th>{t('volActualTime')}</th>
+                        <th>{t('volBreak')}</th>
+                        <th>{t('volNetHours')}</th>
+                        <th>{t('status')}</th>
+                        <th>{t('actions')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.items.map((e) => (
+                        <tr key={e.id}>
+                          <td>
+                            <strong>{e.volunteerName}</strong>
+                            <small className="cell-note">
+                              {e.eventTitleI18n?.[language] ?? e.project ?? ''}
+                              {e.source === 'attendance' ? ` · ${t('volFromAttendance')}` : ''}
+                            </small>
+                          </td>
+                          <td>
+                            {dateTime(e.actualStart, i18n.language)} –{' '}
+                            {dateTime(e.actualEnd, i18n.language).split(' ').at(-1)}
+                          </td>
+                          <td className="numeric">{e.breakMinutes}′</td>
+                          <td className="numeric">{hoursLabel(e.minutes)}</td>
+                          <td>
+                            <StatusTag prefix="time" value={e.status} />
+                            {e.confirmedByName && (
+                              <small className="cell-note">{e.confirmedByName}</small>
                             )}
-                          {e.status !== 'rejected' &&
-                            can(
-                              e.status === 'confirmed'
-                                ? 'volunteer_hours:confirm'
-                                : 'volunteers:assign',
-                            ) && (
-                              <Button
-                                variant="ghost"
-                                onClick={() => setDialog({ kind: 'correct', entry: e })}
-                              >
-                                {t('volCorrect')}
+                          </td>
+                          <td className="row-actions">
+                            {e.status === 'draft' && can('volunteers:assign') && (
+                              <Button variant="ghost" onClick={() => void decide(e, 'submit')}>
+                                {t('volSubmit')}
                               </Button>
                             )}
-                          <Button
-                            variant="ghost"
-                            onClick={async () => {
-                              const entry = await api<VolunteerTimeEntry>(
-                                `/volunteer-time-entries/${e.id}`,
-                              );
-                              setDialog({ kind: 'history', entry });
-                            }}
-                          >
-                            {t('volHistory')}
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <Empty description={t('volHoursEmpty')} />
-            )}
-            <Pagination
-              page={page}
-              pageSize={query.data.pageSize}
-              total={query.data.total}
-              onChange={setPage}
-            />
-          </>
-        )}
+                            {['draft', 'submitted'].includes(e.status) &&
+                              can('volunteer_hours:confirm') && (
+                                <>
+                                  <Button variant="ghost" onClick={() => void decide(e, 'confirm')}>
+                                    {t('volConfirm')}
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    onClick={() => setDialog({ kind: 'reject', entry: e })}
+                                  >
+                                    {t('volReject')}
+                                  </Button>
+                                </>
+                              )}
+                            {e.status !== 'rejected' &&
+                              can(
+                                e.status === 'confirmed'
+                                  ? 'volunteer_hours:confirm'
+                                  : 'volunteers:assign',
+                              ) && (
+                                <Button
+                                  variant="ghost"
+                                  onClick={() => setDialog({ kind: 'correct', entry: e })}
+                                >
+                                  {t('volCorrect')}
+                                </Button>
+                              )}
+                            <Button
+                              variant="ghost"
+                              onClick={async () => {
+                                const entry = await api<VolunteerTimeEntry>(
+                                  `/volunteer-time-entries/${e.id}`,
+                                );
+                                setDialog({ kind: 'history', entry });
+                              }}
+                            >
+                              {t('volHistory')}
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <Empty description={t('volHoursEmpty')} />
+              )}
+              <Pagination
+                page={page}
+                pageSize={data.pageSize}
+                total={data.total}
+                onChange={setPage}
+              />
+            </>
+          )}
+        </QueryView>
       </section>
       {dialog?.kind === 'new' && (
         <FormModal

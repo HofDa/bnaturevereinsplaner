@@ -1,4 +1,4 @@
-import { and, eq, sql, asc, desc, count, gte, lt, type SQL } from 'drizzle-orm';
+import { and, eq, inArray, sql, asc, desc, count, gte, lt, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { schema as s, type Database, type Executor, type Transaction } from '@bnature/db';
 import {
@@ -27,7 +27,7 @@ import { financialOperation, readSnapshot } from '../finance/operations';
 import { eventRow, ownPerson } from '../events';
 import { renderPdf, organizationName } from '../finance/pdf';
 import { wire } from '../responses';
-import { ve, engagementRow, coverageFor } from './common';
+import { ve, engagementRow, coverageAssessor } from './common';
 
 const va = s.volunteerAssignments,
   te = s.volunteerTimeEntries,
@@ -74,20 +74,23 @@ async function presentAssignments(
   a: Access,
   rows: Awaited<ReturnType<ReturnType<typeof assignmentProjection>['where']>>,
 ): Promise<VolunteerAssignment[]> {
-  const items: VolunteerAssignment[] = [];
-  for (const row of rows) {
-    const engagement = await engagementRow(db, a, row.engagementId);
-    const coverage = await coverageFor(
-      db,
-      a.organizationId,
-      [engagement],
-      localDate(row.plannedStart),
-    );
-    items.push(
-      assignmentSchema.parse({ ...wire(row), coverageStatus: coverage.get(engagement.id)!.status }),
-    );
-  }
-  return items;
+  if (!rows.length) return [];
+  const ids = [...new Set(rows.map((r) => r.engagementId))];
+  const engagements = new Map(
+    (
+      await db
+        .select()
+        .from(ve)
+        .where(and(eq(ve.organizationId, a.organizationId), inArray(ve.id, ids)))
+    ).map((e) => [e.id, e]),
+  );
+  const assess = await coverageAssessor(db, a.organizationId, ids);
+  return rows.map((row) => {
+    const engagement = engagements.get(row.engagementId);
+    if (!engagement) throw new HttpError(404, 'NOT_FOUND', 'Freiwilligeneinsatz nicht gefunden.');
+    const coverageStatus = assess(engagement, localDate(row.plannedStart)).status;
+    return assignmentSchema.parse({ ...wire(row), coverageStatus });
+  });
 }
 export async function getAssignment(db: Executor, a: Access, id: string) {
   const rows = await assignmentProjection(db).where(
