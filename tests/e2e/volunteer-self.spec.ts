@@ -7,6 +7,11 @@ async function login(page: Page, email = 'e2e@example.test') {
   await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Abmelden', exact: true })).toBeVisible();
 }
+// Waits for the login form, so the next navigation cannot cancel the sign-out request.
+async function logout(page: Page) {
+  await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+  await expect(page.getByLabel('E-Mail', { exact: true })).toBeVisible();
+}
 async function a11y(page: Page) {
   const result = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
@@ -53,7 +58,7 @@ test('volunteers see their engagement and report their own hours for confirmatio
     role: 'member',
     personId: engagement.personId,
   });
-  await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+  await logout(page);
   await login(page, email);
   await page.goto('/profile');
   const panel = page.locator('.own-volunteering');

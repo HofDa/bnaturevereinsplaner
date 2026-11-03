@@ -1023,3 +1023,14 @@ describe('scheduling polls', () => {
     expect(expired.json().error.code).toBe('DEADLINE_PASSED');
   });
 });
+describe('rate limits', () => {
+  it('keeps unread polling out of the general per-IP budget', async () => {
+    const remoteAddress = '203.0.113.42';
+    const call = (url: string) =>
+      app.inject({ url: `/api/v1${url}`, headers: headers('member'), remoteAddress });
+    for (let i = 0; i < 120; i++) expect((await call('/community/unread')).statusCode).toBe(200);
+    expect((await call('/community/unread')).statusCode).toBe(429);
+    // 120 polls plus 100 regular requests exceed 150, yet regular requests still pass.
+    for (let i = 0; i < 100; i++) expect((await call('/community/audiences')).statusCode).toBe(200);
+  });
+});

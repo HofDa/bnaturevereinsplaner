@@ -161,7 +161,12 @@ export function registerCommunityRoutes({ server, db, access, config }: ModuleCo
   );
   app.get(
     '/api/v1/community/unread',
-    { schema: { tags, response: { 200: unreadSchema } } },
+    {
+      schema: { tags, response: { 200: unreadSchema } },
+      // Background badge polling runs on every page; its own budget keeps it from using up
+      // the general per-IP limit that protects user actions.
+      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+    },
     async (req) => communityUnread(db, await access(req, 'community:read')),
   );
   app.put(
