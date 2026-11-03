@@ -153,7 +153,19 @@ it('upgrades a real Phase-1 database without losing existing persons or membersh
     expect(documentTriggers.rowCount).toBe(3);
   } finally {
     await upgraded?.pool.end();
-    if (created) await admin.pool.query(`DROP DATABASE "${databaseName}" WITH (FORCE)`);
+    if (created) {
+      // pool.end() can resolve before the server closed the session; a forced drop would then
+      // terminate it mid-close and surface as an unhandled client error. Wait for it first.
+      for (let i = 0; i < 50; i++) {
+        const { rows } = await admin.pool.query(
+          'select count(*)::int as n from pg_stat_activity where datname = $1',
+          [databaseName],
+        );
+        if (rows[0].n === 0) break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      await admin.pool.query(`DROP DATABASE "${databaseName}" WITH (FORCE)`);
+    }
     await admin.pool.end();
     await rm(folder, { recursive: true, force: true });
   }
