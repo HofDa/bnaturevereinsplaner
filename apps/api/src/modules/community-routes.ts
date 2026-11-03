@@ -20,6 +20,7 @@ import {
   scheduleQuerySchema,
   scheduleSummarySchema,
   scheduleDetailSchema,
+  scheduleEventInputSchema,
   chatReactionInputSchema,
   unreadSchema,
   markReadSchema,
@@ -52,6 +53,7 @@ import {
   createSchedule,
   answerSchedule,
   closeSchedule,
+  createEventFromSchedule,
 } from './community-schedules';
 import { readSnapshot } from './finance/operations';
 import {
@@ -275,6 +277,28 @@ export function registerCommunityRoutes({ server, db, access, config }: ModuleCo
         req.body,
       );
       return reply.header('Idempotency-Replayed', String(r.replayed)).send(r.data);
+    },
+  );
+  app.post(
+    '/api/v1/community/schedules/:id/event',
+    {
+      schema: {
+        tags,
+        params: idParams,
+        body: scheduleEventInputSchema,
+        headers: financeWriteHeaders,
+        response: { 201: result },
+      },
+    },
+    async (req, reply) => {
+      const r = await createEventFromSchedule(
+        db,
+        await access(req, 'events:write'),
+        req.headers['idempotency-key'],
+        req.params.id,
+        req.body,
+      );
+      return reply.code(201).header('Idempotency-Replayed', String(r.replayed)).send(r.data);
     },
   );
   app.get(

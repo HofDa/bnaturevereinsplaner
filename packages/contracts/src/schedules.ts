@@ -45,6 +45,13 @@ export const scheduleAnswersInputSchema = z
 export const scheduleCloseSchema = z
   .object({ version: z.number().int().positive(), finalSlotId: z.uuid().nullable().default(null) })
   .strict();
+export const scheduleEventInputSchema = z
+  .object({
+    categoryId: z.uuid(),
+    visibility: z.enum(['internal', 'members', 'public']).default('members'),
+    status: z.enum(['draft', 'published']).default('draft'),
+  })
+  .strict();
 export const scheduleQuerySchema = z.object({
   state: z.enum(['open', 'closed']).default('open'),
 });
@@ -82,6 +89,8 @@ export const scheduleDetailSchema = scheduleSummarySchema.extend({
   /** Slot IDs with the most "yes", ties broken by "maybe"; empty without answers. */
   bestSlotIds: z.array(z.uuid()),
   finalSlotId: z.uuid().nullable(),
+  /** Event created from the fixed slot, if any. */
+  eventId: z.uuid().nullable(),
   participants: z.array(
     z.object({ name: z.string(), answers: z.record(z.string(), scheduleAnswerSchema) }),
   ),

@@ -16,6 +16,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { organizations, groups, organizationUserRoles } from './core';
 import { user } from './auth';
+import { eventOccurrences } from './events';
 type Text = { de: string; it: string };
 export const communityPosts = pgTable(
   'community_posts',
@@ -284,6 +285,8 @@ export const communitySchedules = pgTable(
     state: text('state').$type<'open' | 'closed' | 'archived'>().notNull().default('open'),
     closesAt: timestamp('closes_at', { withTimezone: true }),
     finalSlotId: uuid('final_slot_id'),
+    // Event created from the fixed slot; at most one per scheduling poll.
+    eventId: uuid('event_id'),
     closedAt: timestamp('closed_at', { withTimezone: true }),
     version: integer('version').notNull().default(1),
     createdBy: uuid('created_by').notNull(),
@@ -301,6 +304,12 @@ export const communitySchedules = pgTable(
       foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
     }),
     index('community_schedules_org_state').on(t.organizationId, t.state, t.createdAt),
+    foreignKey({
+      name: 'community_schedules_event_fk',
+      columns: [t.organizationId, t.eventId],
+      foreignColumns: [eventOccurrences.organizationId, eventOccurrences.id],
+    }),
+    check('community_schedule_event', sql`${t.eventId} is null or ${t.finalSlotId} is not null`),
     check('community_schedule_state', sql`${t.state} in ('open','closed','archived')`),
     check(
       'community_schedule_closed',
