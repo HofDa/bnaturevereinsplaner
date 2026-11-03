@@ -1,9 +1,14 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, CalendarCheck, Check, MapPin, Minus, Plus, Trash2, X } from 'lucide-react';
-import type { ScheduleAnswer, ScheduleDetail, ScheduleSummary } from '@bnature/contracts';
+import type {
+  EventCategory,
+  ScheduleAnswer,
+  ScheduleDetail,
+  ScheduleSummary,
+} from '@bnature/contracts';
 import { api, errorMessage, queryClient } from '../lib/api';
 import { useSession } from '../app/session';
 import { useFinancialWrite } from './finance/client';
@@ -268,6 +273,7 @@ export function ScheduleEditor({
 
 export function ScheduleDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const { me } = useSession();
   const write = useFinancialWrite();
@@ -373,6 +379,20 @@ export function ScheduleDetailPage() {
         </Notice>
       )}
       {!data.isOpen && !data.finalSlot && <Notice>{t('schedClosedNoSlot')}</Notice>}
+      {data.eventId && me.permissions.includes('events:read') && (
+        <p>
+          <Link className="button button-secondary" to={`/events/${data.eventId}`}>
+            <CalendarCheck size={16} />
+            {t('schedOpenEvent')}
+          </Link>
+        </p>
+      )}
+      {!data.eventId &&
+        data.finalSlot &&
+        data.canManage &&
+        me.permissions.includes('events:write') && (
+          <ScheduleToEvent id={data.id} onDone={(eventId) => navigate(`/events/${eventId}`)} />
+        )}
       {notice && <Notice>{notice}</Notice>}
       {error && !closing && <Notice error>{error}</Notice>}
       <section className="panel sched-panel" aria-label={t('schedSlots')}>
@@ -509,6 +529,100 @@ export function ScheduleDetailPage() {
               </Button>
             </footer>
           </div>
+        </Modal>
+      )}
+    </>
+  );
+}
+
+/** Creates the club event from the fixed slot (title, description, place and time carry over). */
+function ScheduleToEvent({ id, onDone }: { id: string; onDone: (eventId: string) => void }) {
+  const { t, i18n } = useTranslation();
+  const { me } = useSession();
+  const write = useFinancialWrite();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const categories = useQuery({
+    queryKey: ['event-categories', me.activeOrganizationId],
+    queryFn: () => api<{ items: EventCategory[] }>('/event-categories'),
+    enabled: open,
+  });
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setBusy(true);
+    setError('');
+    try {
+      const result = await write<{ id: string }>(`/community/schedules/${id}/event`, {
+        categoryId: form.get('categoryId'),
+        visibility: form.get('visibility'),
+        status: form.get('publish') ? 'published' : 'draft',
+      });
+      await queryClient.invalidateQueries();
+      onDone(result.id);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const active = (categories.data?.items ?? []).filter((c) => c.active);
+  return (
+    <>
+      <p>
+        <Button onClick={() => setOpen(true)}>
+          <CalendarCheck size={16} />
+          {t('schedToEvent')}
+        </Button>
+      </p>
+      {open && (
+        <Modal title={t('schedToEvent')} onClose={() => !busy && setOpen(false)}>
+          <form className="stack-form" onSubmit={(event) => void create(event)}>
+            <p className="form-help">{t('schedToEventHelp')}</p>
+            {categories.isPending ? (
+              <Loading />
+            ) : !active.length ? (
+              <Empty description={t('schedNoCategories')} />
+            ) : (
+              <>
+                <Field label={t('schedEventCategory')}>
+                  <select name="categoryId" required>
+                    {active.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nameI18n[lang(i18n.language)]}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label={t('schedEventVisibility')}>
+                  <select name="visibility" defaultValue="members">
+                    <option value="members">{t('schedVisibility_members')}</option>
+                    <option value="internal">{t('schedVisibility_internal')}</option>
+                    <option value="public">{t('schedVisibility_public')}</option>
+                  </select>
+                </Field>
+                <label className="checkbox-field">
+                  <input type="checkbox" name="publish" />
+                  <span>{t('schedEventPublish')}</span>
+                </label>
+              </>
+            )}
+            {error && <Notice error>{error}</Notice>}
+            <footer className="form-actions">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => setOpen(false)}
+              >
+                {t('cancel')}
+              </Button>
+              <Button disabled={busy || !active.length}>
+                {t(busy ? 'saving' : 'schedEventCreate')}
+              </Button>
+            </footer>
+          </form>
         </Modal>
       )}
     </>

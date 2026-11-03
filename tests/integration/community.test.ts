@@ -878,6 +878,7 @@ describe('scheduling polls', () => {
     participants: { name: string; answers: Record<string, string> }[];
     canManage: boolean;
     finalSlot: { startAt: string } | null;
+    eventId: string | null;
   };
   const detail = async (id: string, role = 'member') =>
     ok<Detail>(await get(`/community/schedules/${id}`, role));
@@ -981,6 +982,57 @@ describe('scheduling polls', () => {
       await get('/community/schedules?state=closed', 'member'),
     );
     expect(done.items.find((x) => x.id === created.id)?.finalSlot).not.toBeNull();
+  });
+  it('turns the fixed slot into exactly one event in club time', async () => {
+    const created = await ok<{ id: string }>(
+      await write('POST', '/community/schedules', input(), 'lead'),
+      201,
+    );
+    const category = await ok<{ id: string }>(
+      await write('POST', '/event-categories', { nameI18n: { de: 'Pflege', it: 'Cura' } }),
+      201,
+    );
+    const toEvent = (role = 'lead', key?: string) =>
+      write(
+        'POST',
+        `/community/schedules/${created.id}/event`,
+        { categoryId: category.id, visibility: 'members', status: 'published' },
+        role,
+        key,
+      );
+    expect((await toEvent()).json().error.code).toBe('SCHEDULE_NOT_FIXED');
+    const view = await detail(created.id, 'lead');
+    const final = view.slots[1]!;
+    await ok(
+      await write(
+        'POST',
+        `/community/schedules/${created.id}/close`,
+        { version: view.version, finalSlotId: final.id },
+        'lead',
+      ),
+    );
+    expect((await toEvent('member')).statusCode).toBe(403);
+    const key = crypto.randomUUID();
+    const [first, replay] = await Promise.all([toEvent('lead', key), toEvent('lead', key)]);
+    expect(first.statusCode, first.body).toBe(201);
+    expect(replay.json().id).toBe(first.json().id);
+    const eventId = first.json<{ id: string }>().id;
+    const event = await ok<{
+      titleI18n: { de: string };
+      startAt: string;
+      endAt: string;
+      location: string;
+      status: string;
+    }>(await get(`/events/${eventId}`, 'admin'));
+    expect(event).toMatchObject({
+      titleI18n: { de: 'Wann pflegen wir die Hecke?' },
+      location: 'Biotop',
+      status: 'published',
+    });
+    expect(new Date(event.startAt).toISOString()).toBe(at(11, 8));
+    expect(new Date(event.endAt).toISOString()).toBe(at(11, 11));
+    expect((await detail(created.id)).eventId).toBe(eventId);
+    expect((await toEvent()).json().error.code).toBe('EVENT_EXISTS');
   });
   it('limits group schedules to the group and rejects foreign slots and closing by others', async () => {
     const grouped = await ok<{ id: string }>(

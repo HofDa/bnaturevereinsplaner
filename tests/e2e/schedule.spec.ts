@@ -80,4 +80,24 @@ test('finds a date: proposes slots, collects answers and fixes the best slot', a
   await expect(page.getByText(/^Termin festgelegt:/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Antworten speichern' })).toHaveCount(0);
   await a11y(page);
+  // Turn the fixed slot into the club event.
+  const category = await page.request.post('/api/v1/event-categories', {
+    headers: { Origin: new URL(page.url()).origin, 'Idempotency-Key': crypto.randomUUID() },
+    data: { nameI18n: { de: `Pflege ${suffix}`, it: `Cura ${suffix}` } },
+  });
+  expect(category.status()).toBe(201);
+  await page.reload();
+  await page.getByRole('button', { name: 'Als Veranstaltung anlegen', exact: true }).click();
+  const toEvent = page.getByRole('dialog', { name: 'Als Veranstaltung anlegen' });
+  await toEvent
+    .getByLabel('Kategorie', { exact: true })
+    .selectOption({ label: `Pflege ${suffix}` });
+  await toEvent.getByText('Sofort veröffentlichen (sonst als Entwurf)').click();
+  await a11y(page);
+  await toEvent.getByRole('button', { name: 'Veranstaltung anlegen', exact: true }).click();
+  await expect(page).toHaveURL(/\/events\/[0-9a-f-]+$/);
+  await expect(page.getByRole('heading', { name: title, level: 1 })).toBeVisible();
+  await page.goto(url);
+  await expect(page.getByRole('link', { name: 'Zur Veranstaltung' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Als Veranstaltung anlegen' })).toHaveCount(0);
 });

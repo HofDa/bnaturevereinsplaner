@@ -1,0 +1,3 @@
+ALTER TABLE "community_schedules" ADD COLUMN "event_id" uuid;--> statement-breakpoint
+ALTER TABLE "community_schedules" ADD CONSTRAINT "community_schedules_event_fk" FOREIGN KEY ("organization_id","event_id") REFERENCES "public"."event_occurrences"("organization_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "community_schedules" ADD CONSTRAINT "community_schedule_event" CHECK ("community_schedules"."event_id" is null or "community_schedules"."final_slot_id" is not null);

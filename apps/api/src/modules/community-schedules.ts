@@ -12,6 +12,9 @@ import { HttpError, type Access } from '../middleware/access';
 import { audit } from '../services/audit';
 import { financialOperation, readSnapshot } from './finance/operations';
 import { currentAccess, groupAccess } from './community';
+import { eventInputSchema, eventLocal } from '@bnature/contracts';
+import { eventWrite } from './events-operations';
+import { validateEvent } from './events';
 
 const sc = s.communitySchedules,
   sl = s.communityScheduleSlots,
@@ -151,6 +154,7 @@ export function getSchedule(db: Database, access: Access, id: string): Promise<S
       slots: slotViews,
       bestSlotIds: bestSlots(slotViews),
       finalSlotId: found.row.finalSlotId,
+      eventId: found.row.eventId,
       participants: [...people.values()].sort((x, y) => x.name.localeCompare(y.name)),
       canManage: manager(a) || found.row.createdBy === a.userId,
     };
@@ -302,6 +306,85 @@ export function closeSchedule(
         .where(and(eq(sc.organizationId, a.organizationId), eq(sc.id, id)));
       await audit(tx, a, 'close', 'community_schedule', id, ['state', 'finalSlotId']);
       return { id };
+    },
+  );
+}
+
+/**
+ * Creates one event from the fixed slot of a closed scheduling poll (title, description,
+ * location and times in club time) and links it, in one transaction.
+ */
+export function createEventFromSchedule(
+  db: Database,
+  access: Access,
+  key: string,
+  id: string,
+  input: {
+    categoryId: string;
+    visibility: 'internal' | 'members' | 'public';
+    status: 'draft' | 'published';
+  },
+) {
+  return eventWrite(
+    db,
+    access,
+    key,
+    `community:schedule:event:${id}`,
+    input,
+    'events:write',
+    async (tx, current) => {
+      const { row } = await scheduleRow(tx, current, id);
+      if (!manager(current) && row.createdBy !== current.userId)
+        throw new HttpError(
+          403,
+          'FORBIDDEN',
+          'Nur die organisierende Person kann eine Veranstaltung anlegen.',
+        );
+      if (row.state === 'open' || !row.finalSlotId)
+        throw new HttpError(409, 'SCHEDULE_NOT_FIXED', 'Zuerst einen Termin festlegen.');
+      if (row.eventId)
+        throw new HttpError(409, 'EVENT_EXISTS', 'Die Veranstaltung wurde bereits angelegt.');
+      const [slot] = await tx
+        .select()
+        .from(sl)
+        .where(and(eq(sl.organizationId, current.organizationId), eq(sl.id, row.finalSlotId)));
+      const [org] = await tx
+        .select({ timezone: s.organizations.timezone })
+        .from(s.organizations)
+        .where(eq(s.organizations.id, current.organizationId));
+      const timezone = org!.timezone;
+      const eventInput = eventInputSchema.parse({
+        titleI18n: row.titleI18n,
+        descriptionI18n: row.descriptionI18n,
+        categoryId: input.categoryId,
+        startLocal: eventLocal(slot!.startAt.toISOString(), timezone).slice(0, 16),
+        endLocal: eventLocal(slot!.endAt.toISOString(), timezone).slice(0, 16),
+        timezone,
+        location: row.location,
+        status: input.status,
+        visibility: input.visibility,
+      });
+      const values = await validateEvent(tx, current, eventInput);
+      const [event] = await tx
+        .insert(s.eventOccurrences)
+        .values({ ...values, organizationId: current.organizationId, createdBy: current.userId })
+        .returning({ id: s.eventOccurrences.id });
+      const linked = await tx
+        .update(sc)
+        .set({ eventId: event!.id, version: row.version + 1, updatedAt: new Date() })
+        .where(
+          and(
+            eq(sc.organizationId, current.organizationId),
+            eq(sc.id, id),
+            sql`${sc.eventId} is null`,
+          ),
+        )
+        .returning({ id: sc.id });
+      if (!linked.length)
+        throw new HttpError(409, 'EVENT_EXISTS', 'Die Veranstaltung wurde bereits angelegt.');
+      await audit(tx, current, 'create', 'event_occurrence', event!.id, ['fromSchedule']);
+      await audit(tx, current, 'link', 'community_schedule', id, ['eventId']);
+      return { id: event!.id };
     },
   );
 }

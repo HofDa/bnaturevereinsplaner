@@ -169,6 +169,13 @@
       "when": 1793711541200,
       "tag": "0023_scheduling_polls",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793731520566,
+      "tag": "0024_schedule_event",
+      "breakpoints": true
     }
   ]
 }

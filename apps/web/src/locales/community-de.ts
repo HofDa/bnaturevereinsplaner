@@ -115,6 +115,18 @@ export default {
   schedFinalSlot: 'Festgelegter Termin',
   schedNoFinal: 'Kein Termin festlegen',
   schedCloseConfirm: 'Abschließen',
+  schedToEvent: 'Als Veranstaltung anlegen',
+  schedToEventHelp:
+    'Titel, Beschreibung, Ort sowie Beginn und Ende des festgelegten Termins werden übernommen. Weitere Angaben wie Kapazität oder Anmeldefrist können danach bei der Veranstaltung ergänzt werden.',
+  schedNoCategories: 'Es gibt noch keine aktive Veranstaltungskategorie.',
+  schedEventCategory: 'Kategorie',
+  schedEventVisibility: 'Sichtbar für',
+  schedVisibility_members: 'Mitglieder',
+  schedVisibility_internal: 'Nur intern',
+  schedVisibility_public: 'Öffentlich',
+  schedEventPublish: 'Sofort veröffentlichen (sonst als Entwurf)',
+  schedEventCreate: 'Veranstaltung anlegen',
+  schedOpenEvent: 'Zur Veranstaltung',
   commChatSend: 'Senden',
   commChatRemoveConfirm:
     'Diese Nachricht entfernen? Der Text wird gelöscht; im Gespräch bleibt ein Hinweis stehen.',

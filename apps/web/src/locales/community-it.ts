@@ -115,6 +115,18 @@ const it: Record<keyof typeof de, string> = {
   schedFinalSlot: 'Data fissata',
   schedNoFinal: 'Nessuna data',
   schedCloseConfirm: 'Concludi',
+  schedToEvent: 'Crea come evento',
+  schedToEventHelp:
+    'Titolo, descrizione, luogo, inizio e fine della data fissata vengono ripresi. Altri dati come capienza o termine d’iscrizione si possono aggiungere poi nell’evento.',
+  schedNoCategories: 'Non esiste ancora una categoria di eventi attiva.',
+  schedEventCategory: 'Categoria',
+  schedEventVisibility: 'Visibile per',
+  schedVisibility_members: 'Soci',
+  schedVisibility_internal: 'Solo interno',
+  schedVisibility_public: 'Pubblico',
+  schedEventPublish: 'Pubblica subito (altrimenti bozza)',
+  schedEventCreate: 'Crea evento',
+  schedOpenEvent: 'Vai all’evento',
   commChatSend: 'Invia',
   commChatRemoveConfirm:
     'Rimuovere questo messaggio? Il testo sarà eliminato; nella conversazione rimarrà un avviso.',
