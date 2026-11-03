@@ -8,6 +8,7 @@ export const mailKindSchema = z.enum([
   'account_invitation',
   'password_reset',
   'test',
+  'community_digest',
 ]);
 export type MailKind = z.infer<typeof mailKindSchema>;
 // Kinds that can be prepared through the preview/confirm flow.

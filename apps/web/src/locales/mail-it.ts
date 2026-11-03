@@ -10,6 +10,7 @@ const it: Record<keyof typeof de, string> = {
   mailKind: 'Tipo di messaggio',
   mailKind_fee_reminder: 'Promemoria quote associative',
   mailKind_event_invitation: 'Inviti agli eventi',
+  mailKind_community_digest: 'Riepiloghi vita associativa',
   mailEvent: 'Evento',
   mailChooseEvent: 'Seleziona evento',
   mailPreview: 'Anteprima invio',

@@ -4,6 +4,7 @@ import type { Config } from '../plugins/config';
 import { audit } from './audit';
 import { createMailSender, MailDeliveryError, type MailSender } from './mail';
 import { enqueueAutomaticMail, revalidateMail, isSupportedMailKind } from '../modules/mail';
+import { enqueueCommunityDigests, revalidateDigest } from '../modules/community-notify';
 
 export async function deliverMail(db: Database, config: Config, sender: MailSender, limit = 10) {
   if (config.EMAIL_MODE === 'disabled') return;
@@ -46,7 +47,8 @@ export async function deliverMail(db: Database, config: Config, sender: MailSend
         .from(s.organizations)
         .where(eq(s.organizations.id, row.organizationId))
         .for('no key update');
-      if (!isSupportedMailKind(row.kind)) {
+      const digest = row.kind === 'community_digest';
+      if (!digest && !isSupportedMailKind(row.kind)) {
         await tx
           .update(s.mailMessages)
           .set({ state: 'failed', errorCode: 'MAIL_KIND_UNAVAILABLE' })
@@ -61,7 +63,7 @@ export async function deliverMail(db: Database, config: Config, sender: MailSend
         );
         return;
       }
-      if (!(await revalidateMail(tx, row, config))) {
+      if (!(digest ? await revalidateDigest(tx, row) : await revalidateMail(tx, row, config))) {
         await tx
           .update(s.mailMessages)
           .set({ state: 'cancelled', errorCode: 'SOURCE_CHANGED' })
@@ -115,6 +117,11 @@ export function startMailWorker(db: Database, config: Config, onError: () => voi
     running = (async () => {
       try {
         await enqueueAutomaticMail(db, config);
+      } catch {
+        onError();
+      }
+      try {
+        await enqueueCommunityDigests(db, config);
       } catch {
         onError();
       }

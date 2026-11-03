@@ -31,11 +31,14 @@ import { broadcastSessionChange } from '../lib/session-events';
 import { queryClient, setOrganization } from '../lib/api';
 import { Avatar, Notice } from '../components/ui';
 import { PwaStatus } from '../components/pwa';
+import { UnreadBadge, useAppBadge, useUnread } from '../features/community-unread';
 export function Shell({ onLogout }: { onLogout: () => void }) {
   const { t, i18n } = useTranslation(),
     { me, switchOrganization } = useSession(),
     navigate = useNavigate();
   const [error, setError] = useState('');
+  const unread = useUnread().data?.total;
+  useAppBadge(unread);
   const primary = [
     { to: '/', key: 'overview', icon: LayoutDashboard },
     { to: '/community', key: 'commTitle', icon: Newspaper, permission: 'community:read' },
@@ -67,6 +70,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
     >
       <item.icon size={19} />
       <span>{t(item.key)}</span>
+      {item.to === '/community' && <UnreadBadge count={unread} />}
     </NavLink>
   );
   return (

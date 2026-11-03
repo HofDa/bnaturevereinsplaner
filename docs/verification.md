@@ -1,5 +1,15 @@
 # Prüfnachweise
 
+## Ungelesen, E-Mail-Zusammenfassung, Geburtstage und Jubiläen – 03.11.2026
+
+Auf `feat/unread-birthdays`, gestapelt auf `feat/chat-emoji`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt; erneute Migrationserzeugung meldet keine Schemaabweichung nach `0019_community_unread_digest`.
+- **100/100 Unit-/UI-Tests** (neu: Geburtstage im Zeitfenster, Jahreswechsel, 29. Februar, Jubiläumsstufen) und **177/177 PostgreSQL-Integrationstests** bestanden. Neu geprüft: Zählung je Kanal mit Gruppenzugehörigkeit, ohne Entwürfe, eigene und entfernte Nachrichten; Lesemarken nur vorwärts, begrenzt auf die Serverzeit und mit den millisekundengenauen API-Zeitstempeln; Mandanten- und Gruppengrenzen; Zusammenfassungseinstellung je Konto; genau eine Zusammenfassung je fälligem Tag, keine leere Zusammenfassung, Revalidierung vor dem Versand; Geburtstage nur eigener aktiver Mitglieder in Vereinszeit, Zugriff nur mit `members:read`.
+- **6/6 Vereinsleben-Browserabläufe** (Desktop und Mobil) einschließlich Ungelesen-Zahl in Navigation und Chatreiter, Rücksetzen beim Öffnen des Kanals, Zusammenfassungseinstellung im Profil mit Neuladen, Geburtstagskarte mit vorbereitetem Glückwunsch im Chat und Axe-Prüfungen. **4/4 E-Mail-Browserabläufe** nach der Workeränderung erneut bestanden. Web-Produktionsbundle gebaut.
+- Nicht geprüft: tatsächlicher Versand einer Zusammenfassung über SMTP in einer Browsersuite (die Erzeugung ist per Integrationstest abgedeckt) und das App-Symbol-Badge auf echten iOS-/Android-Geräten.
+- Kein Push, PR oder Deployment; Migration nicht auf Produktionsdaten angewendet.
+
 ## Chat-Emojis und Reaktionen – 03.11.2026
 
 Auf `feat/chat-emoji`, Basis `a7cbf82`:

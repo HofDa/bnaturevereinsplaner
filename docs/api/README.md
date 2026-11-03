@@ -17,6 +17,10 @@ Alle Schreiboperationen benötigen `Origin` und UUID-`Idempotency-Key`. Gruppenz
 
 Die versionierte [OpenAPI-Spezifikation](openapi.json) wird mit `bun run openapi` aus Fastify-/Zod-Verträgen generiert. Entwicklungs-Swagger-UI: `/api/docs`; Produktion deaktiviert. Authentifizierung liegt separat unter `/api/auth` und wird von Better Auth verwaltet.
 
+- `GET /unread`: ungelesene News, Umfragen und Chatnachrichten anderer Personen (`{news,polls,chat:[{groupId,count}],total}`). Berücksichtigt den Vereinskanal und aktive Gruppen, denen das Konto über die verknüpfte Person angehört.
+- `PUT /read` (`{channel,groupId?,until}`, 204): Lesemarke für `news`, `poll` oder einen Chatkanal bis zum angegebenen Zeitpunkt setzen. Die Marke wandert nur vorwärts und nie über die Serverzeit hinaus; daher ohne `Idempotency-Key`.
+- `GET|PUT /notifications` (`{digest: off|daily|weekly}`): eigene Einstellung für die Zusammenfassung per E-Mail.
+
 ## Konventionen
 
 Alle fachlichen Endpunkte haben Präfix `/api/v1`. Ausnahme für Authentifizierung: `/api/auth/sign-in/email`, `/sign-out`, `/get-session`, `/change-password`, `/update-user` und Sitzungsverwaltung. Andere Auth-Endpunkte sind nicht veröffentlicht. Health ist öffentlich, Fachendpunkte erfordern ein gültiges Cookie. HttpOnly-Cookies werden nicht vom Frontend gelesen.
@@ -37,23 +41,24 @@ PATCH akzeptiert ausschließlich gelieferte bekannte Felder ohne create-Defaults
 
 ### Bisherige Endpunkte
 
-| Methode / Pfad               | Zweck                                                                        |
-| ---------------------------- | ---------------------------------------------------------------------------- |
-| GET /health                  | Status einschließlich DB-Verbindung                                          |
-| GET /me                      | Konto, Organisationen, aktuelle Rolle und Berechtigungen                     |
-| GET/PATCH /organizations/:id | Eigenes Vereinsprofil                                                        |
-| GET/POST /members            | Mitgliederliste / Person und Mitgliedschaft transaktional anlegen            |
-| GET/PATCH /members/:id       | Mitgliedschafts-ID mit Personendaten; Änderungen transaktional               |
-| GET/POST /groups             | Gruppenliste / Anlage                                                        |
-| GET/PATCH /groups/:id        | Gruppe / Metadatenänderung                                                   |
-| PUT /groups/:id/members      | Gesamte Zuordnung durch `{ personIds: UUID[] }` ersetzen; max. 500           |
-| GET/POST /board-mandates     | Amtszeiten / Anlage                                                          |
-| PATCH /board-mandates/:id    | Funktion oder Zeitraum ändern                                                |
-| GET /audit-logs              | Organisationsbezogenes Audit-Protokoll                                       |
-| GET /dashboard               | Echte Aggregate, neue Mitglieder im laufenden UTC-Monat und aktuelle Mandate |
-| GET/PATCH /profile           | Ausschließlich eigenes verknüpftes Personenprofil                            |
-| GET/POST /users              | Berechtigte Konten anzeigen / geschlossen bereitstellen                      |
-| PATCH /users/:id/role        | Organisationsrolle ändern; letzten Admin erhalten                            |
+| Methode / Pfad               | Zweck                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------- |
+| GET /health                  | Status einschließlich DB-Verbindung                                             |
+| GET /me                      | Konto, Organisationen, aktuelle Rolle und Berechtigungen                        |
+| GET/PATCH /organizations/:id | Eigenes Vereinsprofil                                                           |
+| GET/POST /members            | Mitgliederliste / Person und Mitgliedschaft transaktional anlegen               |
+| GET/PATCH /members/:id       | Mitgliedschafts-ID mit Personendaten; Änderungen transaktional                  |
+| GET/POST /groups             | Gruppenliste / Anlage                                                           |
+| GET/PATCH /groups/:id        | Gruppe / Metadatenänderung                                                      |
+| PUT /groups/:id/members      | Gesamte Zuordnung durch `{ personIds: UUID[] }` ersetzen; max. 500              |
+| GET/POST /board-mandates     | Amtszeiten / Anlage                                                             |
+| PATCH /board-mandates/:id    | Funktion oder Zeitraum ändern                                                   |
+| GET /audit-logs              | Organisationsbezogenes Audit-Protokoll                                          |
+| GET /dashboard               | Echte Aggregate, neue Mitglieder im laufenden UTC-Monat und aktuelle Mandate    |
+| GET /dashboard/occasions     | Geburtstage und Mitgliedsjubiläen aktiver Mitglieder, `days` 1–90 (Standard 30) |
+| GET/PATCH /profile           | Ausschließlich eigenes verknüpftes Personenprofil                               |
+| GET/POST /users              | Berechtigte Konten anzeigen / geschlossen bereitstellen                         |
+| PATCH /users/:id/role        | Organisationsrolle ändern; letzten Admin erhalten                               |
 
 `members.id` ist die Mitgliedschafts-ID, `personId` die getrennte Personen-ID. Gruppen und Mandate referenzieren `personId`. Normale Benutzerkonten werden nicht automatisch Vereinsmitglieder. Die Benutzeranlage kann optional eine bereits zur eigenen Organisation gehörende Person verknüpfen. Das Initialkonto wird ausschließlich über `bun run bootstrap` angelegt.
 

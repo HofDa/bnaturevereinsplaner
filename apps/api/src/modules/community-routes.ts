@@ -14,6 +14,10 @@ import {
   chatQuerySchema,
   chatPageSchema,
   chatReactionInputSchema,
+  unreadSchema,
+  markReadSchema,
+  notificationSettingsSchema,
+  notificationSettingsInputSchema,
 } from '@bnature/contracts';
 import type { ModuleContext } from './context';
 import { pageOf } from './responses';
@@ -32,7 +36,13 @@ import {
   removeCommunityChat,
   reactCommunityChat,
 } from './community-chat';
-export function registerCommunityRoutes({ server, db, access }: ModuleContext) {
+import {
+  communityUnread,
+  markCommunityRead,
+  getNotificationSettings,
+  updateNotificationSettings,
+} from './community-notify';
+export function registerCommunityRoutes({ server, db, access, config }: ModuleContext) {
   const app = server.withTypeProvider<ZodTypeProvider>();
   const tags = ['Community'];
   const result = z.object({ id: z.uuid() });
@@ -112,6 +122,39 @@ export function registerCommunityRoutes({ server, db, access }: ModuleContext) {
       );
       return reply.header('Idempotency-Replayed', String(r.replayed)).send(r.data);
     },
+  );
+  app.get(
+    '/api/v1/community/unread',
+    { schema: { tags, response: { 200: unreadSchema } } },
+    async (req) => communityUnread(db, await access(req, 'community:read')),
+  );
+  app.put(
+    '/api/v1/community/read',
+    {
+      schema: { tags, body: markReadSchema },
+      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+    },
+    async (req, reply) => {
+      await markCommunityRead(db, await access(req, 'community:read'), req.body);
+      return reply.code(204).send();
+    },
+  );
+  app.get(
+    '/api/v1/community/notifications',
+    { schema: { tags, response: { 200: notificationSettingsSchema } } },
+    async (req) => getNotificationSettings(db, await access(req, 'community:read'), config),
+  );
+  app.put(
+    '/api/v1/community/notifications',
+    {
+      schema: {
+        tags,
+        body: notificationSettingsInputSchema,
+        response: { 200: notificationSettingsSchema },
+      },
+    },
+    async (req) =>
+      updateNotificationSettings(db, await access(req, 'community:read'), config, req.body.digest),
   );
   app.get(
     '/api/v1/community/audiences',

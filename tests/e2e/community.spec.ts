@@ -63,6 +63,32 @@ test('publishes bilingual news as a separate step and displays plain text to mem
     .getByRole('button', { name: 'Bestätigen', exact: true })
     .click();
   await expect(page.getByText('Entwurf', { exact: true })).not.toBeVisible();
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(new Date());
+  const bdaySuffix = `${info.project.name}-${Date.now()}`;
+  await post(page, '/members', {
+    firstName: 'Greta',
+    lastName: `Geburtstag ${bdaySuffix}`,
+    membershipNumber: `BDAY-${bdaySuffix}`,
+    joinedAt: '2020-01-01',
+    dateOfBirth: `1996${today.slice(4)}`,
+  });
+  await page.goto('/');
+  const card = page.locator('.occasions-panel');
+  await expect(card.getByRole('heading', { name: 'Geburtstage und Jubiläen' })).toBeVisible();
+  const row = card.getByRole('listitem').filter({ hasText: `Geburtstag ${bdaySuffix}` });
+  await expect(row).toContainText('wird 30 Jahre alt');
+  await expect(row).toContainText('heute');
+  await a11y(page);
+  await card.screenshot({ path: `test-results/dashboard-occasions-${info.project.name}.png` });
+  await row.getByRole('link', { name: /Im Vereinschat gratulieren/ }).click();
+  await expect(page.getByRole('tab', { name: /Vereinschat/ })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.getByLabel('Deine Nachricht', { exact: true })).toHaveValue(
+    'Alles Gute zum Geburtstag, Greta! 🎉',
+  );
+  await expect(page).not.toHaveURL(/draft=/);
   await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
   await login(page, 'e2e-member@example.test');
   await page.goto(url);
@@ -179,7 +205,14 @@ test('shows group news and chat only to assigned users and supports live moderat
   await login(page, email);
   await page.goto(`/community?groupId=${group.id}`);
   await expect(page.getByRole('link', { name: 'Waldgruppen-News', exact: true })).toBeVisible();
-  await page.getByRole('tab', { name: 'Vereinschat', exact: true }).click();
+  // New group news and the group chat message are unread for the freshly added member.
+  const communityNav = page.getByRole('link', { name: /^Vereinsleben/ }).first();
+  await expect(communityNav).toContainText('2 ungelesen');
+  await expect(page.getByRole('tab', { name: /Vereinschat/ })).toContainText('1 ungelesen');
+  await page.getByRole('tab', { name: /Vereinschat/ }).click();
+  // Opening the channel marks it read; the filtered news list does not.
+  await expect(page.getByRole('tab', { name: /Vereinschat/ })).not.toContainText('ungelesen');
+  await expect(communityNav).toContainText('1 ungelesen');
   await expect(page.getByText('Willkommen im Gruppenchat!', { exact: true })).toBeVisible();
   await page.getByLabel('Deine Nachricht', { exact: true }).fill('Hallo aus dem Browser!');
   await page.getByRole('button', { name: 'Senden', exact: true }).click();
@@ -255,4 +288,15 @@ test('shows group news and chat only to assigned users and supports live moderat
   expect((await page.request.get(`/api/v1/community/posts/${news.id}`)).status()).toBe(404);
   await page.goto('/community?kind=chat');
   await expect(page.getByText('Willkommen im Gruppenchat!', { exact: true })).not.toBeVisible();
+  await page.goto('/profile');
+  const panel = page.locator('.digest-settings');
+  await expect(panel.getByRole('radio', { name: /^Aus/ })).toBeChecked();
+  await panel.getByRole('radio', { name: /^Wöchentlich/ }).check();
+  await expect(panel.getByText('Änderungen gespeichert.', { exact: true })).toBeVisible();
+  await a11y(page);
+  await panel.screenshot({ path: `test-results/profile-digest-${info.project.name}.png` });
+  await page.reload();
+  await expect(panel.getByRole('radio', { name: /^Wöchentlich/ })).toBeChecked();
+  await panel.getByRole('radio', { name: /^Aus/ }).check();
+  await expect(panel.getByText('Änderungen gespeichert.', { exact: true })).toBeVisible();
 });

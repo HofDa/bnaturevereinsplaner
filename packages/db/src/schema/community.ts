@@ -7,6 +7,7 @@ import {
   boolean,
   integer,
   timestamp,
+  date,
   unique,
   primaryKey,
   index,
@@ -179,5 +180,55 @@ export const communityChatReactions = pgTable(
       foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
     }),
     check('community_chat_reaction_emoji', sql`${t.emoji} in ('👍', '❤️', '😂', '😮', '🎉', '🙏')`),
+  ],
+);
+
+// Per user and channel: everything up to `readAt` counts as read. Chat markers are per channel
+// (club or group); news and poll markers are club-wide (`groupId` null).
+export const communityReadMarkers = pgTable(
+  'community_read_markers',
+  {
+    organizationId: uuid('organization_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    channel: text('channel').$type<'news' | 'poll' | 'chat'>().notNull(),
+    groupId: uuid('group_id'),
+    readAt: timestamp('read_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    unique('community_read_markers_scope')
+      .on(t.organizationId, t.userId, t.channel, t.groupId)
+      .nullsNotDistinct(),
+    foreignKey({
+      columns: [t.organizationId, t.userId],
+      foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.organizationId, t.groupId],
+      foreignColumns: [groups.organizationId, groups.id],
+    }),
+    check('community_read_channel', sql`${t.channel} in ('news','poll','chat')`),
+    check('community_read_group', sql`${t.channel}='chat' or ${t.groupId} is null`),
+  ],
+);
+
+// Opt-in e-mail digest. `lastDigestAt` bounds the next digest window; `lastDigestOn` is the
+// club-local date of the last scheduler run for this user.
+export const communityNotificationSettings = pgTable(
+  'community_notification_settings',
+  {
+    organizationId: uuid('organization_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    digest: text('digest').$type<'off' | 'daily' | 'weekly'>().notNull().default('off'),
+    lastDigestAt: timestamp('last_digest_at', { withTimezone: true }).notNull().defaultNow(),
+    lastDigestOn: date('last_digest_on'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.userId] }),
+    foreignKey({
+      columns: [t.organizationId, t.userId],
+      foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
+    }).onDelete('cascade'),
+    check('community_digest_mode', sql`${t.digest} in ('off','daily','weekly')`),
   ],
 );

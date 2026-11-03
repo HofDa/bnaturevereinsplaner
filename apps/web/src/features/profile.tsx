@@ -9,6 +9,7 @@ import { useSession } from '../app/session';
 import { DataForm } from '../components/data-form';
 import { ErrorState, Loading, Notice, PageHeading } from '../components/ui';
 import { MyLoans } from './inventory';
+import { DigestSettings } from './community-unread';
 const profileSchema = personSchema.pick({
   phone: true,
   street: true,
@@ -109,6 +110,7 @@ export function Profile() {
             <p className="muted">{t('profileUnlinked')}</p>
           )}
         </section>
+        <DigestSettings />
       </div>
       <MyLoans />
     </>

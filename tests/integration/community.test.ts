@@ -6,7 +6,12 @@ import { createApp } from '../../apps/api/src/app';
 import { createAuth } from '../../apps/api/src/auth';
 import { bootstrap } from '../../apps/api/src/services/bootstrap';
 import { readConfig } from '../../apps/api/src/plugins/config';
-import type { CommunityPost } from '../../packages/contracts/src';
+import type { CommunityPost, Unread } from '../../packages/contracts/src';
+import {
+  enqueueCommunityDigests,
+  revalidateDigest,
+  digestDue,
+} from '../../apps/api/src/modules/community-notify';
 const config = { ...readConfig(), EMAIL_MODE: 'disabled' as const };
 if (config.NODE_ENV !== 'test' || new URL(config.DATABASE_URL).pathname !== '/bnature_test')
   throw new Error('Dedicated test database required');
@@ -553,5 +558,172 @@ describe('news and polls', () => {
         optionId: post.options[0]!.id,
       }),
     ).rejects.toThrow();
+  });
+});
+
+describe('unread markers and digests', () => {
+  const unread = async (role: string) => ok<Unread>(await get('/community/unread', role));
+  const markRead = (role: string, body: Record<string, unknown>) =>
+    app.inject({
+      method: 'PUT',
+      url: '/api/v1/community/read',
+      headers: headers(role),
+      payload: body,
+    });
+  it('counts new content by others per channel and respects group membership', async () => {
+    expect(await unread('member')).toEqual({ news: 0, polls: 0, chat: [], total: 0 });
+    await action(await create(news()), 'publish');
+    await action(await create(news({ groupId })), 'publish');
+    await action(await create(poll()), 'publish');
+    await create(news()); // draft: never unread
+    await ok(await write('POST', '/community/chat', { body: 'Hallo alle' }, 'board'), 201);
+    await ok(await write('POST', '/community/chat', { body: 'Hallo Wald', groupId }, 'board'), 201);
+    await ok(await write('POST', '/community/chat', { body: 'Meine eigene' }, 'member'), 201);
+    const removed = await ok<{ id: string }>(
+      await write('POST', '/community/chat', { body: 'Gleich weg' }, 'board'),
+      201,
+    );
+    await ok(await write('POST', `/community/chat/${removed.id}/remove`, { version: 1 }, 'board'));
+    expect(await unread('member')).toEqual({
+      news: 2,
+      polls: 1,
+      chat: [
+        { groupId: null, count: 1 },
+        { groupId, count: 1 },
+      ],
+      total: 5,
+    });
+    // Not in the group: neither group news nor group chat count; the member's club message does.
+    expect(await unread('other')).toEqual({
+      news: 1,
+      polls: 1,
+      chat: [{ groupId: null, count: 2 }],
+      total: 4,
+    });
+    // The author's own posts and messages never count for them.
+    expect((await unread('admin')).news).toBe(0);
+  });
+  it('moves read markers forward only and validates their scope', async () => {
+    await ok(await write('POST', '/community/chat', { body: 'Eins' }, 'board'), 201);
+    const now = new Date().toISOString();
+    expect((await markRead('member', { channel: 'chat', until: now })).statusCode).toBe(204);
+    expect((await unread('member')).chat).toEqual([]);
+    expect(
+      (await markRead('member', { channel: 'chat', until: '2020-01-01T00:00:00Z' })).statusCode,
+    ).toBe(204);
+    expect((await unread('member')).chat).toEqual([]);
+    await ok(await write('POST', '/community/chat', { body: 'Zwei' }, 'board'), 201);
+    expect((await unread('member')).chat).toEqual([{ groupId: null, count: 1 }]);
+    // Marking up to the newest item exactly as the API returned it (millisecond precision).
+    const listed = await ok<{ items: { createdAt: string }[] }>(
+      await get('/community/chat', 'member'),
+    );
+    await markRead('member', { channel: 'chat', until: listed.items.at(-1)!.createdAt });
+    expect((await unread('member')).chat).toEqual([]);
+    await action(await create(news()), 'publish');
+    await markRead('member', { channel: 'news', until: new Date().toISOString() });
+    expect((await unread('member')).news).toBe(0);
+    // A future `until` is clamped to the server clock, so later news still counts.
+    await markRead('member', { channel: 'news', until: '2999-01-01T00:00:00Z' });
+    await action(await create(news()), 'publish');
+    expect((await unread('member')).news).toBe(1);
+    expect((await markRead('member', { channel: 'news', groupId, until: now })).statusCode).toBe(
+      422,
+    );
+    expect((await markRead('other', { channel: 'chat', groupId, until: now })).statusCode).toBe(
+      404,
+    );
+    const foreign = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/community/read',
+      headers: headers('foreign', undefined, foreignOrg),
+      payload: { channel: 'chat', groupId, until: now },
+    });
+    expect(foreign.statusCode).toBe(404);
+  });
+  it('stores the digest preference per account and organization', async () => {
+    const initial = await ok<{ digest: string; email: string; emailEnabled: boolean }>(
+      await get('/community/notifications', 'member'),
+    );
+    expect(initial).toEqual({
+      digest: 'off',
+      email: 'community-member@example.test',
+      emailEnabled: false,
+    });
+    const put = (digest: string) =>
+      app.inject({
+        method: 'PUT',
+        url: '/api/v1/community/notifications',
+        headers: headers('member'),
+        payload: { digest },
+      });
+    expect((await ok<{ digest: string }>(await put('weekly'))).digest).toBe('weekly');
+    expect((await put('hourly')).statusCode).toBe(422);
+    expect(
+      (await ok<{ digest: string }>(await get('/community/notifications', 'member'))).digest,
+    ).toBe('weekly');
+    expect(
+      (await ok<{ digest: string }>(await get('/community/notifications', 'other'))).digest,
+    ).toBe('off');
+  });
+  it('queues one digest per due day with unread titles and revalidates before sending', async () => {
+    const mailConfig = { ...config, EMAIL_MODE: 'local' as const };
+    await db.insert(s.communityNotificationSettings).values([
+      {
+        organizationId: org,
+        userId: users.member!.id,
+        digest: 'daily',
+        lastDigestAt: new Date(Date.now() - 60_000),
+        lastDigestOn: '2020-01-01',
+      },
+      {
+        organizationId: org,
+        userId: users.other!.id,
+        digest: 'daily',
+        lastDigestAt: new Date(Date.now() - 60_000),
+        lastDigestOn: '2020-01-01',
+      },
+    ]);
+    await action(await create(news({ groupId })), 'publish');
+    await ok(await write('POST', '/community/chat', { body: 'Hallo Wald', groupId }, 'board'), 201);
+    // 09:00 in Europe/Rome, safely after DIGEST_HOUR.
+    const morning = new Date();
+    morning.setUTCHours(8, 0, 0, 0);
+    if (morning.getTime() < Date.now()) morning.setUTCDate(morning.getUTCDate() + 1);
+    await enqueueCommunityDigests(db, mailConfig, morning);
+    await enqueueCommunityDigests(db, mailConfig, morning);
+    const mails = await db
+      .select()
+      .from(s.mailMessages)
+      .where(
+        and(eq(s.mailMessages.organizationId, org), eq(s.mailMessages.kind, 'community_digest')),
+      );
+    // `other` is not in the group, so nothing is new for them: no empty digest.
+    expect(mails).toHaveLength(1);
+    const [mail] = mails;
+    expect(mail!.userId).toBe(users.member!.id);
+    expect(mail!.recipient).toBe('community-member@example.test');
+    expect(mail!.body).toContain('Neuigkeiten aus dem Verein');
+    expect(mail!.body).toContain('Waldgruppe: 1');
+    expect(mail!.body).not.toContain('Hallo Wald');
+    const settings = await db
+      .select()
+      .from(s.communityNotificationSettings)
+      .where(eq(s.communityNotificationSettings.organizationId, org));
+    expect(settings.every((row) => row.lastDigestOn !== '2020-01-01')).toBe(true);
+    expect(await revalidateDigest(db, mail!)).toBe(true);
+    await db
+      .update(s.communityNotificationSettings)
+      .set({ digest: 'off' })
+      .where(eq(s.communityNotificationSettings.userId, users.member!.id));
+    expect(await revalidateDigest(db, mail!)).toBe(false);
+  });
+  it('schedules daily and weekly digests after the morning hour', () => {
+    expect(digestDue('off', null, '2026-11-03', 9)).toBe(false);
+    expect(digestDue('daily', '2026-11-02', '2026-11-03', 6)).toBe(false);
+    expect(digestDue('daily', '2026-11-02', '2026-11-03', 7)).toBe(true);
+    expect(digestDue('daily', '2026-11-03', '2026-11-03', 20)).toBe(false);
+    expect(digestDue('weekly', '2026-10-28', '2026-11-03', 9)).toBe(false);
+    expect(digestDue('weekly', '2026-10-27', '2026-11-03', 9)).toBe(true);
   });
 });
