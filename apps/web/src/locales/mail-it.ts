@@ -57,6 +57,12 @@ const it: Record<keyof typeof de, string> = {
   mailAutomationHint:
     'Dopo l’attivazione le quote scadute vengono controllate ogni giorno. Un nuovo promemoria rispetta l’intervallo impostato. È necessario un account amministratore valido.',
   mailAutoEnabled: 'Inviare automaticamente i promemoria delle quote',
+  mailAutoDeadlines:
+    'Promemoria automatici per le scadenze (alla persona o al ruolo responsabile, altrimenti agli admin)',
+  mailAutoLoans:
+    'Promemoria automatici per i prestiti (2 giorni prima della restituzione, poi settimanali se scaduti)',
+  mailKind_deadline_reminder: 'Promemoria scadenze',
+  mailKind_loan_reminder: 'Promemoria restituzioni',
   mailInterval: 'Intervallo minimo in giorni (7–90)',
   mailSettingsSaved: 'Impostazioni dei promemoria salvate.',
   mailDisabled: 'Configurare prima l’invio e-mail.',

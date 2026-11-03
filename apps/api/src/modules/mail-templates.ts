@@ -102,3 +102,69 @@ export function communityDigestMail(input: {
       : `Buongiorno ${input.name},\n\ndall’ultimo riepilogo ci sono novità:\n\n${lines.join('\n')}Vai alla vita associativa (accesso richiesto):\n${link}\n\nPuò modificare o disattivare questo riepilogo nel profilo:\n${settings}\n\n${input.organization}`,
   };
 }
+
+const dateText = (de: boolean, iso: string) =>
+  new Intl.DateTimeFormat(de ? 'de-IT' : 'it-IT', { timeZone: 'UTC' }).format(
+    new Date(`${iso}T12:00:00Z`),
+  );
+export function deadlineReminderMail(input: {
+  language: 'de' | 'it';
+  organization: string;
+  name: string;
+  title: string;
+  dueDate: string;
+  daysLeft: number;
+  appUrl: string;
+  deadlineId: string;
+}) {
+  const de = input.language === 'de';
+  const when =
+    input.daysLeft > 0
+      ? de
+        ? `in ${input.daysLeft} ${input.daysLeft === 1 ? 'Tag' : 'Tagen'}`
+        : `tra ${input.daysLeft} ${input.daysLeft === 1 ? 'giorno' : 'giorni'}`
+      : input.daysLeft === 0
+        ? de
+          ? 'heute'
+          : 'oggi'
+        : de
+          ? `seit ${-input.daysLeft} ${input.daysLeft === -1 ? 'Tag' : 'Tagen'} überfällig`
+          : `scaduta da ${-input.daysLeft} ${input.daysLeft === -1 ? 'giorno' : 'giorni'}`;
+  const link = new URL('/compliance', input.appUrl).href;
+  return {
+    subject: oneLine(
+      `${input.organization}: ${de ? 'Frist' : 'Scadenza'} – ${input.title} (${dateText(de, input.dueDate)})`,
+    ).slice(0, 500),
+    text: de
+      ? `Hallo ${input.name},\n\ndie Frist „${input.title}“ ist am ${dateText(de, input.dueDate)} fällig (${when}).\n\nDetails und Erledigung im Fristenmanager (Anmeldung erforderlich):\n${link}\n\nDiese Erinnerung wird automatisch versendet, solange die Frist offen ist.\n${input.organization}`
+      : `Buongiorno ${input.name},\n\nla scadenza «${input.title}» è fissata al ${dateText(de, input.dueDate)} (${when}).\n\nDettagli e chiusura nello scadenzario (accesso richiesto):\n${link}\n\nQuesto promemoria viene inviato automaticamente finché la scadenza è aperta.\n${input.organization}`,
+  };
+}
+export function loanReminderMail(input: {
+  language: 'de' | 'it';
+  organization: string;
+  name: string;
+  item: string;
+  quantity: number;
+  dueOn: string;
+  overdue: boolean;
+}) {
+  const de = input.language === 'de';
+  const what = input.quantity > 1 ? `${input.quantity} × ${input.item}` : input.item;
+  return {
+    subject: oneLine(
+      `${input.organization}: ${
+        input.overdue
+          ? de
+            ? 'Rückgabe überfällig'
+            : 'Restituzione scaduta'
+          : de
+            ? 'Rückgabe in Kürze'
+            : 'Restituzione a breve'
+      } – ${input.item}`,
+    ).slice(0, 500),
+    text: de
+      ? `Hallo ${input.name},\n\n${input.overdue ? `die Rückgabe von „${what}“ war am ${dateText(de, input.dueOn)} fällig.` : `bitte denken Sie an die Rückgabe von „${what}“ bis ${dateText(de, input.dueOn)}.`}\n\nFalls Sie den Gegenstand bereits zurückgegeben haben oder mehr Zeit brauchen, melden Sie sich bitte beim Verein.\n\nVielen Dank!\n${input.organization}`
+      : `Buongiorno ${input.name},\n\n${input.overdue ? `la restituzione di «${what}» era prevista per il ${dateText(de, input.dueOn)}.` : `le ricordiamo di restituire «${what}» entro il ${dateText(de, input.dueOn)}.`}\n\nSe ha già restituito l’oggetto o le serve più tempo, contatti l’associazione.\n\nGrazie!\n${input.organization}`,
+  };
+}

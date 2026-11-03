@@ -1,5 +1,14 @@
 # Prüfnachweise
 
+## Automatische Frist- und Rückgabeerinnerungen – 03.11.2026
+
+Auf `feat/reminders`, gestapelt auf `feat/member-consents`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt; erneute Migrationserzeugung meldet keine Schemaabweichung nach `0021_automatic_reminders`.
+- Neue PostgreSQL-Integrationstests: Aktivierung nur durch Admin; Fristerinnerungen an zuständige Person, Rolle oder Admins in deren Sprache, nur an Erinnerungstagen und einmal je Tag, keine für erledigte Fristen; Revalidierung bei verschobener oder erledigter Frist; Rückgabeerinnerungen zwei Tage vorher und bei Überfälligkeit, keine nach Rückgabe, Abbruch beim Versand nach zwischenzeitlicher Rückgabe; Stopp, wenn das aktivierende Konto kein Admin mehr ist; Erinnerungstage.
+- **4/4 E-Mail-Browserabläufe** (Desktop und Mobil) mit den zusätzlichen Schaltern; der Test wählt das Kontrollkästchen jetzt über seine Bezeichnung.
+- Kein Push, PR oder Deployment; Migration nicht auf Produktionsdaten angewendet.
+
 ## Zusatzfelder, Einwilligungen und Erziehungsberechtigte – 03.11.2026
 
 Auf `feat/member-consents`, gestapelt auf `feat/fee-batch`:

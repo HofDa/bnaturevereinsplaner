@@ -57,6 +57,11 @@ export default {
   mailAutomationHint:
     'Nach dem Aktivieren werden überfällige Beiträge täglich geprüft. Pro Forderung wird frühestens nach dem eingestellten Abstand erneut erinnert. Ein gültiger Adminzugang ist Voraussetzung.',
   mailAutoEnabled: 'Beitragserinnerungen automatisch versenden',
+  mailAutoDeadlines: 'Fristen automatisch erinnern (an zuständige Person bzw. Rolle, sonst Admins)',
+  mailAutoLoans:
+    'Ausleihen automatisch erinnern (2 Tage vor Rückgabe, dann bei Überfälligkeit wöchentlich)',
+  mailKind_deadline_reminder: 'Fristerinnerungen',
+  mailKind_loan_reminder: 'Rückgabeerinnerungen',
   mailInterval: 'Mindestabstand in Tagen (7–90)',
   mailSettingsSaved: 'Einstellungen für Erinnerungen gespeichert.',
   mailDisabled: 'Bitte zuerst den E-Mail-Versand einrichten.',

@@ -9,6 +9,7 @@ export const mailKindSchema = z.enum([
   'password_reset',
   'test',
   'community_digest',
+  'loan_reminder',
 ]);
 export type MailKind = z.infer<typeof mailKindSchema>;
 // Kinds that can be prepared through the preview/confirm flow.
@@ -27,11 +28,13 @@ export const mailSettingsInputSchema = z
     automaticFeeReminders: z.boolean(),
     reminderIntervalDays: z.number().int().min(7).max(90),
     automaticDeadlineReminders: z.boolean().default(false),
+    automaticLoanReminders: z.boolean().default(false),
   })
   .strict();
 export const mailSettingsSchema = mailSettingsInputSchema.extend({
   lastRunOn: z.string().nullable(),
   deadlineLastRunOn: z.string().nullable(),
+  loanLastRunOn: z.string().nullable(),
 });
 export type MailSettings = z.infer<typeof mailSettingsSchema>;
 export const mailPreviewItemSchema = z.object({

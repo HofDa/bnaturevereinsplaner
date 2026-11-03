@@ -36,11 +36,11 @@ Sprint 2.4 implementiert Freiwillige auf dem vorhandenen Personenstamm (getrennt
 
 ## Recht und Compliance
 
-Sprint 2.4 implementiert den Fristen- und Pflichtenmanager mit versionierten Regeln (gesetzlich, Verwaltungsempfehlung, intern), amtlichen Quellen, Berechnung aus Geschäftsjahren, Mandaten, Policen und Registerständen, Nachweisen, Protokollnummern und Historie. Keine automatische RUNTS-Einreichung. Signaturen und Zeitstempel laufen über eine austauschbare Schnittstelle; heute ausschließlich extern und manuell. Kein selbst erzeugtes Register, PDF oder Archiv ist automatisch rechtlich zertifiziert. Offen: qualifizierter Signatur-/Zeitstempeladapter nach rechtlicher Freigabe, Mailerinnerungen, Landesfristen Südtirol.
+Sprint 2.4 implementiert den Fristen- und Pflichtenmanager mit versionierten Regeln (gesetzlich, Verwaltungsempfehlung, intern), amtlichen Quellen, Berechnung aus Geschäftsjahren, Mandaten, Policen und Registerständen, Nachweisen, Protokollnummern und Historie. Keine automatische RUNTS-Einreichung. Signaturen und Zeitstempel laufen über eine austauschbare Schnittstelle; heute ausschließlich extern und manuell. Kein selbst erzeugtes Register, PDF oder Archiv ist automatisch rechtlich zertifiziert. Mailerinnerungen sind ergänzt ([E-Mail](mail.md#frist--und-rückgabeerinnerungen)). Offen: qualifizierter Signatur-/Zeitstempeladapter nach rechtlicher Freigabe, Landesfristen Südtirol.
 
 ## Inventar und Ausleihe
 
-Auf `feat/inventory` implementiert: Gegenstände und Sammelbestände mit Zustand, Lagerort und Wert, Ausmustern statt Löschen, Ausleihen an Personen mit Rückgabedatum, Verlängerung, Rückgabe mit Zustand, Überfälligkeit in Vereinszeitzone, Kennzahlen, CSV und „Meine Ausleihen“ im Profil ([Inventar](inventory.md)). Offen: Rückgabeerinnerungen per E-Mail, Reservierungen, Wartungs- und Prüfintervalle.
+Auf `feat/inventory` implementiert: Gegenstände und Sammelbestände mit Zustand, Lagerort und Wert, Ausmustern statt Löschen, Ausleihen an Personen mit Rückgabedatum, Verlängerung, Rückgabe mit Zustand, Überfälligkeit in Vereinszeitzone, Kennzahlen, CSV und „Meine Ausleihen“ im Profil ([Inventar](inventory.md)). Rückgabeerinnerungen per E-Mail sind ergänzt ([E-Mail](mail.md#frist--und-rückgabeerinnerungen)). Offen: Reservierungen, Wartungs- und Prüfintervalle.
 
 ## Offline-Synchronisierung
 
@@ -55,7 +55,7 @@ Sprint 2.3 setzt diese Strategie für Anwesenheit um. Die Phase-1-Datenbank blei
 
 ## Nächste Aufgaben nach Sprint 2.4
 
-Kommunikationserweiterung auf `feat/communication-email`: SMTP-Grundlage, lokales Mailpit-Testpostfach, Vorschau/Bestätigung, rollenabhängiger Postausgang, Beitragserinnerungen und Termineinladungen sowie explizit aktivierbare automatische Beitragserinnerungen sind implementiert. Details und Grenzen: [E-Mail](mail.md). Fristenmails und Newsletter bleiben offen. News, Umfragen und Chat sind inzwischen im [Vereinsleben](community.md) umgesetzt. Der vorhandene Fristenmanager verschickt weiterhin keine E-Mails.
+Kommunikationserweiterung auf `feat/communication-email`: SMTP-Grundlage, lokales Mailpit-Testpostfach, Vorschau/Bestätigung, rollenabhängiger Postausgang, Beitragserinnerungen und Termineinladungen sowie explizit aktivierbare automatische Beitragserinnerungen sind implementiert. Details und Grenzen: [E-Mail](mail.md). Fristenmails und Newsletter bleiben offen. News, Umfragen und Chat sind inzwischen im [Vereinsleben](community.md) umgesetzt. Der Fristenmanager verschickt nach Aktivierung automatische Erinnerungen.
 
 Auf `feat/unread-birthdays` ergänzt: Ungelesen-Markierungen und optionale Zusammenfassung per E-Mail im [Vereinsleben](community.md#ungelesen-und-zusammenfassung-per-e-mail) sowie Geburtstage und Mitgliedsjubiläen (1, 5, 10, … Jahre) aktiver Mitglieder der nächsten 30 Tage auf der Übersicht für Admin, Vorstand und Kassier, mit vorbereitetem Glückwunsch im Vereinschat.
 
