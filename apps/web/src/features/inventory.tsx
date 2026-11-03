@@ -27,7 +27,6 @@ import {
   Empty,
   ErrorState,
   Field,
-  Loading,
   Modal,
   Notice,
   PageHeading,
@@ -310,42 +309,48 @@ function ItemDetail({ item, onClose }: { item: InventoryItem; onClose: () => voi
       </dl>
       {item.description && <p>{item.description}</p>}
       <h3>{t('invHistory')}</h3>
-      {<QueryView query={history}>{(queryData) => (queryData.items.length ? (
-        <div className="table-scroll" role="region" aria-label={t('invHistory')} tabIndex={0}>
-          <table>
-            <thead>
-              <tr>
-                <th>{t('invBorrower')}</th>
-                <th>{t('invQuantityShort')}</th>
-                <th>{t('invIssuedOn')}</th>
-                <th>{t('invReturnedOn')}</th>
-                <th>{t('invCondition')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {queryData.items.map((l) => (
-                <tr key={l.id}>
-                  <td>{l.borrowerName}</td>
-                  <td>{l.quantity}</td>
-                  <td>{formatDate(l.issuedOn, i18n.language)}</td>
-                  <td>
-                    {l.returnedOn
-                      ? formatDate(l.returnedOn, i18n.language)
-                      : `${t('invDueShort')} ${formatDate(l.dueOn, i18n.language)}`}
-                  </td>
-                  <td>
-                    {t(`invCondition_${l.issueCondition}`)}
-                    {l.returnCondition ? ` → ${t(`invCondition_${l.returnCondition}`)}` : ''}
-                    {l.returnNotes && <small className="block-note">{l.returnNotes}</small>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <Empty title={t('invNoHistory')} />
-      ))}</QueryView>}
+      {
+        <QueryView query={history}>
+          {(queryData) =>
+            queryData.items.length ? (
+              <div className="table-scroll" role="region" aria-label={t('invHistory')} tabIndex={0}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>{t('invBorrower')}</th>
+                      <th>{t('invQuantityShort')}</th>
+                      <th>{t('invIssuedOn')}</th>
+                      <th>{t('invReturnedOn')}</th>
+                      <th>{t('invCondition')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {queryData.items.map((l) => (
+                      <tr key={l.id}>
+                        <td>{l.borrowerName}</td>
+                        <td>{l.quantity}</td>
+                        <td>{formatDate(l.issuedOn, i18n.language)}</td>
+                        <td>
+                          {l.returnedOn
+                            ? formatDate(l.returnedOn, i18n.language)
+                            : `${t('invDueShort')} ${formatDate(l.dueOn, i18n.language)}`}
+                        </td>
+                        <td>
+                          {t(`invCondition_${l.issueCondition}`)}
+                          {l.returnCondition ? ` → ${t(`invCondition_${l.returnCondition}`)}` : ''}
+                          {l.returnNotes && <small className="block-note">{l.returnNotes}</small>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <Empty title={t('invNoHistory')} />
+            )
+          }
+        </QueryView>
+      }
       {history.data && (
         <Pagination page={page} pageSize={pageSize} total={history.data.total} onChange={setPage} />
       )}
@@ -473,101 +478,109 @@ export function InventoryItems() {
             ['all', t('all')],
           ])}
         </div>
-        {<QueryView query={query}>{(queryData) => (queryData.items.length ? (
-          <>
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>{t('invName')}</th>
-                    <th>{t('invCategory')}</th>
-                    <th>{t('invLocation')}</th>
-                    <th>{t('invCondition')}</th>
-                    <th>{t('invAvailableColumn')}</th>
-                    <th>{t('actions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {queryData.items.map((item) => (
-                    <tr key={item.id}>
-                      <td>
-                        <strong>{item.name}</strong>
-                        <small className="block-note">
-                          {item.inventoryNumber || t('invNoNumber')}
-                          {item.status === 'retired' ? ` · ${t('invStatus_retired')}` : ''}
-                        </small>
-                      </td>
-                      <td>{item.category || '—'}</td>
-                      <td>{item.location || '—'}</td>
-                      <td>
-                        <StatusTag prefix="invCondition" value={item.condition} />
-                      </td>
-                      <td>
-                        {t('invAvailableOf', {
-                          available: item.availableQuantity,
-                          total: item.quantity,
-                        })}
-                        {item.overdueLoans > 0 && (
-                          <small className="block-note warning-text">
-                            {t('invOverdueCount', { count: item.overdueLoans })}
-                          </small>
-                        )}
-                      </td>
-                      <td className="row-actions">
-                        <Button
-                          variant="ghost"
-                          aria-label={`${t('details')}: ${item.name}`}
-                          onClick={() => setViewing(item)}
-                        >
-                          <Eye size={17} />
-                        </Button>
-                        {item.status === 'active' &&
-                          can('inventory:lend') &&
-                          item.availableQuantity > 0 && (
-                            <Button
-                              variant="ghost"
-                              aria-label={`${t('invLend')}: ${item.name}`}
-                              onClick={() => setLending(item)}
-                            >
-                              <PackageOpen size={17} />
-                            </Button>
-                          )}
-                        {item.status === 'active' && can('inventory:write') && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              aria-label={`${t('edit')}: ${item.name}`}
-                              onClick={() => setEditing(item)}
-                            >
-                              <Pencil size={17} />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              aria-label={`${t('invRetire')}: ${item.name}`}
-                              disabled={item.lentQuantity > 0}
-                              title={item.lentQuantity > 0 ? t('invRetireBlocked') : undefined}
-                              onClick={() => setRetiring(item)}
-                            >
-                              <Archive size={17} />
-                            </Button>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Pagination
-              page={page}
-              pageSize={queryData.pageSize}
-              total={queryData.total}
-              onChange={setPage}
-            />
-          </>
-        ) : (
-          <Empty title={t('invEmpty')} />
-        ))}</QueryView>}
+        {
+          <QueryView query={query}>
+            {(queryData) =>
+              queryData.items.length ? (
+                <>
+                  <div className="table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>{t('invName')}</th>
+                          <th>{t('invCategory')}</th>
+                          <th>{t('invLocation')}</th>
+                          <th>{t('invCondition')}</th>
+                          <th>{t('invAvailableColumn')}</th>
+                          <th>{t('actions')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {queryData.items.map((item) => (
+                          <tr key={item.id}>
+                            <td>
+                              <strong>{item.name}</strong>
+                              <small className="block-note">
+                                {item.inventoryNumber || t('invNoNumber')}
+                                {item.status === 'retired' ? ` · ${t('invStatus_retired')}` : ''}
+                              </small>
+                            </td>
+                            <td>{item.category || '—'}</td>
+                            <td>{item.location || '—'}</td>
+                            <td>
+                              <StatusTag prefix="invCondition" value={item.condition} />
+                            </td>
+                            <td>
+                              {t('invAvailableOf', {
+                                available: item.availableQuantity,
+                                total: item.quantity,
+                              })}
+                              {item.overdueLoans > 0 && (
+                                <small className="block-note warning-text">
+                                  {t('invOverdueCount', { count: item.overdueLoans })}
+                                </small>
+                              )}
+                            </td>
+                            <td className="row-actions">
+                              <Button
+                                variant="ghost"
+                                aria-label={`${t('details')}: ${item.name}`}
+                                onClick={() => setViewing(item)}
+                              >
+                                <Eye size={17} />
+                              </Button>
+                              {item.status === 'active' &&
+                                can('inventory:lend') &&
+                                item.availableQuantity > 0 && (
+                                  <Button
+                                    variant="ghost"
+                                    aria-label={`${t('invLend')}: ${item.name}`}
+                                    onClick={() => setLending(item)}
+                                  >
+                                    <PackageOpen size={17} />
+                                  </Button>
+                                )}
+                              {item.status === 'active' && can('inventory:write') && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    aria-label={`${t('edit')}: ${item.name}`}
+                                    onClick={() => setEditing(item)}
+                                  >
+                                    <Pencil size={17} />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    aria-label={`${t('invRetire')}: ${item.name}`}
+                                    disabled={item.lentQuantity > 0}
+                                    title={
+                                      item.lentQuantity > 0 ? t('invRetireBlocked') : undefined
+                                    }
+                                    onClick={() => setRetiring(item)}
+                                  >
+                                    <Archive size={17} />
+                                  </Button>
+                                </>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <Pagination
+                    page={page}
+                    pageSize={queryData.pageSize}
+                    total={queryData.total}
+                    onChange={setPage}
+                  />
+                </>
+              ) : (
+                <Empty title={t('invEmpty')} />
+              )
+            }
+          </QueryView>
+        }
       </section>
       {creating && (
         <FormModal
@@ -739,44 +752,50 @@ export function InventoryLoans() {
             </select>
           </Field>
         </div>
-        {<QueryView query={query}>{(queryData) => (queryData.items.length ? (
-          <>
-            <LoanTable
-              loans={queryData.items}
-              actions={
-                can('inventory:lend')
-                  ? (l) =>
-                      !l.returnedOn && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            aria-label={`${t('invReturn')}: ${l.itemName}, ${l.borrowerName}`}
-                            onClick={() => setReturning(l)}
-                          >
-                            <Undo2 size={17} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            aria-label={`${t('invExtend')}: ${l.itemName}, ${l.borrowerName}`}
-                            onClick={() => setExtending(l)}
-                          >
-                            <CalendarPlus size={17} />
-                          </Button>
-                        </>
-                      )
-                  : undefined
-              }
-            />
-            <Pagination
-              page={page}
-              pageSize={queryData.pageSize}
-              total={queryData.total}
-              onChange={setPage}
-            />
-          </>
-        ) : (
-          <Empty title={t('invNoLoans')} />
-        ))}</QueryView>}
+        {
+          <QueryView query={query}>
+            {(queryData) =>
+              queryData.items.length ? (
+                <>
+                  <LoanTable
+                    loans={queryData.items}
+                    actions={
+                      can('inventory:lend')
+                        ? (l) =>
+                            !l.returnedOn && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  aria-label={`${t('invReturn')}: ${l.itemName}, ${l.borrowerName}`}
+                                  onClick={() => setReturning(l)}
+                                >
+                                  <Undo2 size={17} />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  aria-label={`${t('invExtend')}: ${l.itemName}, ${l.borrowerName}`}
+                                  onClick={() => setExtending(l)}
+                                >
+                                  <CalendarPlus size={17} />
+                                </Button>
+                              </>
+                            )
+                        : undefined
+                    }
+                  />
+                  <Pagination
+                    page={page}
+                    pageSize={queryData.pageSize}
+                    total={queryData.total}
+                    onChange={setPage}
+                  />
+                </>
+              ) : (
+                <Empty title={t('invNoLoans')} />
+              )
+            }
+          </QueryView>
+        }
       </section>
       {returning && (
         <FormModal

@@ -274,105 +274,118 @@ function Cashbook() {
       </div>
       {notice && <Notice>{notice}</Notice>}
       {error && <Notice error>{error}</Notice>}
-      {<QueryView query={entries}>{(queryData) => (queryData.items.length ? (
-        <>
-          <div className="table-scroll" tabIndex={0} role="region" aria-label={t('ledgerCashbook')}>
-            <table>
-              <thead>
-                <tr>
-                  <th>{t('ledgerEntryNumber')}</th>
-                  <th>{t('ledgerBookingDate')}</th>
-                  <th>{t('ledgerDescription')}</th>
-                  <th>{t('ledgerCategory')}</th>
-                  <th>{t('ledgerAccount')}</th>
-                  <th className="align-right">{t('financeAmount')}</th>
-                  {canDocuments && <th>{t('actions')}</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {queryData.items.map((entry) => (
-                  <tr key={entry.id}>
-                    <td>
-                      <strong>
-                        <button
-                          type="button"
-                          className="link-button"
-                          aria-label={`${t('s22History')}: ${entry.fiscalYear}/${entry.entryNumber}`}
-                          onClick={() => setEditor({ type: 'history', entry })}
-                        >
-                          {entry.fiscalYear}/{entry.entryNumber}
-                        </button>
-                      </strong>
-                    </td>
-                    <td>{formatDate(entry.bookingDate, i18n.language)}</td>
-                    <td>
-                      {entry.description}
-                      <small className="finance-cell-note">
-                        {[entry.counterparty, entry.documentNumber, entry.project]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </small>
-                      <span className="ledger-flags">
-                        {entry.reversesEntryId && (
-                          <span className="badge badge-pending">{t('ledgerReversal')}</span>
-                        )}
-                        {entry.reversedByEntryId && (
-                          <span className="badge badge-inactive">{t('ledgerReversed')}</span>
-                        )}
-                        {entry.paymentId && (
-                          <span className="badge finance-status-paid">{t('ledgerFeePayment')}</span>
-                        )}
-                      </span>
-                    </td>
-                    <td>{entry.categoryName}</td>
-                    <td>{entry.accountName}</td>
-                    <td className="align-right">
-                      <Amount cents={entry.amountCents} direction={entry.direction} />
-                    </td>
-                    {canDocuments && (
-                      <td>
-                        <div className="finance-row-actions">
-                          <Button
-                            variant="ghost"
-                            aria-label={`${t('documentReceipts')}: ${entry.fiscalYear}/${entry.entryNumber}`}
-                            onClick={() => setEditor({ type: 'documents', entry })}
-                          >
-                            <Paperclip size={17} />
-                          </Button>
-                          {canWrite &&
-                            !entry.reversesEntryId &&
-                            !entry.reversedByEntryId &&
-                            !entry.paymentId && (
-                              <Button
-                                variant="ghost"
-                                aria-label={`${t('ledgerReverse')}: ${entry.fiscalYear}/${entry.entryNumber}`}
-                                onClick={() => setEditor({ type: 'reverse', entry })}
+      {
+        <QueryView query={entries}>
+          {(queryData) =>
+            queryData.items.length ? (
+              <>
+                <div
+                  className="table-scroll"
+                  tabIndex={0}
+                  role="region"
+                  aria-label={t('ledgerCashbook')}
+                >
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>{t('ledgerEntryNumber')}</th>
+                        <th>{t('ledgerBookingDate')}</th>
+                        <th>{t('ledgerDescription')}</th>
+                        <th>{t('ledgerCategory')}</th>
+                        <th>{t('ledgerAccount')}</th>
+                        <th className="align-right">{t('financeAmount')}</th>
+                        {canDocuments && <th>{t('actions')}</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {queryData.items.map((entry) => (
+                        <tr key={entry.id}>
+                          <td>
+                            <strong>
+                              <button
+                                type="button"
+                                className="link-button"
+                                aria-label={`${t('s22History')}: ${entry.fiscalYear}/${entry.entryNumber}`}
+                                onClick={() => setEditor({ type: 'history', entry })}
                               >
-                                <Undo2 size={17} />
-                              </Button>
-                            )}
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Pagination
-            page={page}
-            pageSize={queryData.pageSize}
-            total={queryData.total}
-            onChange={setPage}
-          />
-        </>
-      ) : (
-        <Empty
-          description={t(
-            debounced || account || category || direction ? 'noResults' : 'ledgerEmpty',
-          )}
-        />
-      ))}</QueryView>}
+                                {entry.fiscalYear}/{entry.entryNumber}
+                              </button>
+                            </strong>
+                          </td>
+                          <td>{formatDate(entry.bookingDate, i18n.language)}</td>
+                          <td>
+                            {entry.description}
+                            <small className="finance-cell-note">
+                              {[entry.counterparty, entry.documentNumber, entry.project]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </small>
+                            <span className="ledger-flags">
+                              {entry.reversesEntryId && (
+                                <span className="badge badge-pending">{t('ledgerReversal')}</span>
+                              )}
+                              {entry.reversedByEntryId && (
+                                <span className="badge badge-inactive">{t('ledgerReversed')}</span>
+                              )}
+                              {entry.paymentId && (
+                                <span className="badge finance-status-paid">
+                                  {t('ledgerFeePayment')}
+                                </span>
+                              )}
+                            </span>
+                          </td>
+                          <td>{entry.categoryName}</td>
+                          <td>{entry.accountName}</td>
+                          <td className="align-right">
+                            <Amount cents={entry.amountCents} direction={entry.direction} />
+                          </td>
+                          {canDocuments && (
+                            <td>
+                              <div className="finance-row-actions">
+                                <Button
+                                  variant="ghost"
+                                  aria-label={`${t('documentReceipts')}: ${entry.fiscalYear}/${entry.entryNumber}`}
+                                  onClick={() => setEditor({ type: 'documents', entry })}
+                                >
+                                  <Paperclip size={17} />
+                                </Button>
+                                {canWrite &&
+                                  !entry.reversesEntryId &&
+                                  !entry.reversedByEntryId &&
+                                  !entry.paymentId && (
+                                    <Button
+                                      variant="ghost"
+                                      aria-label={`${t('ledgerReverse')}: ${entry.fiscalYear}/${entry.entryNumber}`}
+                                      onClick={() => setEditor({ type: 'reverse', entry })}
+                                    >
+                                      <Undo2 size={17} />
+                                    </Button>
+                                  )}
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Pagination
+                  page={page}
+                  pageSize={queryData.pageSize}
+                  total={queryData.total}
+                  onChange={setPage}
+                />
+              </>
+            ) : (
+              <Empty
+                description={t(
+                  debounced || account || category || direction ? 'noResults' : 'ledgerEmpty',
+                )}
+              />
+            )
+          }
+        </QueryView>
+      }
       <p className="finance-footnote">{t('ledgerImmutableHint')}</p>
       {editor && (
         <Modal

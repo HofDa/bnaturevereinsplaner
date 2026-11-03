@@ -25,10 +25,10 @@ test('creates a poll from the chat, publishes it after confirmation and shares i
   await page.goto('/community?kind=chat');
   const suffix = `${info.project.name}-${Date.now()}`;
   await page
-    .getByRole('button', { name: 'Umfrage oder Veranstaltung teilen', exact: true })
+    .getByRole('button', { name: 'Abstimmung oder Veranstaltung teilen', exact: true })
     .click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Umfrage erstellen' }).click();
-  const editor = page.getByRole('dialog', { name: 'Umfrage erstellen' });
+  await page.getByRole('dialog').getByRole('button', { name: 'Abstimmung erstellen' }).click();
+  const editor = page.getByRole('dialog', { name: 'Abstimmung erstellen' });
   await editor.getByLabel('Frage (DE)', { exact: true }).fill(`Treffpunkt ${suffix}?`);
   await editor.getByLabel('Frage (IT)', { exact: true }).fill(`Punto d'incontro ${suffix}?`);
   await editor.getByLabel('Antwort 1 (DE)', { exact: true }).fill('Parkplatz');
@@ -36,11 +36,11 @@ test('creates a poll from the chat, publishes it after confirmation and shares i
   await editor.getByLabel('Antwort 2 (DE)', { exact: true }).fill('Bahnhof');
   await editor.getByLabel('Antwort 2 (IT)', { exact: true }).fill('Stazione');
   await editor.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
-  const confirm = page.getByRole('dialog', { name: 'Umfrage veröffentlichen und teilen' });
+  const confirm = page.getByRole('dialog', { name: 'Abstimmung veröffentlichen und teilen' });
   await expect(confirm).toContainText('Frage, Antworten und Zielgruppe sind danach fest.');
   await a11y(page);
   await confirm.getByRole('button', { name: 'Veröffentlichen und teilen', exact: true }).click();
-  await expect(page.getByText('Umfrage:', { exact: true })).toBeVisible();
+  await expect(page.getByText('Abstimmung:', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Deine Nachricht', { exact: true })).toHaveValue(
     `Treffpunkt ${suffix}?`,
   );

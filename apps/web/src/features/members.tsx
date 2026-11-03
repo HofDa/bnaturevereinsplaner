@@ -192,118 +192,126 @@ export function Members() {
             </select>
           </label>
         </div>
-        {<QueryView query={query}>{(queryData) => ((
-          <>
-            {queryData.items.length ? (
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>{t('name')}</th>
-                      <th>{t('memberNumber')}</th>
-                      <th>{t('membershipType')}</th>
-                      <th>{t('status')}</th>
-                      <th>{t('joined')}</th>
-                      <th>{t('consentsTitle')}</th>
-                      {fields.length > 0 && <th>{t('memberFieldsTitle')}</th>}
-                      <th>
-                        <span className="sr-only">{t('actions')}</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {queryData.items.map((member) => (
-                      <tr key={member.id}>
-                        <td>
-                          <Link to={`/members/${member.id}`} className="person-cell">
-                            <Avatar firstName={member.firstName} lastName={member.lastName} />
-                            <span>
-                              <strong>
-                                {member.firstName} {member.lastName}
-                              </strong>
-                              <small>{member.email || t('noContact')}</small>
-                            </span>
-                          </Link>
-                        </td>
-                        <td className="mono">{member.membershipNumber}</td>
-                        <td>{t(member.membershipType)}</td>
-                        <td>
-                          <Badge status={member.status} />
-                        </td>
-                        <td>{formatDate(member.joinedAt, i18n.language)}</td>
-                        <td>
-                          <span className="consent-pills">
-                            {(
-                              [
-                                ['dataConsent', 'consentShortData'],
-                                ['photoConsent', 'consentShortPhotos'],
-                              ] as const
-                            ).map(([key, label]) => {
-                              const state = member[key];
-                              return (
-                                <span
-                                  key={key}
-                                  className={`consent-pill consent-${state === 'granted' ? 'yes' : state === 'refused' ? 'no' : 'none'}`}
-                                >
-                                  {t(label)}{' '}
-                                  {state === 'granted' ? '✓' : state === 'refused' ? '✗' : '–'}
-                                  <span className="sr-only">
-                                    : {consentText(state) || t('consentNone')}
-                                  </span>
+        {
+          <QueryView query={query}>
+            {(queryData) => (
+              <>
+                {queryData.items.length ? (
+                  <div className="table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>{t('name')}</th>
+                          <th>{t('memberNumber')}</th>
+                          <th>{t('membershipType')}</th>
+                          <th>{t('status')}</th>
+                          <th>{t('joined')}</th>
+                          <th>{t('consentsTitle')}</th>
+                          {fields.length > 0 && <th>{t('memberFieldsTitle')}</th>}
+                          <th>
+                            <span className="sr-only">{t('actions')}</span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {queryData.items.map((member) => (
+                          <tr key={member.id}>
+                            <td>
+                              <Link to={`/members/${member.id}`} className="person-cell">
+                                <Avatar firstName={member.firstName} lastName={member.lastName} />
+                                <span>
+                                  <strong>
+                                    {member.firstName} {member.lastName}
+                                  </strong>
+                                  <small>{member.email || t('noContact')}</small>
                                 </span>
-                              );
-                            })}
-                          </span>
-                        </td>
-                        {fields.length > 0 && (
-                          <td className="member-field-cell">
-                            {fields
-                              .filter((f) => member.customFields?.[f.id] !== undefined)
-                              .map((f) => (
-                                <small key={f.id}>
-                                  {fieldLabel(f, i18n.language)}:{' '}
-                                  {formatFieldValue(
-                                    f,
-                                    member.customFields?.[f.id],
-                                    yesNo,
-                                    i18n.language,
-                                  )}
-                                </small>
-                              ))}
-                          </td>
-                        )}
-                        <td>
-                          <Link
-                            to={`/members/${member.id}`}
-                            className="icon-button"
-                            aria-label={`${t('details')}: ${member.firstName} ${member.lastName}`}
-                          >
-                            <ArrowUpRight size={18} />
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <Empty
-                title={
-                  debounced || status || photoConsent || dataConsent ? t('noResults') : undefined
-                }
-                description={
-                  debounced || status || photoConsent || dataConsent ? undefined : t('emptyMembers')
-                }
-              />
+                              </Link>
+                            </td>
+                            <td className="mono">{member.membershipNumber}</td>
+                            <td>{t(member.membershipType)}</td>
+                            <td>
+                              <Badge status={member.status} />
+                            </td>
+                            <td>{formatDate(member.joinedAt, i18n.language)}</td>
+                            <td>
+                              <span className="consent-pills">
+                                {(
+                                  [
+                                    ['dataConsent', 'consentShortData'],
+                                    ['photoConsent', 'consentShortPhotos'],
+                                  ] as const
+                                ).map(([key, label]) => {
+                                  const state = member[key];
+                                  return (
+                                    <span
+                                      key={key}
+                                      className={`consent-pill consent-${state === 'granted' ? 'yes' : state === 'refused' ? 'no' : 'none'}`}
+                                    >
+                                      {t(label)}{' '}
+                                      {state === 'granted' ? '✓' : state === 'refused' ? '✗' : '–'}
+                                      <span className="sr-only">
+                                        : {consentText(state) || t('consentNone')}
+                                      </span>
+                                    </span>
+                                  );
+                                })}
+                              </span>
+                            </td>
+                            {fields.length > 0 && (
+                              <td className="member-field-cell">
+                                {fields
+                                  .filter((f) => member.customFields?.[f.id] !== undefined)
+                                  .map((f) => (
+                                    <small key={f.id}>
+                                      {fieldLabel(f, i18n.language)}:{' '}
+                                      {formatFieldValue(
+                                        f,
+                                        member.customFields?.[f.id],
+                                        yesNo,
+                                        i18n.language,
+                                      )}
+                                    </small>
+                                  ))}
+                              </td>
+                            )}
+                            <td>
+                              <Link
+                                to={`/members/${member.id}`}
+                                className="icon-button"
+                                aria-label={`${t('details')}: ${member.firstName} ${member.lastName}`}
+                              >
+                                <ArrowUpRight size={18} />
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <Empty
+                    title={
+                      debounced || status || photoConsent || dataConsent
+                        ? t('noResults')
+                        : undefined
+                    }
+                    description={
+                      debounced || status || photoConsent || dataConsent
+                        ? undefined
+                        : t('emptyMembers')
+                    }
+                  />
+                )}
+                <Pagination
+                  page={page}
+                  pageSize={queryData.pageSize}
+                  total={queryData.total}
+                  onChange={setPage}
+                />
+              </>
             )}
-            <Pagination
-              page={page}
-              pageSize={queryData.pageSize}
-              total={queryData.total}
-              onChange={setPage}
-            />
-          </>
-        ))}</QueryView>}
+          </QueryView>
+        }
       </section>
       {params.get('new') && write && (
         <Modal wide title={t('addMember')} onClose={() => setParams({})}>

@@ -145,111 +145,118 @@ export function Reports() {
       </div>
       {notice && <Notice>{notice}</Notice>}
       {error && <Notice error>{error}</Notice>}
-      {<QueryView query={report}>{(queryData) => ((
-        <>
-          {queryData.status === 'open' && <Notice>{t('ledgerReportProvisional')}</Notice>}
-          {queryData.unbookedPaymentCount > 0 && (
-            <Notice>
-              {t('ledgerUnbookedPayments', { count: queryData.unbookedPaymentCount })}
-            </Notice>
-          )}
-          <section
-            className="stats-grid finance-stats ledger-report-stats"
-            aria-label={t('ledgerReportSummary')}
-          >
-            {[
-              ['ledgerIncome', queryData.incomeCents],
-              ['ledgerExpense', queryData.expenseCents],
-              ['ledgerResult', queryData.resultCents],
-              ['ledgerClassFee', queryData.membershipFeeIncomeCents],
-              ['ledgerClassDonation', queryData.donationIncomeCents],
-            ].map(([label, value], index) => (
-              <article key={label} className={`stat-card stat-${Math.min(index, 3)}`}>
-                <div>
-                  <span>{t(label!)}</span>
-                </div>
-                <strong>{formatMoney(value!, i18n.language)}</strong>
-                <small>{queryData.fiscalYear}</small>
-              </article>
-            ))}
-          </section>
-          <div className="ledger-report-grid">
-            <section aria-labelledby="ledger-report-categories">
-              <h2 id="ledger-report-categories">{t('ledgerCategories')}</h2>
-              <ul className="finance-allocation-history">
-                {queryData.categories
-                  .filter((c) => c.totalCents !== '0')
-                  .map((c) => (
-                    <li key={`${c.categoryId}:${c.name}`}>
-                      <span>{c.name}</span>
-                      <Amount cents={c.totalCents} direction={c.direction} />
-                    </li>
-                  ))}
-              </ul>
-            </section>
-            <section aria-labelledby="ledger-report-accounts">
-              <h2 id="ledger-report-accounts">{t('ledgerAccounts')}</h2>
-              <ul className="finance-allocation-history">
-                {queryData.accounts.map((a) => (
-                  <li key={a.accountId}>
-                    <span>
-                      {a.name}
-                      <small className="finance-cell-note">
-                        {t('ledgerOpening')} {formatMoney(a.openingCents, i18n.language)}
-                      </small>
-                    </span>
-                    <strong className="finance-money">
-                      {formatMoney(a.closingCents, i18n.language)}
-                    </strong>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </div>
-          {queryData.template && (
-            <section className="ledger-template-result" aria-labelledby="ledger-report-template">
-              <h2 id="ledger-report-template">
-                {queryData.template.name} · v{queryData.template.version}
-              </h2>
-              {queryData.template.revenueThresholdCents !== null && (
-                <Notice error={queryData.template.thresholdExceeded}>
-                  {t(
-                    queryData.template.thresholdExceeded
-                      ? 'ledgerThresholdExceeded'
-                      : 'ledgerThresholdOk',
-                    {
-                      amount: formatMoney(
-                        queryData.template.revenueThresholdCents,
-                        i18n.language,
-                      ),
-                    },
-                  )}
+      {
+        <QueryView query={report}>
+          {(queryData) => (
+            <>
+              {queryData.status === 'open' && <Notice>{t('ledgerReportProvisional')}</Notice>}
+              {queryData.unbookedPaymentCount > 0 && (
+                <Notice>
+                  {t('ledgerUnbookedPayments', { count: queryData.unbookedPaymentCount })}
                 </Notice>
               )}
-              <ul className="finance-allocation-history">
-                {queryData.template.lines.map((line) => (
-                  <li key={line.code}>
-                    <span>
-                      <strong>{line.code}</strong> {line.label}
-                    </span>
-                    <Amount cents={line.totalCents} direction={line.direction} />
-                  </li>
+              <section
+                className="stats-grid finance-stats ledger-report-stats"
+                aria-label={t('ledgerReportSummary')}
+              >
+                {[
+                  ['ledgerIncome', queryData.incomeCents],
+                  ['ledgerExpense', queryData.expenseCents],
+                  ['ledgerResult', queryData.resultCents],
+                  ['ledgerClassFee', queryData.membershipFeeIncomeCents],
+                  ['ledgerClassDonation', queryData.donationIncomeCents],
+                ].map(([label, value], index) => (
+                  <article key={label} className={`stat-card stat-${Math.min(index, 3)}`}>
+                    <div>
+                      <span>{t(label!)}</span>
+                    </div>
+                    <strong>{formatMoney(value!, i18n.language)}</strong>
+                    <small>{queryData.fiscalYear}</small>
+                  </article>
                 ))}
-              </ul>
-              {queryData.template.unmappedCategoryIds.length > 0 && (
-                <p className="ledger-warning">
-                  <TriangleAlert size={13} />{' '}
-                  {t('ledgerUnmapped', {
-                    names: queryData.template.unmappedCategoryIds
-                      .map((id) => names.get(id))
-                      .join(', '),
-                  })}
-                </p>
+              </section>
+              <div className="ledger-report-grid">
+                <section aria-labelledby="ledger-report-categories">
+                  <h2 id="ledger-report-categories">{t('ledgerCategories')}</h2>
+                  <ul className="finance-allocation-history">
+                    {queryData.categories
+                      .filter((c) => c.totalCents !== '0')
+                      .map((c) => (
+                        <li key={`${c.categoryId}:${c.name}`}>
+                          <span>{c.name}</span>
+                          <Amount cents={c.totalCents} direction={c.direction} />
+                        </li>
+                      ))}
+                  </ul>
+                </section>
+                <section aria-labelledby="ledger-report-accounts">
+                  <h2 id="ledger-report-accounts">{t('ledgerAccounts')}</h2>
+                  <ul className="finance-allocation-history">
+                    {queryData.accounts.map((a) => (
+                      <li key={a.accountId}>
+                        <span>
+                          {a.name}
+                          <small className="finance-cell-note">
+                            {t('ledgerOpening')} {formatMoney(a.openingCents, i18n.language)}
+                          </small>
+                        </span>
+                        <strong className="finance-money">
+                          {formatMoney(a.closingCents, i18n.language)}
+                        </strong>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              </div>
+              {queryData.template && (
+                <section
+                  className="ledger-template-result"
+                  aria-labelledby="ledger-report-template"
+                >
+                  <h2 id="ledger-report-template">
+                    {queryData.template.name} · v{queryData.template.version}
+                  </h2>
+                  {queryData.template.revenueThresholdCents !== null && (
+                    <Notice error={queryData.template.thresholdExceeded}>
+                      {t(
+                        queryData.template.thresholdExceeded
+                          ? 'ledgerThresholdExceeded'
+                          : 'ledgerThresholdOk',
+                        {
+                          amount: formatMoney(
+                            queryData.template.revenueThresholdCents,
+                            i18n.language,
+                          ),
+                        },
+                      )}
+                    </Notice>
+                  )}
+                  <ul className="finance-allocation-history">
+                    {queryData.template.lines.map((line) => (
+                      <li key={line.code}>
+                        <span>
+                          <strong>{line.code}</strong> {line.label}
+                        </span>
+                        <Amount cents={line.totalCents} direction={line.direction} />
+                      </li>
+                    ))}
+                  </ul>
+                  {queryData.template.unmappedCategoryIds.length > 0 && (
+                    <p className="ledger-warning">
+                      <TriangleAlert size={13} />{' '}
+                      {t('ledgerUnmapped', {
+                        names: queryData.template.unmappedCategoryIds
+                          .map((id) => names.get(id))
+                          .join(', '),
+                      })}
+                    </p>
+                  )}
+                </section>
               )}
-            </section>
+            </>
           )}
-        </>
-      ))}</QueryView>}
+        </QueryView>
+      }
       <EtsReports year={selectedYear} />
       <PaymentBackfill />
       <section aria-labelledby="ledger-templates-heading" className="ledger-templates">

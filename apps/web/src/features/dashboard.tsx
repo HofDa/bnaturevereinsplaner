@@ -18,15 +18,7 @@ import {
 import type { Dashboard as DashboardData, Occasion } from '@bnature/contracts';
 import { api } from '../lib/api';
 import { useSession } from '../app/session';
-import {
-  Avatar,
-  Badge,
-  Empty,
-  ErrorState,
-  Loading,
-  PageHeading,
-  formatDate,
-} from '../components/ui';
+import { Avatar, Badge, Empty, PageHeading, formatDate } from '../components/ui';
 export function Dashboard() {
   const { t, i18n } = useTranslation(),
     { me } = useSession();
@@ -86,201 +78,205 @@ export function Dashboard() {
           )
         }
       />
-      {<QueryView query={query}>{(queryData) => ((
-        <>
-          <section className="stats-grid" aria-label={t('overview')}>
-            {[
-              {
-                title: 'activeMembers',
-                value: queryData.activeMembers,
-                hint: `${queryData.totalMembers} ${t('totalMembers').toLowerCase()}`,
-                icon: Users,
-              },
-              {
-                title: 'newMembers',
-                value: queryData.newMembers,
-                hint: t('thisMonth'),
-                icon: UserPlus,
-              },
-              {
-                title: 'activeGroups',
-                value: queryData.activeGroups,
-                hint: t('workingTogether'),
-                icon: Layers,
-              },
-              {
-                title: 'currentBoard',
-                value: queryData.board.length,
-                hint: t('currentMandates'),
-                icon: ShieldCheck,
-              },
-            ].map((stat, i) => (
-              <article className={`stat-card stat-${i}`} key={stat.title}>
-                <div>
-                  <span>{t(stat.title)}</span>
-                  <stat.icon size={19} />
-                </div>
-                <strong>{stat.value.toLocaleString(i18n.language)}</strong>
-                <small>
-                  {i === 1 && <span className="mini-dot" />}
-                  {stat.hint}
-                </small>
-              </article>
-            ))}
-          </section>
-          <div className="dashboard-grid">
-            <section className="panel recent-panel">
-              <header className="panel-header">
-                <div>
-                  <h2>{t('recentMembers')}</h2>
-                  <p>{t('recentIntro')}</p>
-                </div>
-                <Link className="text-link" to="/members">
-                  {t('allMembers')}
-                  <ArrowUpRight size={15} />
-                </Link>
-              </header>
-              {queryData.recentMembers.length ? (
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>{t('name')}</th>
-                        <th>{t('memberNumber')}</th>
-                        <th>{t('status')}</th>
-                        <th className="align-right">{t('joined')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {queryData.recentMembers.map((member) => (
-                        <tr key={member.id}>
-                          <td>
-                            <Link to={`/members/${member.id}`} className="person-cell">
-                              <Avatar firstName={member.firstName} lastName={member.lastName} />
-                              <span>
-                                <strong>
-                                  {member.firstName} {member.lastName}
-                                </strong>
-                                <small>{member.email || t('noContact')}</small>
-                              </span>
-                            </Link>
-                          </td>
-                          <td className="mono">{member.membershipNumber}</td>
-                          <td>
-                            <Badge status={member.status} />
-                          </td>
-                          <td className="align-right muted">
-                            {formatDate(member.joinedAt, i18n.language)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <Empty description={t('emptyMembers')} />
-              )}
-            </section>
-            <section className="panel status-panel">
-              <header className="panel-header">
-                <div>
-                  <h2>{t('statusOverview')}</h2>
-                  <p>{t('statusIntro')}</p>
-                </div>
-              </header>
-              <div className="status-total">
-                <strong>{queryData.totalMembers}</strong>
-                <span>{t('totalMembers')}</span>
-              </div>
-              <div className="stacked-bar" aria-hidden="true">
-                {Object.entries(queryData.statuses).map(([status, n]) => (
-                  <span className={`segment-${status}`} key={status} style={{ flexGrow: n }} />
-                ))}
-              </div>
-              <div className="status-legend">
-                {Object.entries(queryData.statuses).map(([status, n]) => (
-                  <div key={status}>
-                    <span>
-                      <i className={`dot-${status}`} />
-                      {t(status)}
-                    </span>
-                    <strong>{n}</strong>
-                  </div>
-                ))}
-              </div>
-            </section>
-            <section className="panel quick-panel">
-              <header className="panel-header">
-                <div>
-                  <h2>{t('quickActions')}</h2>
-                  <p>{t('quickIntro')}</p>
-                </div>
-              </header>
-              <div className="quick-links">
+      {
+        <QueryView query={query}>
+          {(queryData) => (
+            <>
+              <section className="stats-grid" aria-label={t('overview')}>
                 {[
                   {
-                    to: '/members?new=1',
-                    label: 'addMember',
+                    title: 'activeMembers',
+                    value: queryData.activeMembers,
+                    hint: `${queryData.totalMembers} ${t('totalMembers').toLowerCase()}`,
+                    icon: Users,
+                  },
+                  {
+                    title: 'newMembers',
+                    value: queryData.newMembers,
+                    hint: t('thisMonth'),
                     icon: UserPlus,
-                    permission: 'members:write',
                   },
                   {
-                    to: '/groups?new=1',
-                    label: 'createGroup',
+                    title: 'activeGroups',
+                    value: queryData.activeGroups,
+                    hint: t('workingTogether'),
                     icon: Layers,
-                    permission: 'groups:write',
                   },
                   {
-                    to: '/board',
-                    label: 'manageBoard',
+                    title: 'currentBoard',
+                    value: queryData.board.length,
+                    hint: t('currentMandates'),
                     icon: ShieldCheck,
-                    permission: 'board:write',
                   },
-                ]
-                  .filter((item) => me.permissions.some((p) => p === item.permission))
-                  .map((item) => (
-                    <Link to={item.to} key={item.to}>
-                      <span className="quick-icon">
-                        <item.icon size={20} />
-                      </span>
-                      <strong>{t(item.label)}</strong>
-                      <ArrowUpRight size={17} />
-                    </Link>
-                  ))}
-              </div>
-            </section>
-            <section className="panel board-panel">
-              <header className="panel-header">
-                <div>
-                  <h2>{t('currentBoard')}</h2>
-                  <p>{t('currentMandates')}</p>
-                </div>
-                <Link to="/board" className="icon-button" aria-label={t('board')}>
-                  <ArrowUpRight size={18} />
-                </Link>
-              </header>
-              {queryData.board.length ? (
-                <div className="board-preview">
-                  {queryData.board.slice(0, 4).map((person) => (
-                    <div key={person.id}>
-                      <Avatar firstName={person.firstName} lastName={person.lastName} />
-                      <span>
-                        <strong>
-                          {person.firstName} {person.lastName}
-                        </strong>
-                        <small>{person.position}</small>
-                      </span>
+                ].map((stat, i) => (
+                  <article className={`stat-card stat-${i}`} key={stat.title}>
+                    <div>
+                      <span>{t(stat.title)}</span>
+                      <stat.icon size={19} />
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <Empty description={t('noBoard')} />
-              )}
-            </section>
-            <Occasions />
-          </div>
-        </>
-      ))}</QueryView>}
+                    <strong>{stat.value.toLocaleString(i18n.language)}</strong>
+                    <small>
+                      {i === 1 && <span className="mini-dot" />}
+                      {stat.hint}
+                    </small>
+                  </article>
+                ))}
+              </section>
+              <div className="dashboard-grid">
+                <section className="panel recent-panel">
+                  <header className="panel-header">
+                    <div>
+                      <h2>{t('recentMembers')}</h2>
+                      <p>{t('recentIntro')}</p>
+                    </div>
+                    <Link className="text-link" to="/members">
+                      {t('allMembers')}
+                      <ArrowUpRight size={15} />
+                    </Link>
+                  </header>
+                  {queryData.recentMembers.length ? (
+                    <div className="table-scroll">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>{t('name')}</th>
+                            <th>{t('memberNumber')}</th>
+                            <th>{t('status')}</th>
+                            <th className="align-right">{t('joined')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {queryData.recentMembers.map((member) => (
+                            <tr key={member.id}>
+                              <td>
+                                <Link to={`/members/${member.id}`} className="person-cell">
+                                  <Avatar firstName={member.firstName} lastName={member.lastName} />
+                                  <span>
+                                    <strong>
+                                      {member.firstName} {member.lastName}
+                                    </strong>
+                                    <small>{member.email || t('noContact')}</small>
+                                  </span>
+                                </Link>
+                              </td>
+                              <td className="mono">{member.membershipNumber}</td>
+                              <td>
+                                <Badge status={member.status} />
+                              </td>
+                              <td className="align-right muted">
+                                {formatDate(member.joinedAt, i18n.language)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <Empty description={t('emptyMembers')} />
+                  )}
+                </section>
+                <section className="panel status-panel">
+                  <header className="panel-header">
+                    <div>
+                      <h2>{t('statusOverview')}</h2>
+                      <p>{t('statusIntro')}</p>
+                    </div>
+                  </header>
+                  <div className="status-total">
+                    <strong>{queryData.totalMembers}</strong>
+                    <span>{t('totalMembers')}</span>
+                  </div>
+                  <div className="stacked-bar" aria-hidden="true">
+                    {Object.entries(queryData.statuses).map(([status, n]) => (
+                      <span className={`segment-${status}`} key={status} style={{ flexGrow: n }} />
+                    ))}
+                  </div>
+                  <div className="status-legend">
+                    {Object.entries(queryData.statuses).map(([status, n]) => (
+                      <div key={status}>
+                        <span>
+                          <i className={`dot-${status}`} />
+                          {t(status)}
+                        </span>
+                        <strong>{n}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+                <section className="panel quick-panel">
+                  <header className="panel-header">
+                    <div>
+                      <h2>{t('quickActions')}</h2>
+                      <p>{t('quickIntro')}</p>
+                    </div>
+                  </header>
+                  <div className="quick-links">
+                    {[
+                      {
+                        to: '/members?new=1',
+                        label: 'addMember',
+                        icon: UserPlus,
+                        permission: 'members:write',
+                      },
+                      {
+                        to: '/groups?new=1',
+                        label: 'createGroup',
+                        icon: Layers,
+                        permission: 'groups:write',
+                      },
+                      {
+                        to: '/board',
+                        label: 'manageBoard',
+                        icon: ShieldCheck,
+                        permission: 'board:write',
+                      },
+                    ]
+                      .filter((item) => me.permissions.some((p) => p === item.permission))
+                      .map((item) => (
+                        <Link to={item.to} key={item.to}>
+                          <span className="quick-icon">
+                            <item.icon size={20} />
+                          </span>
+                          <strong>{t(item.label)}</strong>
+                          <ArrowUpRight size={17} />
+                        </Link>
+                      ))}
+                  </div>
+                </section>
+                <section className="panel board-panel">
+                  <header className="panel-header">
+                    <div>
+                      <h2>{t('currentBoard')}</h2>
+                      <p>{t('currentMandates')}</p>
+                    </div>
+                    <Link to="/board" className="icon-button" aria-label={t('board')}>
+                      <ArrowUpRight size={18} />
+                    </Link>
+                  </header>
+                  {queryData.board.length ? (
+                    <div className="board-preview">
+                      {queryData.board.slice(0, 4).map((person) => (
+                        <div key={person.id}>
+                          <Avatar firstName={person.firstName} lastName={person.lastName} />
+                          <span>
+                            <strong>
+                              {person.firstName} {person.lastName}
+                            </strong>
+                            <small>{person.position}</small>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <Empty description={t('noBoard')} />
+                  )}
+                </section>
+                <Occasions />
+              </div>
+            </>
+          )}
+        </QueryView>
+      }
     </>
   );
 }
@@ -313,43 +309,49 @@ function Occasions() {
           <p>{t('occasionsIntro')}</p>
         </div>
       </header>
-      {<QueryView query={query}>{(queryData) => (!queryData.items.length ? (
-        <Empty description={t('occasionsEmpty')} />
-      ) : (
-        <ul className="occasion-list">
-          {queryData.items.map((item) => (
-            <li
-              key={`${item.personId}:${item.kind}`}
-              className={item.daysAway === 0 ? 'today' : ''}
-            >
-              <span className="occasion-icon" aria-hidden="true">
-                {item.kind === 'birthday' ? <Cake size={18} /> : <Award size={18} />}
-              </span>
-              <span className="occasion-text">
-                <Link to={`/members/${item.memberId}`}>
-                  {item.firstName} {item.lastName}
-                </Link>
-                <small>
-                  {t(item.kind === 'birthday' ? 'occasionBirthday' : 'occasionAnniversary', {
-                    count: item.years,
-                  })}{' '}
-                  · {when(item)}, {formatDate(item.date, i18n.language)}
-                </small>
-              </span>
-              {me.permissions.includes('community:chat') && item.daysAway <= 1 && (
-                <Link
-                  className="icon-button"
-                  to={draft(item)}
-                  aria-label={`${t('occasionCongratulate')}: ${item.firstName} ${item.lastName}`}
-                  title={t('occasionCongratulate')}
-                >
-                  <PartyPopper size={17} />
-                </Link>
-              )}
-            </li>
-          ))}
-        </ul>
-      ))}</QueryView>}
+      {
+        <QueryView query={query}>
+          {(queryData) =>
+            !queryData.items.length ? (
+              <Empty description={t('occasionsEmpty')} />
+            ) : (
+              <ul className="occasion-list">
+                {queryData.items.map((item) => (
+                  <li
+                    key={`${item.personId}:${item.kind}`}
+                    className={item.daysAway === 0 ? 'today' : ''}
+                  >
+                    <span className="occasion-icon" aria-hidden="true">
+                      {item.kind === 'birthday' ? <Cake size={18} /> : <Award size={18} />}
+                    </span>
+                    <span className="occasion-text">
+                      <Link to={`/members/${item.memberId}`}>
+                        {item.firstName} {item.lastName}
+                      </Link>
+                      <small>
+                        {t(item.kind === 'birthday' ? 'occasionBirthday' : 'occasionAnniversary', {
+                          count: item.years,
+                        })}{' '}
+                        · {when(item)}, {formatDate(item.date, i18n.language)}
+                      </small>
+                    </span>
+                    {me.permissions.includes('community:chat') && item.daysAway <= 1 && (
+                      <Link
+                        className="icon-button"
+                        to={draft(item)}
+                        aria-label={`${t('occasionCongratulate')}: ${item.firstName} ${item.lastName}`}
+                        title={t('occasionCongratulate')}
+                      >
+                        <PartyPopper size={17} />
+                      </Link>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )
+          }
+        </QueryView>
+      }
     </section>
   );
 }

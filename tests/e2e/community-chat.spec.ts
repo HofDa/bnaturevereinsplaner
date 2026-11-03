@@ -157,7 +157,7 @@ test('shows group news and chat only to assigned users and supports live moderat
   await expect(reply.locator('.chat-quote')).toContainText('Willkommen im Gruppenchat!');
   // Share an upcoming event as a card.
   await page
-    .getByRole('button', { name: 'Umfrage oder Veranstaltung teilen', exact: true })
+    .getByRole('button', { name: 'Abstimmung oder Veranstaltung teilen', exact: true })
     .click();
   await page
     .getByRole('dialog')

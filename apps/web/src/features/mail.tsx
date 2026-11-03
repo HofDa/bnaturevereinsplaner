@@ -21,7 +21,6 @@ import {
   Empty,
   ErrorState,
   Field,
-  Loading,
   Modal,
   Notice,
   PageHeading,
@@ -222,50 +221,63 @@ export function MailPage() {
             <p>{t('mailOutboxHint')}</p>
           </div>
         </div>
-        {<QueryView query={messages}>{(queryData) => (!queryData.items.length ? (
-          <Empty title={t('mailEmpty')} />
-        ) : (
-          <>
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>{t('mailRecipient')}</th>
-                    <th>{t('mailSubject')}</th>
-                    <th>{t('status')}</th>
-                    <th>{t('mailCreated')}</th>
-                    <th>{t('actions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {queryData.items.map((message) => (
-                    <tr key={message.id}>
-                      <td>{message.recipient}</td>
-                      <td>
-                        <strong>{message.subject}</strong>
-                        <small className="mail-kind-label">{t(`mailKind_${message.kind}`)}</small>
-                      </td>
-                      <td>
-                        <span className="subtle-tag">{t(`mailState_${message.state}`)}</span>
-                      </td>
-                      <td>{new Date(message.createdAt).toLocaleString(i18n.language)}</td>
-                      <td>
-                        <Button
-                          variant="ghost"
-                          aria-label={`${t('details')}: ${message.recipient}`}
-                          onClick={() => setDetails(message)}
-                        >
-                          <Eye size={17} />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Pagination page={page} pageSize={20} total={queryData.total} onChange={setPage} />
-          </>
-        ))}</QueryView>}
+        {
+          <QueryView query={messages}>
+            {(queryData) =>
+              !queryData.items.length ? (
+                <Empty title={t('mailEmpty')} />
+              ) : (
+                <>
+                  <div className="table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>{t('mailRecipient')}</th>
+                          <th>{t('mailSubject')}</th>
+                          <th>{t('status')}</th>
+                          <th>{t('mailCreated')}</th>
+                          <th>{t('actions')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {queryData.items.map((message) => (
+                          <tr key={message.id}>
+                            <td>{message.recipient}</td>
+                            <td>
+                              <strong>{message.subject}</strong>
+                              <small className="mail-kind-label">
+                                {t(`mailKind_${message.kind}`)}
+                              </small>
+                            </td>
+                            <td>
+                              <span className="subtle-tag">{t(`mailState_${message.state}`)}</span>
+                            </td>
+                            <td>{new Date(message.createdAt).toLocaleString(i18n.language)}</td>
+                            <td>
+                              <Button
+                                variant="ghost"
+                                aria-label={`${t('details')}: ${message.recipient}`}
+                                onClick={() => setDetails(message)}
+                              >
+                                <Eye size={17} />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <Pagination
+                    page={page}
+                    pageSize={20}
+                    total={queryData.total}
+                    onChange={setPage}
+                  />
+                </>
+              )
+            }
+          </QueryView>
+        }
       </section>
       {preview && (
         <Modal
@@ -366,38 +378,42 @@ export function MailPage() {
       {configure && (
         <Modal title={t('mailAutomation')} onClose={() => setConfigure(false)}>
           <p>{t('mailAutomationHint')}</p>
-          {<QueryView query={settings}>{(queryData) => ((
-            queryData && (
-              <DataForm
-                schema={mailSettingsInputSchema.extend({
-                  reminderIntervalDays: z.coerce.number().int().min(7).max(90),
-                })}
-                fields={[
-                  { name: 'automaticFeeReminders', label: 'mailAutoEnabled', type: 'checkbox' },
-                  {
-                    name: 'reminderIntervalDays',
-                    label: 'mailInterval',
-                    inputMode: 'numeric',
-                    required: true,
-                  },
-                  {
-                    name: 'automaticDeadlineReminders',
-                    label: 'mailAutoDeadlines',
-                    type: 'checkbox',
-                  },
-                  { name: 'automaticLoanReminders', label: 'mailAutoLoans', type: 'checkbox' },
-                ]}
-                defaults={queryData}
-                onCancel={() => setConfigure(false)}
-                onSubmit={async (data) => {
-                  const saved = await write<MailSettings>('/mail/settings', data, 'PUT');
-                  queryClient.setQueryData(['mail-settings', me.activeOrganizationId], saved);
-                  setConfigure(false);
-                  setNotice({ key: 'mailSettingsSaved' });
-                }}
-              />
-            )
-          ))}</QueryView>}
+          {
+            <QueryView query={settings}>
+              {(queryData) =>
+                queryData && (
+                  <DataForm
+                    schema={mailSettingsInputSchema.extend({
+                      reminderIntervalDays: z.coerce.number().int().min(7).max(90),
+                    })}
+                    fields={[
+                      { name: 'automaticFeeReminders', label: 'mailAutoEnabled', type: 'checkbox' },
+                      {
+                        name: 'reminderIntervalDays',
+                        label: 'mailInterval',
+                        inputMode: 'numeric',
+                        required: true,
+                      },
+                      {
+                        name: 'automaticDeadlineReminders',
+                        label: 'mailAutoDeadlines',
+                        type: 'checkbox',
+                      },
+                      { name: 'automaticLoanReminders', label: 'mailAutoLoans', type: 'checkbox' },
+                    ]}
+                    defaults={queryData}
+                    onCancel={() => setConfigure(false)}
+                    onSubmit={async (data) => {
+                      const saved = await write<MailSettings>('/mail/settings', data, 'PUT');
+                      queryClient.setQueryData(['mail-settings', me.activeOrganizationId], saved);
+                      setConfigure(false);
+                      setNotice({ key: 'mailSettingsSaved' });
+                    }}
+                  />
+                )
+              }
+            </QueryView>
+          }
         </Modal>
       )}
     </>
