@@ -1352,6 +1352,19 @@ describe('volunteer self-service', () => {
       expect(confirmed.statusCode, confirmed.body).toBe(200);
       const final = await ok<typeof own>(await get('/me/volunteering', member));
       expect(final.confirmedMinutesThisYear).toBe(after.confirmedMinutesThisYear + 105);
+      // The annual overview counts exactly the confirmed minutes.
+      const overview = await ok<{ volunteers: { months: { minutes: number }[] } }>(
+        await get('/reports/annual-overview?year=2026', admin),
+      );
+      const [confirmedTotal] = await db
+        .select({ n: sql<number>`coalesce(sum(${s.volunteerTimeEntries.minutes}),0)::int` })
+        .from(s.volunteerTimeEntries)
+        .where(
+          sql`${s.volunteerTimeEntries.organizationId}=${org} and ${s.volunteerTimeEntries.status}='confirmed' and extract(year from (${s.volunteerTimeEntries.actualStart} at time zone 'Europe/Rome'))=2026`,
+        );
+      expect(overview.volunteers.months.reduce((n, m) => n + m.minutes, 0)).toBe(confirmedTotal!.n);
+      expect(confirmedTotal!.n).toBeGreaterThan(0);
+      expect((await get('/reports/annual-overview?year=2026', member)).statusCode).toBe(403);
     } finally {
       await db.delete(s.personUserLinks).where(eq(s.personUserLinks.userId, account!.id));
     }

@@ -56,6 +56,7 @@ PATCH akzeptiert ausschließlich gelieferte bekannte Felder ohne create-Defaults
 | GET /audit-logs                                                     | Organisationsbezogenes Audit-Protokoll                                                                            |
 | GET /dashboard                                                      | Echte Aggregate, neue Mitglieder im laufenden UTC-Monat und aktuelle Mandate                                      |
 | GET /dashboard/occasions                                            | Geburtstage und Mitgliedsjubiläen aktiver Mitglieder, `days` 1–90 (Standard 30)                                   |
+| GET /reports/annual-overview?year=                                  | Jahresüberblick je Monat (Mitglieder, Veranstaltungen, bestätigte Stunden); Abschnitte ohne Leserecht sind `null` |
 | GET /me/volunteering · POST /me/volunteering/time-entries           | Eigene Tätigkeiten, Einsätze und Stunden; eigene Stunden nachträglich als `submitted` melden (`Idempotency-Key`)  |
 | GET /member-fields · POST /member-fields · PATCH /member-fields/:id | Zusatzfelder lesen (`members:read`) / anlegen und ändern (`organization:write`); Art unveränderlich, höchstens 50 |
 | GET /members/:id/extras                                             | Zusatzwerte, aktuelle Einwilligungen mit Verlauf, Erziehungsberechtigte und `isMinor`                             |

@@ -1,5 +1,15 @@
 # Prüfnachweise
 
+## Auswertungen – 03.11.2026
+
+Auf `feat/volunteer-self-reports`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt. Keine Migration.
+- Neue PostgreSQL-Integrationstests: zwölf Monate, Eintritte stimmen mit der Datenbank überein, ungültiges Jahr 422, Mitglied 403; die Summe der Freiwilligenstunden entspricht exakt den bestätigten Minuten des Jahres.
+- **2/2 Browserabläufe** `reports` (Desktop und Mobil): Diagramme, Legende, Hover-Tooltip, Tabellenansicht, Axe in hellem und dunklem Design, keine horizontale Verschiebung; Mitglied ohne Menüpunkt und mit 403.
+- Diagrammfarben (Blau/Orange) mit dem Paletten-Validator für beide Oberflächen geprüft (Farbsehschwäche-Abstand ≥ 24, Kontrast ≥ 3:1).
+- Kein Push, PR oder Deployment.
+
 ## Selbstansicht für Freiwillige – 03.11.2026
 
 Auf `feat/volunteer-self-reports`, gestapelt auf `feat/reminders`:

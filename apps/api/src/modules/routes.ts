@@ -7,6 +7,7 @@ import { registerSystemRoutes } from './system';
 import { registerOrganizationRoutes } from './organization';
 import { registerMemberRoutesRoutes } from './member-routes';
 import { registerMemberExtrasRoutes } from './member-extras';
+import { registerReportRoutes } from './reports';
 import { registerGroupsRoutes } from './groups';
 import { registerBoardRoutes } from './board';
 import { registerAuditLogRoutes } from './audit-log';
@@ -32,6 +33,7 @@ export async function registerRoutes(
   registerOrganizationRoutes(context);
   registerMemberRoutesRoutes(context);
   registerMemberExtrasRoutes(context);
+  registerReportRoutes(context);
   registerGroupsRoutes(context);
   registerBoardRoutes(context);
   registerAuditLogRoutes(context);
