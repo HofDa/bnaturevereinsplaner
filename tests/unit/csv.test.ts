@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { encodeCsv, parseCsv, previewCsv } from '../../apps/web/src/lib/csv';
+import type { MemberField } from '../../packages/contracts/src';
 const header = 'firstName;lastName;membershipNumber;joinedAt';
 describe('CSV processing', () => {
   it('handles BOM, quotes, escaped quotes and multiline fields', () => {
@@ -44,5 +45,51 @@ describe('CSV processing', () => {
   });
   it('limits imports to 1000 rows', () => {
     expect(() => parseCsv(header + '\n' + 'a;b;1;2026-01-01\n'.repeat(1001))).toThrow('csvLimit');
+  });
+});
+
+describe('custom fields in CSV import', () => {
+  const field = (patch: Record<string, unknown>) =>
+    ({
+      id: crypto.randomUUID(),
+      labelI18n: { de: 'Größe', it: 'Taglia' },
+      type: 'select',
+      options: ['S', 'M', 'L'],
+      position: 0,
+      active: true,
+      ...patch,
+    }) as MemberField;
+  const size = field({});
+  const vegan = field({ labelI18n: { de: 'Vegan', it: 'Vegano' }, type: 'boolean', options: [] });
+  const since = field({ labelI18n: { de: 'Seit', it: 'Dal' }, type: 'date', options: [] });
+  const base = 'firstName;lastName;membershipNumber;joinedAt';
+  it('maps DE or IT labels to fields, parses values and ignores consent columns', () => {
+    const [row] = previewCsv(
+      `${base};taglia;Vegan;Seit;Einwilligung Fotos\nAnna;Muster;A-1;2026-01-01;m;ja;03.02.2024;Erteilt`,
+      [size, vegan, since],
+    );
+    expect(row!.errors).toEqual([]);
+    expect(row!.fieldValues).toEqual({
+      [size.id]: 'M',
+      [vegan.id]: true,
+      [since.id]: '2024-02-03',
+    });
+  });
+  it('reports invalid values and still rejects unknown columns', () => {
+    const [row] = previewCsv(`${base};Größe;Vegan\nAnna;Muster;A-1;2026-01-01;XXL;vielleicht`, [
+      size,
+      vegan,
+    ]);
+    expect(row!.data).toBeNull();
+    expect(row!.errors).toEqual(['Größe: memberFieldInvalid', 'Vegan: memberFieldInvalid']);
+    expect(() => previewCsv(`${base};Unbekannt\nA;B;C;2026-01-01;x`, [size])).toThrow('csvError');
+  });
+  it('accepts empty cells and a decimal comma', () => {
+    const count = field({ labelI18n: { de: 'Anzahl', it: 'Numero' }, type: 'number', options: [] });
+    const [row] = previewCsv(`${base};Anzahl;Größe\nAnna;Muster;A-1;2026-01-01;2,5;`, [
+      count,
+      size,
+    ]);
+    expect(row!.fieldValues).toEqual({ [count.id]: 2.5 });
   });
 });

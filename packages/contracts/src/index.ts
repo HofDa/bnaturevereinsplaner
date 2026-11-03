@@ -60,12 +60,19 @@ export const memberInputSchema = personSchema
   });
 export const memberPatchSchema = patchSchema(memberInputSchema);
 export type MemberInput = z.infer<typeof memberInputSchema>;
+export type ConsentState = 'granted' | 'refused' | null;
 export type Member = MemberInput & {
   id: string;
   personId: string;
   createdAt: string;
   updatedAt: string;
+  /** Latest recorded decision per kind; null when never recorded. */
+  photoConsent?: ConsentState;
+  dataConsent?: ConsentState;
+  /** Custom field values by field ID. */
+  customFields?: Record<string, string | number | boolean>;
 };
+const consentFilter = z.enum(['granted', 'refused', 'missing']).optional();
 export const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
@@ -74,6 +81,8 @@ export const listQuerySchema = z.object({
   direction: z.enum(['asc', 'desc']).default('asc'),
   status: statusSchema.optional(),
   active: z.enum(['true', 'false']).optional(),
+  photoConsent: consentFilter,
+  dataConsent: consentFilter,
 });
 export type ListQuery = z.infer<typeof listQuerySchema>;
 export type Page<T> = { items: T[]; total: number; page: number; pageSize: number };

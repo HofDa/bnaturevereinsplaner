@@ -95,6 +95,28 @@ test('defines extra fields and records consents and guardians for a minor', asyn
   await dialog.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await expect(fieldsPanel.locator('dd').filter({ hasText: /^M$/ })).toBeVisible();
+  // List: filter by photo consent, see consent pills and the field value; export as CSV.
+  await page.goto('/members');
+  await page.getByRole('combobox', { name: 'Fotos', exact: true }).selectOption('refused');
+  const kid = page.getByRole('row').filter({ hasText: `Kind ${suffix}` });
+  await expect(kid).toBeVisible();
+  await expect(kid).toContainText(`${label}: M`);
+  await expect(kid.locator('.consent-pill').nth(1)).toContainText('✗');
+  await a11y(page);
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'CSV exportieren', exact: true }).click();
+  const csv = await (await download).createReadStream().then(
+    (stream) =>
+      new Promise<string>((resolve) => {
+        let text = '';
+        stream.on('data', (chunk) => (text += chunk));
+        stream.on('end', () => resolve(text));
+      }),
+  );
+  expect(csv).toContain(`"${label}"`);
+  expect(csv).toContain('"Einwilligung Fotos"');
+  expect(csv).toContain('"Verweigert oder widerrufen"');
+  await page.goto(`/members/${id}`);
   await a11y(page);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({

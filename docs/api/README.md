@@ -43,31 +43,32 @@ PATCH akzeptiert ausschließlich gelieferte bekannte Felder ohne create-Defaults
 
 ### Bisherige Endpunkte
 
-| Methode / Pfad                                                      | Zweck                                                                                                             |
-| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| GET /health                                                         | Status einschließlich DB-Verbindung                                                                               |
-| GET /me                                                             | Konto, Organisationen, aktuelle Rolle und Berechtigungen                                                          |
-| GET/PATCH /organizations/:id                                        | Eigenes Vereinsprofil                                                                                             |
-| GET/POST /members                                                   | Mitgliederliste / Person und Mitgliedschaft transaktional anlegen                                                 |
-| GET/PATCH /members/:id                                              | Mitgliedschafts-ID mit Personendaten; Änderungen transaktional                                                    |
-| GET/POST /groups                                                    | Gruppenliste / Anlage                                                                                             |
-| GET/PATCH /groups/:id                                               | Gruppe / Metadatenänderung                                                                                        |
-| PUT /groups/:id/members                                             | Gesamte Zuordnung durch `{ personIds: UUID[] }` ersetzen; max. 500                                                |
-| GET/POST /board-mandates                                            | Amtszeiten / Anlage                                                                                               |
-| PATCH /board-mandates/:id                                           | Funktion oder Zeitraum ändern                                                                                     |
-| GET /audit-logs                                                     | Organisationsbezogenes Audit-Protokoll                                                                            |
-| GET /dashboard                                                      | Echte Aggregate, neue Mitglieder im laufenden UTC-Monat und aktuelle Mandate                                      |
-| GET /dashboard/occasions                                            | Geburtstage und Mitgliedsjubiläen aktiver Mitglieder, `days` 1–90 (Standard 30)                                   |
-| GET /reports/annual-overview?year=                                  | Jahresüberblick je Monat (Mitglieder, Veranstaltungen, bestätigte Stunden); Abschnitte ohne Leserecht sind `null` |
-| GET /me/volunteering · POST /me/volunteering/time-entries           | Eigene Tätigkeiten, Einsätze und Stunden; eigene Stunden nachträglich als `submitted` melden (`Idempotency-Key`)  |
-| GET /member-fields · POST /member-fields · PATCH /member-fields/:id | Zusatzfelder lesen (`members:read`) / anlegen und ändern (`organization:write`); Art unveränderlich, höchstens 50 |
-| GET /members/:id/extras                                             | Zusatzwerte, aktuelle Einwilligungen mit Verlauf, Erziehungsberechtigte und `isMinor`                             |
-| PUT /members/:id/fields                                             | Zusatzwerte `{values:{feldId:wert\|null}}` typgeprüft setzen oder leeren                                          |
-| POST /members/:id/consents                                          | Einwilligungserklärung anhängen; Datensätze sind auch in PostgreSQL unveränderlich                                |
-| POST · PATCH · DELETE /members/:id/guardians[/:guardianId]          | Erziehungsberechtigte verwalten (höchstens fünf)                                                                  |
-| GET/PATCH /profile                                                  | Ausschließlich eigenes verknüpftes Personenprofil                                                                 |
-| GET/POST /users                                                     | Berechtigte Konten anzeigen / geschlossen bereitstellen                                                           |
-| PATCH /users/:id/role                                               | Organisationsrolle ändern; letzten Admin erhalten                                                                 |
+| Methode / Pfad                                                      | Zweck                                                                                                                                                 |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET /health                                                         | Status einschließlich DB-Verbindung                                                                                                                   |
+| GET /me                                                             | Konto, Organisationen, aktuelle Rolle und Berechtigungen                                                                                              |
+| GET/PATCH /organizations/:id                                        | Eigenes Vereinsprofil                                                                                                                                 |
+| GET/POST /members                                                   | Mitgliederliste / Person und Mitgliedschaft transaktional anlegen                                                                                     |
+| GET/PATCH /members/:id                                              | Mitgliedschafts-ID mit Personendaten; Änderungen transaktional                                                                                        |
+| GET/POST /groups                                                    | Gruppenliste / Anlage                                                                                                                                 |
+| GET/PATCH /groups/:id                                               | Gruppe / Metadatenänderung                                                                                                                            |
+| PUT /groups/:id/members                                             | Gesamte Zuordnung durch `{ personIds: UUID[] }` ersetzen; max. 500                                                                                    |
+| GET/POST /board-mandates                                            | Amtszeiten / Anlage                                                                                                                                   |
+| PATCH /board-mandates/:id                                           | Funktion oder Zeitraum ändern                                                                                                                         |
+| GET /audit-logs                                                     | Organisationsbezogenes Audit-Protokoll                                                                                                                |
+| GET /dashboard                                                      | Echte Aggregate, neue Mitglieder im laufenden UTC-Monat und aktuelle Mandate                                                                          |
+| GET /dashboard/occasions                                            | Geburtstage und Mitgliedsjubiläen aktiver Mitglieder, `days` 1–90 (Standard 30)                                                                       |
+| GET /reports/annual-overview?year=                                  | Jahresüberblick je Monat (Mitglieder, Veranstaltungen, bestätigte Stunden); Abschnitte ohne Leserecht sind `null`                                     |
+| GET /me/volunteering · POST /me/volunteering/time-entries           | Eigene Tätigkeiten, Einsätze und Stunden; eigene Stunden nachträglich als `submitted` melden (`Idempotency-Key`)                                      |
+| GET /member-fields · POST /member-fields · PATCH /member-fields/:id | Zusatzfelder lesen (`members:read`) / anlegen und ändern (`organization:write`); Art unveränderlich, höchstens 50                                     |
+| GET /members?photoConsent=&dataConsent=                             | Filter nach aktuellem Einwilligungsstand (`granted`, `refused`, `missing`); Listeneinträge enthalten `photoConsent`, `dataConsent` und `customFields` |
+| GET /members/:id/extras                                             | Zusatzwerte, aktuelle Einwilligungen mit Verlauf, Erziehungsberechtigte und `isMinor`                                                                 |
+| PUT /members/:id/fields                                             | Zusatzwerte `{values:{feldId:wert\|null}}` typgeprüft setzen oder leeren                                                                              |
+| POST /members/:id/consents                                          | Einwilligungserklärung anhängen; Datensätze sind auch in PostgreSQL unveränderlich                                                                    |
+| POST · PATCH · DELETE /members/:id/guardians[/:guardianId]          | Erziehungsberechtigte verwalten (höchstens fünf)                                                                                                      |
+| GET/PATCH /profile                                                  | Ausschließlich eigenes verknüpftes Personenprofil                                                                                                     |
+| GET/POST /users                                                     | Berechtigte Konten anzeigen / geschlossen bereitstellen                                                                                               |
+| PATCH /users/:id/role                                               | Organisationsrolle ändern; letzten Admin erhalten                                                                                                     |
 
 `members.id` ist die Mitgliedschafts-ID, `personId` die getrennte Personen-ID. Gruppen und Mandate referenzieren `personId`. Normale Benutzerkonten werden nicht automatisch Vereinsmitglieder. Die Benutzeranlage kann optional eine bereits zur eigenen Organisation gehörende Person verknüpfen. Das Initialkonto wird ausschließlich über `bun run bootstrap` angelegt.
 

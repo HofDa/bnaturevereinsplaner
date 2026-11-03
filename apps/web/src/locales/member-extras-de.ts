@@ -47,4 +47,13 @@ export default {
   guardianRelationship: 'Beziehung',
   guardianNone: 'Keine Einträge.',
   guardianMissing: 'Minderjährig: Bitte mindestens eine erziehungsberechtigte Person hinterlegen.',
+  csvConsentData: 'Einwilligung Datenverarbeitung',
+  csvConsentPhotos: 'Einwilligung Fotos',
+  consentFilterPhotos: 'Fotos',
+  consentFilterData: 'Datenverarbeitung',
+  consentShortData: 'Daten',
+  consentShortPhotos: 'Fotos',
+  memberFieldInvalid: 'ungültiger Wert für dieses Zusatzfeld',
+  importFieldsHint:
+    'Zusatzfelder werden über Spalten mit ihrer Bezeichnung (DE oder IT) übernommen. Einwilligungen werden nicht importiert, sondern beim Mitglied mit Datum erfasst.',
 };

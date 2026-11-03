@@ -1,6 +1,8 @@
-import { memberInputSchema, type MemberInput } from '@bnature/contracts';
+import { memberInputSchema, type MemberInput, type MemberField } from '@bnature/contracts';
+import { matchField, parseFieldValue } from './member-fields';
 export const csvColumns = Object.keys(memberInputSchema.shape) as (keyof MemberInput)[];
-export function parseCsv(text: string): Record<string, string>[] {
+/** `extraHeaders` are additional accepted column names, e.g. custom field labels. */
+export function parseCsv(text: string, extraHeaders: string[] = []): Record<string, string>[] {
   if (new TextEncoder().encode(text).length > 2_000_000) throw new Error('csvLimit');
   const source = text.replace(/^\uFEFF/, '');
   const firstLine = source.split(/\r?\n/)[0] ?? '';
@@ -48,7 +50,11 @@ export function parseCsv(text: string): Record<string, string>[] {
   if (
     !headers.length ||
     new Set(headers).size !== headers.length ||
-    headers.some((h) => !csvColumns.includes(h as keyof MemberInput)) ||
+    headers.some(
+      (h) =>
+        !csvColumns.includes(h as keyof MemberInput) &&
+        !extraHeaders.some((x) => x.toLowerCase() === h.toLowerCase()),
+    ) ||
     !['firstName', 'lastName', 'membershipNumber', 'joinedAt'].every((k) => headers.includes(k))
   )
     throw new Error('csvError');
@@ -63,20 +69,50 @@ export type CsvPreview = {
   name: string;
   data: MemberInput | null;
   errors: string[];
+  /** Custom field values to store after the member was created. */
+  fieldValues: Record<string, string | number | boolean>;
   imported?: boolean;
 };
-export function previewCsv(text: string): CsvPreview[] {
+// Exported consent columns are informational; consents are recorded with date on the member page.
+export const consentCsvHeaders = [
+  'Einwilligung Datenverarbeitung',
+  'Einwilligung Fotos',
+  'Consenso trattamento dati',
+  'Consenso foto',
+];
+const ignored = (header: string) =>
+  consentCsvHeaders.some((h) => h.toLowerCase() === header.trim().toLowerCase());
+export function previewCsv(text: string, fields: MemberField[] = []): CsvPreview[] {
   const seen = new Set<string>();
-  return parseCsv(text).map((row, i) => {
-    const input = { ...row };
+  const labels = fields.filter((f) => f.active).flatMap((f) => [f.labelI18n.de, f.labelI18n.it]);
+  return parseCsv(text, [...labels, ...consentCsvHeaders]).map((row, i) => {
+    const input: Record<string, string> = {};
+    const fieldValues: Record<string, string | number | boolean> = {};
+    const fieldErrors: string[] = [];
+    for (const [header, raw] of Object.entries(row)) {
+      if (ignored(header)) continue;
+      const field = csvColumns.includes(header as keyof MemberInput)
+        ? undefined
+        : matchField(fields, header);
+      if (!field) {
+        input[header] = raw;
+        continue;
+      }
+      const parsedValue = parseFieldValue(field, raw);
+      if (parsedValue === undefined) fieldErrors.push(`${header}: memberFieldInvalid`);
+      else if (parsedValue !== null) fieldValues[field.id] = parsedValue;
+    }
     const parsed = memberInputSchema.safeParse({
       ...input,
       dateOfBirth: input.dateOfBirth || null,
       endedAt: input.endedAt || null,
     });
-    const errors = parsed.success
-      ? []
-      : parsed.error.issues.map((v) => `${v.path.join('.')}: ${v.message}`);
+    const errors = [
+      ...(parsed.success
+        ? []
+        : parsed.error.issues.map((v) => `${v.path.join('.')}: ${v.message}`)),
+      ...fieldErrors,
+    ];
     if (seen.has(row.membershipNumber ?? '')) errors.push('membershipNumber: duplicate');
     seen.add(row.membershipNumber ?? '');
     return {
@@ -84,6 +120,7 @@ export function previewCsv(text: string): CsvPreview[] {
       name: `${row.firstName ?? ''} ${row.lastName ?? ''}`,
       data: parsed.success && errors.length === 0 ? parsed.data : null,
       errors,
+      fieldValues,
     };
   });
 }

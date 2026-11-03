@@ -4195,3 +4195,27 @@ code {
   flex-shrink: 0;
   white-space: nowrap;
 }
+.consent-pills {
+  display: inline-flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+.consent-pill {
+  font-size: 0.72rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+.consent-pill.consent-yes {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.consent-pill.consent-no {
+  border-color: #b4462f;
+}
+.member-field-cell small {
+  display: block;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}

@@ -2182,6 +2182,32 @@
             "in": "query",
             "name": "active",
             "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "granted",
+                "refused",
+                "missing"
+              ]
+            },
+            "in": "query",
+            "name": "photoConsent",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "granted",
+                "refused",
+                "missing"
+              ]
+            },
+            "in": "query",
+            "name": "dataConsent",
+            "required": false
           }
         ],
         "responses": {
@@ -2321,6 +2347,38 @@
                           },
                           "updatedAt": {
                             "type": "string"
+                          },
+                          "photoConsent": {
+                            "nullable": true,
+                            "type": "string",
+                            "enum": [
+                              "granted",
+                              "refused"
+                            ]
+                          },
+                          "dataConsent": {
+                            "nullable": true,
+                            "type": "string",
+                            "enum": [
+                              "granted",
+                              "refused"
+                            ]
+                          },
+                          "customFields": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "boolean"
+                                }
+                              ]
+                            }
                           }
                         },
                         "required": [
@@ -3075,6 +3133,38 @@
                     },
                     "updatedAt": {
                       "type": "string"
+                    },
+                    "photoConsent": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "granted",
+                        "refused"
+                      ]
+                    },
+                    "dataConsent": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "granted",
+                        "refused"
+                      ]
+                    },
+                    "customFields": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "boolean"
+                          }
+                        ]
+                      }
                     }
                   },
                   "required": [
@@ -3696,6 +3786,38 @@
                     },
                     "updatedAt": {
                       "type": "string"
+                    },
+                    "photoConsent": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "granted",
+                        "refused"
+                      ]
+                    },
+                    "dataConsent": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "granted",
+                        "refused"
+                      ]
+                    },
+                    "customFields": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "boolean"
+                          }
+                        ]
+                      }
                     }
                   },
                   "required": [
@@ -4425,6 +4547,38 @@
                     },
                     "updatedAt": {
                       "type": "string"
+                    },
+                    "photoConsent": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "granted",
+                        "refused"
+                      ]
+                    },
+                    "dataConsent": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "granted",
+                        "refused"
+                      ]
+                    },
+                    "customFields": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "boolean"
+                          }
+                        ]
+                      }
                     }
                   },
                   "required": [
@@ -10934,6 +11088,32 @@
             "in": "query",
             "name": "active",
             "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "granted",
+                "refused",
+                "missing"
+              ]
+            },
+            "in": "query",
+            "name": "photoConsent",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "granted",
+                "refused",
+                "missing"
+              ]
+            },
+            "in": "query",
+            "name": "dataConsent",
+            "required": false
           }
         ],
         "responses": {
@@ -13486,6 +13666,32 @@
             "in": "query",
             "name": "active",
             "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "granted",
+                "refused",
+                "missing"
+              ]
+            },
+            "in": "query",
+            "name": "photoConsent",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "granted",
+                "refused",
+                "missing"
+              ]
+            },
+            "in": "query",
+            "name": "dataConsent",
+            "required": false
           }
         ],
         "responses": {
@@ -15082,6 +15288,32 @@
             },
             "in": "query",
             "name": "active",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "granted",
+                "refused",
+                "missing"
+              ]
+            },
+            "in": "query",
+            "name": "photoConsent",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "granted",
+                "refused",
+                "missing"
+              ]
+            },
+            "in": "query",
+            "name": "dataConsent",
             "required": false
           }
         ],
@@ -17537,6 +17769,32 @@
             },
             "in": "query",
             "name": "active",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "granted",
+                "refused",
+                "missing"
+              ]
+            },
+            "in": "query",
+            "name": "photoConsent",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "granted",
+                "refused",
+                "missing"
+              ]
+            },
+            "in": "query",
+            "name": "dataConsent",
             "required": false
           }
         ],

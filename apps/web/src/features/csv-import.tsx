@@ -1,11 +1,21 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Member } from '@bnature/contracts';
+import type { Member, MemberField } from '@bnature/contracts';
+import { useQuery } from '@tanstack/react-query';
+import { useSession } from '../app/session';
+import { fieldLabel } from '../lib/member-fields';
 import { api, errorMessage, queryClient } from '../lib/api';
 import { previewCsv, encodeCsv, downloadCsv, type CsvPreview } from '../lib/csv';
 import { Button, Notice, Field } from '../components/ui';
 export function CsvImport({ onBusy }: { onBusy: (busy: boolean) => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { me } = useSession();
+  const fieldsQuery = useQuery({
+    queryKey: ['member-fields', me.activeOrganizationId],
+    queryFn: () => api<{ items: MemberField[] }>('/member-fields'),
+  });
+  const fields = (fieldsQuery.data?.items ?? []).filter((f) => f.active);
+  const fieldHeaders = fields.map((f) => fieldLabel(f, i18n.language));
   const [rows, setRows] = useState<CsvPreview[]>([]),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
@@ -15,6 +25,7 @@ export function CsvImport({ onBusy }: { onBusy: (busy: boolean) => void }) {
   return (
     <div className="import-content">
       <p>{t('importIntro')}</p>
+      <p className="form-help">{t('importFieldsHint')}</p>
       <Button
         variant="secondary"
         onClick={() =>
@@ -42,6 +53,7 @@ export function CsvImport({ onBusy }: { onBusy: (busy: boolean) => void }) {
                 'membershipType',
                 'preferredLanguage',
                 'country',
+                ...fieldHeaders,
               ],
             ),
           )
@@ -66,7 +78,7 @@ export function CsvImport({ onBusy }: { onBusy: (busy: boolean) => void }) {
               return;
             }
             try {
-              setRows(previewCsv(await file.text()));
+              setRows(previewCsv(await file.text(), fields));
             } catch (error) {
               setError(t(error instanceof Error ? error.message : 'csvError'));
             }
@@ -140,8 +152,16 @@ export function CsvImport({ onBusy }: { onBusy: (busy: boolean) => void }) {
             const failed: string[] = [];
             for (const row of valid) {
               try {
-                await api<Member>('/members', { method: 'POST', body: JSON.stringify(row.data) });
+                const member = await api<Member>('/members', {
+                  method: 'POST',
+                  body: JSON.stringify(row.data),
+                });
                 row.imported = true;
+                if (Object.keys(row.fieldValues).length)
+                  await api(`/members/${member.id}/fields`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ values: row.fieldValues }),
+                  });
               } catch (error) {
                 failed.push(`${t('row')} ${row.line}: ${errorMessage(error)}`);
               }
