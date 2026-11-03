@@ -288,6 +288,8 @@ test('retains encrypted offline check-ins through reload, survives session expir
     await prepare(page, event.id);
     await page.getByRole('link', { name: 'Veranstaltungen', exact: true }).click();
     await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+    // Wait for the login form so the next navigation cannot cancel the sign-out.
+    await expect(page.getByLabel('E-Mail', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeVisible();
     await page.goto('/offline-attendance');
     await expect(page.getByText(/Auf diesem Gerät ist keine Veranstaltung/)).toBeVisible();
@@ -315,6 +317,8 @@ test('removes offline copies when leadership rights are revoked and refuses pend
   let userId = '';
   try {
     await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+    // Wait for the login form so the next navigation cannot cancel the sign-out.
+    await expect(page.getByLabel('E-Mail', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeVisible();
     await login(page, 'e2e-lead@example.test');
     userId = (await (await page.request.get('/api/v1/me')).json()).user.id;
@@ -380,6 +384,8 @@ test('does not restore private offline data when a delayed preparation completes
       .click();
     await ready;
     await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+    // Wait for the login form so the next navigation cannot cancel the sign-out.
+    await expect(page.getByLabel('E-Mail', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeVisible();
     const finished = page.waitForResponse(`**/api/v1/events/${event.id}/attendance/prepare`);
     release();

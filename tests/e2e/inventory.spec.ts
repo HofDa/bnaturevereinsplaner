@@ -157,6 +157,8 @@ test('limits inventory actions by role', async ({ page }) => {
     ).status(),
   ).toBe(403);
   await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+  // Wait for the login form so the next navigation cannot cancel the sign-out.
+  await expect(page.getByLabel('E-Mail', { exact: true })).toBeVisible();
   await login(page, 'e2e-member@example.test');
   await expect(page.getByRole('link', { name: 'Inventar' })).toHaveCount(0);
   expect((await page.request.get('/api/v1/inventory/items')).status()).toBe(403);

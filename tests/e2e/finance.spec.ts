@@ -33,6 +33,8 @@ test('admin creates fees; treasurer allocates partial and complete payments with
   await dialog.getByRole('button', { name: 'Anlegen', exact: true }).click();
   await expect(page.getByRole('cell', { name: tariff, exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+  // Wait for the login form so the next navigation cannot cancel the sign-out.
+  await expect(page.getByLabel('E-Mail', { exact: true })).toBeVisible();
   await login(page, 'e2e-treasurer@example.test');
   await page.goto('/finance');
   await page.getByRole('tab', { name: 'Beitragstarife', exact: true }).click();
@@ -161,5 +163,7 @@ test('ordinary members and board cannot discover or open finance views', async (
     const response = await page.request.get('/api/v1/payments');
     expect(response.status()).toBe(403);
     await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+    // Wait for the login form so the next navigation cannot cancel the sign-out.
+    await expect(page.getByLabel('E-Mail', { exact: true })).toBeVisible();
   }
 });
