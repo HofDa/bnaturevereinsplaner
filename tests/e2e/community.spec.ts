@@ -79,6 +79,8 @@ test('publishes bilingual news as a separate step and displays plain text to mem
   );
   await expect(page).not.toHaveURL(/draft=/);
   await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+  // Wait for the login form so the next navigation cannot cancel the sign-out.
+  await expect(page.getByLabel('E-Mail', { exact: true })).toBeVisible();
   await login(page, 'e2e-member@example.test');
   await page.goto(url);
   await expect(
@@ -124,6 +126,8 @@ test('lets members vote, change their answer and see the final results after clo
   await page.getByRole('dialog').getByRole('button', { name: 'Bestätigen', exact: true }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
   await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+  // Wait for the login form so the next navigation cannot cancel the sign-out.
+  await expect(page.getByLabel('E-Mail', { exact: true })).toBeVisible();
   await login(page, 'e2e-member@example.test');
   await page.goto(url);
   await expect(page.getByText(/Die Ergebnisse werden nach deiner Abstimmung/)).toBeVisible();

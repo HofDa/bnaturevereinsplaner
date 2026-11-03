@@ -165,6 +165,8 @@ test('validates CSV import before writing and clears other tabs on logout', asyn
   await other.goto('/members');
   await expect(other.getByRole('button', { name: 'Abmelden', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+  // Wait for the login form so the next navigation cannot cancel the sign-out.
+  await expect(page.getByLabel('E-Mail', { exact: true })).toBeVisible();
   await expect(other.getByRole('button', { name: 'Anmelden', exact: true })).toBeVisible();
   await expect(other.getByRole('table')).toHaveCount(0);
   await other.close();

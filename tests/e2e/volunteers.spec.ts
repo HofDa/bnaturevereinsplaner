@@ -176,6 +176,8 @@ test('limits volunteer data by role', async ({ page }) => {
   await page.goto('/volunteers/register');
   await expect(page.getByText('Für diese Ansicht fehlt Ihnen die Berechtigung.')).toBeVisible();
   await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+  // Wait for the login form so the next navigation cannot cancel the sign-out.
+  await expect(page.getByLabel('E-Mail', { exact: true })).toBeVisible();
   await login(page, 'e2e-member@example.test');
   await expect(page.getByRole('link', { name: 'Freiwillige' })).toHaveCount(0);
   expect((await page.request.get('/api/v1/volunteers')).status()).toBe(403);
