@@ -394,6 +394,7 @@ describe('groups, board and roles', () => {
       '/api/v1/audit-logs',
       '/api/v1/dashboard',
       '/api/v1/dashboard/occasions',
+      '/api/v1/reports/annual-overview?year=2026',
     ])
       expect((await app.inject({ url: path, headers: headers(memberCookie) })).statusCode).toBe(
         403,
@@ -555,6 +556,41 @@ describe('groups, board and roles', () => {
     expect(
       (await app.inject({ url: '/api/v1/dashboard/occasions?days=365', headers: headers(cookieA) }))
         .statusCode,
+    ).toBe(422);
+  });
+  it('summarizes the year per month in the annual overview', async () => {
+    const r = await app.inject({
+      url: '/api/v1/reports/annual-overview?year=2026',
+      headers: headers(cookieA),
+    });
+    expect(r.statusCode, r.body).toBe(200);
+    const report = r.json<{
+      members: { months: { month: number; joined: number; active: number }[] };
+      events: { months: unknown[] } | null;
+      volunteers: { months: { minutes: number }[] } | null;
+    }>();
+    expect(report.members.months.map((m) => m.month)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+    ]);
+    const [members] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(s.memberships)
+      .where(
+        and(
+          eq(s.memberships.organizationId, orgA),
+          sql`${s.memberships.joinedAt} between '2026-01-01' and '2026-01-31'`,
+        ),
+      );
+    expect(report.members.months[0]!.joined).toBe(members!.n);
+    expect(report.events?.months).toHaveLength(12);
+    expect(report.volunteers?.months).toHaveLength(12);
+    expect(
+      (
+        await app.inject({
+          url: '/api/v1/reports/annual-overview?year=99',
+          headers: headers(cookieA),
+        })
+      ).statusCode,
     ).toBe(422);
   });
   it('invalidates a session on logout', async () => {

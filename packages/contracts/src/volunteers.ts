@@ -669,3 +669,58 @@ export function assessCoverage(input: CoverageInput) {
     gaps,
   };
 }
+
+/** Self-reported hours: always submitted for confirmation by the club. */
+export const ownTimeEntryInputSchema = z
+  .object({
+    engagementId: idSchema,
+    assignmentId: idSchema.nullable().default(null),
+    actualStart: z.iso.datetime({ offset: true }),
+    actualEnd: z.iso.datetime({ offset: true }),
+    breakMinutes: z.number().int().min(0).max(1440).default(0),
+    description: z.string().trim().max(1000).default(''),
+  })
+  .strict()
+  .superRefine((v, ctx) => {
+    if (v.actualEnd <= v.actualStart)
+      ctx.addIssue({ code: 'custom', path: ['actualEnd'], message: 'endBeforeStart' });
+    else if (netMinutes(v.actualStart, v.actualEnd, v.breakMinutes) <= 0)
+      ctx.addIssue({ code: 'custom', path: ['breakMinutes'], message: 'breakTooLong' });
+  });
+export const ownVolunteeringSchema = z.object({
+  engagements: z.array(
+    z.object({
+      id: idSchema,
+      status: z.string(),
+      startedOn: z.string(),
+      endedOn: z.string().nullable(),
+      activity: z.string(),
+    }),
+  ),
+  assignments: z.array(
+    z.object({
+      id: idSchema,
+      engagementId: idSchema,
+      task: z.string(),
+      plannedStart: z.string(),
+      plannedEnd: z.string(),
+      status: z.string(),
+      eventTitle: z.object({ de: z.string(), it: z.string() }).nullable(),
+    }),
+  ),
+  timeEntries: z.array(
+    z.object({
+      id: idSchema,
+      engagementId: idSchema,
+      assignmentId: idSchema.nullable(),
+      actualStart: z.string(),
+      actualEnd: z.string(),
+      minutes: z.number().int(),
+      description: z.string(),
+      status: z.string(),
+    }),
+  ),
+  confirmedMinutesThisYear: z.number().int(),
+  pendingMinutes: z.number().int(),
+});
+export type OwnVolunteering = z.infer<typeof ownVolunteeringSchema>;

@@ -1,5 +1,24 @@
 # Prüfnachweise
 
+## Auswertungen – 03.11.2026
+
+Auf `feat/volunteer-self-reports`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt. Keine Migration.
+- Neue PostgreSQL-Integrationstests: zwölf Monate, Eintritte stimmen mit der Datenbank überein, ungültiges Jahr 422, Mitglied 403; die Summe der Freiwilligenstunden entspricht exakt den bestätigten Minuten des Jahres.
+- **2/2 Browserabläufe** `reports` (Desktop und Mobil): Diagramme, Legende, Hover-Tooltip, Tabellenansicht, Axe in hellem und dunklem Design, keine horizontale Verschiebung; Mitglied ohne Menüpunkt und mit 403.
+- Diagrammfarben (Blau/Orange) mit dem Paletten-Validator für beide Oberflächen geprüft (Farbsehschwäche-Abstand ≥ 24, Kontrast ≥ 3:1).
+- Kein Push, PR oder Deployment.
+
+## Selbstansicht für Freiwillige – 03.11.2026
+
+Auf `feat/volunteer-self-reports`, gestapelt auf `feat/reminders`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt. Keine Migration.
+- Neuer PostgreSQL-Integrationstest: ohne verknüpfte Person leere Ansicht; nur die eigene Tätigkeit sichtbar; eigene Stunden werden als „eingereicht“ mit korrekten Minuten angelegt; Überschneidung, Zukunftszeit, fremde Tätigkeit und Konto ohne Verknüpfung abgewiesen; nach Bestätigung durch Admin steigen die bestätigten Jahresstunden.
+- **2/2 Browserabläufe** `volunteer-self` (Desktop und Mobil, eigene Suite wegen der Anmeldegrenze): Konto mit verknüpfter Person meldet Stunden im Profil, Status „Eingereicht“, Axe; Vereinsverwaltung bleibt gesperrt.
+- Kein Push, PR oder Deployment.
+
 ## Automatische Frist- und Rückgabeerinnerungen – 03.11.2026
 
 Auf `feat/reminders`, gestapelt auf `feat/member-consents`:

@@ -16,6 +16,7 @@ import { Groups } from '../features/groups';
 import { Board } from '../features/board';
 import { Settings, applyTheme, type Theme } from '../features/settings';
 import { OrganizationPage } from '../features/organization';
+import { Reports } from '../features/reports';
 import { UsersPage } from '../features/users';
 import { Profile } from '../features/profile';
 import { Audit } from '../features/audit';
@@ -304,6 +305,14 @@ function App() {
           <Route path="groups" element={<Groups />} />
           <Route path="board" element={<Board />} />
           <Route path="organization" element={<OrganizationPage />} />
+          <Route
+            path="reports"
+            element={
+              <Guard permission="members:read">
+                <Reports />
+              </Guard>
+            }
+          />
           <Route path="settings" element={<Settings />} />
           <Route path="profile" element={<Profile />} />
           <Route

@@ -1265,3 +1265,108 @@ describe('compliance', () => {
     expect([leadOverview.unclearCoverage, leadOverview.lastSnapshot]).toEqual([null, null]);
   });
 });
+describe('volunteer self-service', () => {
+  // A separate client address, so this block does not share the file's rate-limit budget.
+  const remoteAddress = '198.51.100.7';
+  const get = (path: string, cookie = admin) =>
+    app.inject({ url: `/api/v1${path}`, headers: headers(cookie), remoteAddress });
+  const post = (path: string, payload: unknown, cookie = admin) =>
+    app.inject({
+      method: 'POST',
+      url: `/api/v1${path}`,
+      headers: headers(cookie, crypto.randomUUID()),
+      payload: payload as Record<string, unknown>,
+      remoteAddress,
+    });
+  it('shows only the own engagement and accepts own hours for confirmation', async () => {
+    const [account] = await db
+      .select()
+      .from(s.user)
+      .where(eq(s.user.email, 'vol-member@example.test'));
+    expect(
+      (await ok<{ engagements: unknown[] }>(await get('/me/volunteering', member))).engagements,
+    ).toEqual([]);
+    await db
+      .insert(s.personUserLinks)
+      .values({ organizationId: org, userId: account!.id, personId: memberPersonId });
+    try {
+      const own = await ok<{
+        engagements: { id: string }[];
+        timeEntries: { id: string; status: string }[];
+        pendingMinutes: number;
+        confirmedMinutesThisYear: number;
+      }>(await get('/me/volunteering', member));
+      expect(own.engagements.map((e) => e.id)).toContain(regular.id);
+      expect(own.engagements.map((e) => e.id)).not.toContain(occasional.id);
+      const body = {
+        engagementId: regular.id,
+        actualStart: '2026-10-20T07:00:00.000Z',
+        actualEnd: '2026-10-20T09:00:00.000Z',
+        breakMinutes: 15,
+        description: 'Hecke geschnitten',
+      };
+      const created = await ok<{ id: string }>(
+        await post('/me/volunteering/time-entries', body, member),
+        201,
+      );
+      const [row] = await db
+        .select()
+        .from(s.volunteerTimeEntries)
+        .where(eq(s.volunteerTimeEntries.id, created.id));
+      expect(row).toMatchObject({ status: 'submitted', minutes: 105, source: 'manual' });
+      expect((await post('/me/volunteering/time-entries', body, member)).json().error.code).toBe(
+        'TIME_OVERLAP',
+      );
+      const future = new Date(Date.now() + 86_400_000).toISOString();
+      expect(
+        (
+          await post(
+            '/me/volunteering/time-entries',
+            {
+              ...body,
+              actualStart: future,
+              actualEnd: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+            },
+            member,
+          )
+        ).json().error.code,
+      ).toBe('TIME_IN_FUTURE');
+      expect(
+        (
+          await post(
+            '/me/volunteering/time-entries',
+            { ...body, engagementId: occasional.id },
+            member,
+          )
+        ).statusCode,
+      ).toBe(404);
+      expect((await post('/me/volunteering/time-entries', body, treasurer)).statusCode).toBe(404);
+      const after = await ok<typeof own>(await get('/me/volunteering', member));
+      expect(after.pendingMinutes).toBeGreaterThanOrEqual(105);
+      expect(after.timeEntries.find((e) => e.id === created.id)?.status).toBe('submitted');
+      const confirmed = await post(
+        `/volunteer-time-entries/${created.id}/decision`,
+        { version: row!.version, decision: 'confirm' },
+        admin,
+      );
+      expect(confirmed.statusCode, confirmed.body).toBe(200);
+      const final = await ok<typeof own>(await get('/me/volunteering', member));
+      expect(final.confirmedMinutesThisYear).toBe(after.confirmedMinutesThisYear + 105);
+      // The annual overview counts exactly the confirmed minutes.
+      const overview = await ok<{ volunteers: { months: { minutes: number }[] } }>(
+        await get('/reports/annual-overview?year=2026', admin),
+      );
+      const [confirmedTotal] = await db
+        .select({ n: sql<number>`coalesce(sum(${s.volunteerTimeEntries.minutes}),0)::int` })
+        .from(s.volunteerTimeEntries)
+        .where(
+          sql`${s.volunteerTimeEntries.organizationId}=${org} and ${s.volunteerTimeEntries.status}='confirmed' and extract(year from (${s.volunteerTimeEntries.actualStart} at time zone 'Europe/Rome'))=2026`,
+        );
+      expect(overview.volunteers.months.reduce((n, m) => n + m.minutes, 0)).toBe(confirmedTotal!.n);
+      expect(confirmedTotal!.n).toBeGreaterThan(0);
+      expect((await get('/reports/annual-overview?year=2026', member)).statusCode).toBe(403);
+    } finally {
+      await db.delete(s.personUserLinks).where(eq(s.personUserLinks.userId, account!.id));
+    }
+  });
+});

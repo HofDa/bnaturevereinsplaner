@@ -60,8 +60,11 @@ import {
   deadlineQuerySchema,
   evidenceInputSchema,
   generateDeadlinesSchema,
+  ownTimeEntryInputSchema,
+  ownVolunteeringSchema,
 } from '@bnature/contracts';
 import { HttpError } from '../../middleware/access';
+import { ownVolunteering, submitOwnTimeEntry } from './self';
 import { documentStorage } from '../../services/storage';
 import { escapeLike } from '../members';
 import type { ModuleContext } from '../context';
@@ -392,6 +395,29 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
     `${p}/volunteer-time-entries/:id`,
     { schema: { tags, params: idParams, response: { 200: timeEntrySchema } } },
     async (req) => getTimeEntry(db, await access(req, 'volunteers:read'), req.params.id),
+  );
+  app.get(
+    `${p}/me/volunteering`,
+    { schema: { tags, response: { 200: ownVolunteeringSchema } } },
+    async (req) => ownVolunteering(db, await access(req, 'organization:read')),
+  );
+  app.post(
+    `${p}/me/volunteering/time-entries`,
+    {
+      schema: {
+        tags,
+        ...write,
+        body: ownTimeEntryInputSchema,
+        response: { 201: z.object({ id: idSchema }) },
+      },
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    },
+    async (req, reply) =>
+      replay(
+        reply,
+        await submitOwnTimeEntry(db, await access(req, 'organization:read'), key(req), req.body),
+        201,
+      ),
   );
   app.post(
     `${p}/volunteer-time-entries`,
