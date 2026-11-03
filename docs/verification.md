@@ -1,5 +1,14 @@
 # Prüfnachweise
 
+## Selbstansicht für Freiwillige – 03.11.2026
+
+Auf `feat/volunteer-self-reports`, gestapelt auf `feat/reminders`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt. Keine Migration.
+- Neuer PostgreSQL-Integrationstest: ohne verknüpfte Person leere Ansicht; nur die eigene Tätigkeit sichtbar; eigene Stunden werden als „eingereicht“ mit korrekten Minuten angelegt; Überschneidung, Zukunftszeit, fremde Tätigkeit und Konto ohne Verknüpfung abgewiesen; nach Bestätigung durch Admin steigen die bestätigten Jahresstunden.
+- **2/2 Browserabläufe** `volunteer-self` (Desktop und Mobil, eigene Suite wegen der Anmeldegrenze): Konto mit verknüpfter Person meldet Stunden im Profil, Status „Eingereicht“, Axe; Vereinsverwaltung bleibt gesperrt.
+- Kein Push, PR oder Deployment.
+
 ## Automatische Frist- und Rückgabeerinnerungen – 03.11.2026
 
 Auf `feat/reminders`, gestapelt auf `feat/member-consents`:

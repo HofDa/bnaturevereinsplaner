@@ -32,7 +32,7 @@ Sprint 2.2b implementiert private, versionierte Dokumente mit Signatur- und Hash
 
 ## Freiwillige
 
-Sprint 2.4 implementiert Freiwillige auf dem vorhandenen Personenstamm (getrennt von Mitgliedschaft), Einsätze zu Veranstaltungen, bestätigungspflichtige Stunden mit Korrekturhistorie, Versicherungspolicen mit Zuordnungen, Meldelisten und indikativer Deckungsprüfung sowie das gesetzliche Register mit Hash-Kette, festgeschriebenen Ständen und externem Signaturimport ([Umsetzung](sprints/2.4-implementation.md), [ADR 0005](decisions/0005-volunteer-register.md), [rechtliche Validierung](legal/volunteer-register-validation.md)). Offen: Selbstansicht für Freiwillige, Wechsel der Tätigkeitsart ohne Austritt, Löschprozess nach Aufbewahrungsfrist.
+Sprint 2.4 implementiert Freiwillige auf dem vorhandenen Personenstamm (getrennt von Mitgliedschaft), Einsätze zu Veranstaltungen, bestätigungspflichtige Stunden mit Korrekturhistorie, Versicherungspolicen mit Zuordnungen, Meldelisten und indikativer Deckungsprüfung sowie das gesetzliche Register mit Hash-Kette, festgeschriebenen Ständen und externem Signaturimport ([Umsetzung](sprints/2.4-implementation.md), [ADR 0005](decisions/0005-volunteer-register.md), [rechtliche Validierung](legal/volunteer-register-validation.md)). **Selbstansicht** ergänzt: Konten mit verknüpfter Person sehen im Profil ihre Tätigkeit, nächste Einsätze und gemeldeten Stunden und melden eigene Stunden nachträglich; diese sind stets „eingereicht“ und zählen erst nach Bestätigung durch den Verein. Offen: Wechsel der Tätigkeitsart ohne Austritt, Löschprozess nach Aufbewahrungsfrist.
 
 ## Recht und Compliance
 
@@ -65,4 +65,4 @@ Auf `feat/member-consents` ergänzt: **Zusatzfelder** je Verein (Text, Zahl, Dat
 
 Für b*nature vereinbarter weiterer Schwerpunkt: Kommunikation, Inventar/Ausleihe, Geburtstage/Jubiläen, Excel-Import und Auswertungen. SEPA und elektronische Rechnungen nur bei konkretem Bedarf. Sportmodule (Mannschaften, Tesseramento und sportbezogene Verwaltung) sind ausdrücklich ausgeschlossen.
 
-Release-Gates aus [Prüfnachweise](verification.md#offene-release-gates) abarbeiten, insbesondere rechtliche Freigabe des Registerverfahrens und der Startregeln. Danach: qualifizierter Signaturadapter, Mailerinnerungen für Fristen, Selbstansicht für Freiwillige und Aufbewahrungs-/Löschprozesse. Öffentliche Anmeldung und Gebühren bleiben getrennt zu planen.
+Release-Gates aus [Prüfnachweise](verification.md#offene-release-gates) abarbeiten, insbesondere rechtliche Freigabe des Registerverfahrens und der Startregeln. Danach: qualifizierter Signaturadapter und Aufbewahrungs-/Löschprozesse. Öffentliche Anmeldung und Gebühren bleiben getrennt zu planen.
