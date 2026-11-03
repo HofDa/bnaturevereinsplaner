@@ -3556,3 +3556,125 @@ code {
   border: 1px solid var(--border);
   border-radius: 0.6rem;
 }
+.member-extras {
+  margin-top: 23px;
+}
+.extras-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.extras-header h2 {
+  margin: 0;
+}
+.consent-list,
+.guardian-list,
+.member-field-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.consent-list li,
+.guardian-list li,
+.member-field-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.consent-list li > div,
+.guardian-list li > div,
+.member-field-list li > div {
+  min-width: 0;
+}
+.consent-list strong,
+.consent-list small,
+.guardian-list small,
+.member-field-list strong,
+.member-field-list small {
+  display: block;
+}
+.consent-list small,
+.guardian-list small,
+.member-field-list small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 0.15rem;
+}
+.member-field-list li.inactive strong {
+  color: var(--muted);
+}
+.consent-state {
+  display: inline-block;
+  margin-top: 0.25rem;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+}
+.consent-yes {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.consent-no {
+  border-color: #b4462f;
+}
+.consent-history {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+}
+.consent-history summary {
+  cursor: pointer;
+  min-height: 32px;
+}
+.consent-history ol {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.4rem;
+}
+.consent-history small {
+  display: block;
+  color: var(--muted);
+}
+.minor-warning {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin: 0.75rem 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.6rem;
+  border: 1px solid #b4462f;
+}
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  margin-bottom: 0.75rem;
+}
+.checkbox-field input {
+  accent-color: var(--accent);
+  width: 18px;
+  height: 18px;
+}
+.member-field-settings {
+  margin-top: 23px;
+}
+.member-field-form h3 {
+  font-size: 0.95rem;
+  margin: 1.25rem 0 0.75rem;
+}
+.stack-form {
+  display: grid;
+  gap: 14px;
+}
+.stack-form .checkbox-field {
+  margin-bottom: 0;
+}

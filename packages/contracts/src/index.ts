@@ -177,3 +177,4 @@ export * from './event-time';
 export * from './volunteers';
 export * from './compliance';
 export * from './occasions';
+export * from './member-extras';

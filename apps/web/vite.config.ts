@@ -31,6 +31,10 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api(?:\/|$)/],
         runtimeCaching: [],
         cleanupOutdatedCaches: true,
+        // The app is still one bundle (1.7 MB production, 2.1 MB with the development React
+        // build used by the browser tests); above Workbox's 2 MiB default the build aborts.
+        // Follow-up: split routes into lazy chunks and lower this again.
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
     }),
   ],
