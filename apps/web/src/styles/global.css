@@ -3878,3 +3878,136 @@ code {
   height: 100%;
   border-radius: 0 4px 4px 0;
 }
+.community-chat-mention {
+  box-shadow: inset 3px 0 0 var(--viz-2);
+}
+.mention-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--viz-2);
+}
+.chat-quote {
+  display: flex;
+  gap: 0.35rem;
+  align-items: baseline;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border-left: 3px solid var(--border);
+  background: var(--surface);
+  border-radius: 0 0.4rem 0.4rem 0;
+  font-size: 0.8rem;
+  text-align: left;
+  min-height: 32px;
+}
+.chat-quote span {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.chat-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--surface);
+}
+.chat-card > div {
+  flex: 1;
+  min-width: 10rem;
+}
+.chat-card strong,
+.chat-card small {
+  display: block;
+}
+.chat-card small {
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+.chat-card.unavailable {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.community-chat-message .chat-card .button {
+  margin-top: 0;
+}
+.compose-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  padding: 0.35rem 0.35rem 0.35rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+}
+.compose-banner span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mention-list {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  max-width: 20rem;
+}
+.mention-list li {
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  min-height: 36px;
+}
+.mention-list li[aria-selected='true'],
+.mention-list li:hover {
+  background: var(--accent-soft);
+}
+.share-section + .share-section {
+  margin-top: 1.25rem;
+}
+.share-section h3 {
+  font-size: 0.9rem;
+  margin: 0 0 0.5rem;
+}
+.share-section > .button {
+  margin-top: 0.75rem;
+}
+.share-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+.share-list button {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  min-height: 44px;
+}
+.share-list button:hover {
+  background: var(--accent-soft);
+}
+.share-list small {
+  display: block;
+  color: var(--muted);
+}

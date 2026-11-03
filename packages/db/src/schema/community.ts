@@ -137,6 +137,10 @@ export const communityChatMessages = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     removedAt: timestamp('removed_at', { withTimezone: true }),
     removedBy: uuid('removed_by').references(() => user.id),
+    replyToId: uuid('reply_to_id'),
+    // A shared event or poll, shown as a card; access is re-checked per viewer.
+    attachmentKind: text('attachment_kind').$type<'event' | 'poll'>(),
+    attachmentId: uuid('attachment_id'),
   },
   (t) => [
     foreignKey({
@@ -147,6 +151,15 @@ export const communityChatMessages = pgTable(
       columns: [t.organizationId, t.createdBy],
       foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
     }),
+    foreignKey({
+      name: 'community_chat_reply_fk',
+      columns: [t.organizationId, t.replyToId],
+      foreignColumns: [t.organizationId, t.id],
+    }),
+    check(
+      'community_chat_attachment',
+      sql`(${t.attachmentKind} is null) = (${t.attachmentId} is null) and (${t.attachmentKind} is null or ${t.attachmentKind} in ('event','poll'))`,
+    ),
     index('community_chat_channel').on(t.organizationId, t.groupId, t.createdAt, t.id),
     unique('community_chat_messages_tenant').on(t.organizationId, t.id),
     check(
@@ -230,5 +243,28 @@ export const communityNotificationSettings = pgTable(
       foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
     }).onDelete('cascade'),
     check('community_digest_mode', sql`${t.digest} in ('off','daily','weekly')`),
+  ],
+);
+
+export const communityChatMentions = pgTable(
+  'community_chat_mentions',
+  {
+    organizationId: uuid('organization_id').notNull(),
+    messageId: uuid('message_id').notNull(),
+    userId: uuid('user_id').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.messageId, t.userId] }),
+    foreignKey({
+      name: 'community_chat_mentions_message_fk',
+      columns: [t.organizationId, t.messageId],
+      foreignColumns: [communityChatMessages.organizationId, communityChatMessages.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'community_chat_mentions_user_fk',
+      columns: [t.organizationId, t.userId],
+      foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
+    }).onDelete('cascade'),
+    index('community_chat_mentions_user').on(t.organizationId, t.userId),
   ],
 );

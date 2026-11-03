@@ -14,6 +14,7 @@ const suites = [
   'member-extras',
   'volunteer-self',
   'reports',
+  'chat-poll',
 ];
 const requested = process.argv.slice(2);
 if (requested.some((s) => !suites.includes(s))) throw new Error('Unknown E2E suite');
