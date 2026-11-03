@@ -179,3 +179,4 @@ export * from './compliance';
 export * from './occasions';
 export * from './member-extras';
 export * from './reports';
+export * from './schedules';

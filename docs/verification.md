@@ -1,5 +1,14 @@
 # Prüfnachweise
 
+## Terminfindung – 03.11.2026
+
+Auf `feat/scheduling-polls`, gestapelt auf `feat/chat-extras`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt; erneute Migrationserzeugung meldet keine Schemaabweichung nach `0023_scheduling_polls`.
+- **100/100 Unit-/UI-Tests** und **196/196 PostgreSQL-Integrationstests**. Neu: Anlegen nur mit Redaktions- oder Veranstaltungsrecht, ungültige Termine abgewiesen; Ja/Wenn nötig/Nein je Termin, gleichzeitige Wiederholung mit demselben Schlüssel, Ändern ersetzt die Antwort, Zählung, beste Option, Teilnehmende; fremde Termine 404; Abschluss nur durch Organisator oder Redaktion mit festgelegtem Termin, danach keine Antworten (API und PostgreSQL); Gruppenzugang, Mandantengrenze, abgelaufene Frist.
+- **6/6 Browserabläufe** `chat-poll` und **6/6** Vereinsleben (Desktop und Mobil): Terminfindung anlegen, beantworten, zweite Person antwortet, Übersicht „Wer kann wann?“, Abschluss mit bestem Termin, Axe, keine horizontale Verschiebung. Dabei behoben: Die Reiterleiste mit vier Reitern verschob auf Mobilgeräten die Seite (jetzt eigener Scrollbereich).
+- Kein Push, PR oder Deployment; Migration nicht auf Produktionsdaten angewendet.
+
 ## Chat: Antworten, Erwähnungen, Karten – 03.11.2026
 
 Auf `feat/chat-extras`, gestapelt auf `feat/volunteer-self-reports`:

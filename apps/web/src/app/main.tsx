@@ -34,6 +34,7 @@ import { Compliance } from '../features/compliance';
 import { MailPage } from '../features/mail';
 import { InventoryItems, InventoryLoans } from '../features/inventory';
 import { CommunityIndex, CommunityDetail } from '../features/community';
+import { ScheduleDetailPage } from '../features/community-schedules';
 import { Empty, ErrorState, Loading } from '../components/ui';
 import { shellDatabase } from '../lib/offline';
 applyTheme((localStorage.getItem('bnature-theme') as Theme) || 'system');
@@ -139,6 +140,14 @@ function App() {
             element={
               <Guard permission="community:read">
                 <CommunityIndex key={query.data.activeOrganizationId} />
+              </Guard>
+            }
+          />
+          <Route
+            path="community/schedules/:id"
+            element={
+              <Guard permission="community:read">
+                <ScheduleDetailPage />
               </Guard>
             }
           />
