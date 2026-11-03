@@ -20,7 +20,7 @@ jobs:
           POSTGRES_PASSWORD: ci-database-only-password
         ports: ['55440:5432']
         options: >-
-          --health-cmd 'pg_isready -U bnature_test -d bnature_test'
+          --health-cmd "pg_isready -U bnature_test -d bnature_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
