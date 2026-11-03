@@ -5,6 +5,7 @@ import documents from './documents-it';
 import volunteers from './volunteers-it';
 import mail from './mail-it';
 import inventory from './inventory-it';
+import community from './community-it';
 import type de from './de';
 const it: Record<keyof typeof de, string> = {
   ...events,
@@ -14,6 +15,7 @@ const it: Record<keyof typeof de, string> = {
   ...volunteers,
   ...mail,
   ...inventory,
+  ...community,
   membershipNumber: 'Numero socio',
   joinedAt: 'Data di adesione',
   preferredLanguage: 'Lingua preferita',

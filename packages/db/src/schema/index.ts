@@ -7,3 +7,4 @@ export * from './events';
 export * from './volunteers';
 export * from './mail';
 export * from './inventory';
+export * from './community';

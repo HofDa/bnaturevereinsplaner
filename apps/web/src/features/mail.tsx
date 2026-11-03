@@ -35,7 +35,7 @@ export function MailPage() {
   const canInvite = me.permissions.includes('mail:invite');
   const canRemind = me.permissions.includes('finance:write');
   const canConfigure = me.permissions.includes('users:manage');
-  const [kind, setKind] = useState<MailRequest['kind']>(
+  const [kind, setKind] = useState<'fee_reminder' | 'event_invitation'>(
     canRemind ? 'fee_reminder' : 'event_invitation',
   );
   const [eventId, setEventId] = useState('');
@@ -155,7 +155,7 @@ export function MailPage() {
             <select
               value={kind}
               onChange={(e) => {
-                setKind(e.target.value as MailRequest['kind']);
+                setKind(e.target.value as 'fee_reminder' | 'event_invitation');
                 setError('');
               }}
             >
@@ -361,8 +361,8 @@ export function MailPage() {
                 defaults={settings.data}
                 onCancel={() => setConfigure(false)}
                 onSubmit={async (data) => {
-                  await write('/mail/settings', data, 'PUT');
-                  void queryClient.invalidateQueries({ queryKey: ['mail-settings'] });
+                  const saved = await write<MailSettings>('/mail/settings', data, 'PUT');
+                  queryClient.setQueryData(['mail-settings', me.activeOrganizationId], saved);
                   setConfigure(false);
                   setNotice({ key: 'mailSettingsSaved' });
                 }}

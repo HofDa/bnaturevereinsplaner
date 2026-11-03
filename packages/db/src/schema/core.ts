@@ -70,6 +70,8 @@ export const persons = pgTable(
     phone: text('phone').notNull().default(''),
     ...address(),
     preferredLanguage: language('preferred_language').notNull().default('de'),
+    // Opt-out applies to newsletters only; operational mails (reminders, invitations) still go out.
+    newsletterOptOut: boolean('newsletter_opt_out').notNull().default(false),
     ...timestamps(),
   },
   (t) => [

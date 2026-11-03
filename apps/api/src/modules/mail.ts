@@ -19,8 +19,24 @@ import { financialOperation, readSnapshot, canonicalJson } from './finance/opera
 import { businessDate, getAssessment } from './finance/service';
 import { feeReminderMail, eventInvitationMail } from './mail-templates';
 
-export const mailPermission = (kind: MailKind): Permission =>
-  kind === 'fee_reminder' ? 'finance:write' : 'mail:invite';
+export const isSupportedMailKind = (kind: MailKind): kind is 'fee_reminder' | 'event_invitation' =>
+  kind === 'fee_reminder' || kind === 'event_invitation';
+function supportedMailRequest(
+  request: MailRequest,
+): asserts request is Extract<MailRequest, { kind: 'fee_reminder' | 'event_invitation' }> {
+  if (!isSupportedMailKind(request.kind))
+    throw new HttpError(
+      409,
+      'MAIL_KIND_UNAVAILABLE',
+      'Diese Nachrichtenart ist noch nicht für den Versand eingerichtet.',
+    );
+}
+export const mailPermission = (kind: MailKind): Permission => {
+  if (kind === 'fee_reminder') return 'finance:write';
+  if (kind === 'deadline_reminder') return 'compliance:write';
+  if (kind === 'newsletter' || kind === 'event_invitation') return 'mail:invite';
+  return 'users:manage';
+};
 export function requireMailPermission(a: Access, kind: MailKind) {
   if (!can(a.role, mailPermission(kind)))
     throw new HttpError(403, 'FORBIDDEN', 'Keine Berechtigung für diesen Versand.');
@@ -34,14 +50,22 @@ export async function getMailSettings(db: Executor, org: string): Promise<MailSe
     automaticFeeReminders: row?.automaticFeeReminders ?? false,
     reminderIntervalDays: row?.reminderIntervalDays ?? 14,
     lastRunOn: row?.lastRunOn ?? null,
+    automaticDeadlineReminders: row?.automaticDeadlineReminders ?? false,
+    deadlineLastRunOn: row?.deadlineLastRunOn ?? null,
   };
 }
 export function updateMailSettings(
   db: Database,
   a: Access,
   key: string,
-  input: Omit<MailSettings, 'lastRunOn'>,
+  input: Omit<MailSettings, 'lastRunOn' | 'deadlineLastRunOn'>,
 ) {
+  if (input.automaticDeadlineReminders)
+    throw new HttpError(
+      409,
+      'MAIL_KIND_UNAVAILABLE',
+      'Automatische Fristenmails sind noch nicht eingerichtet.',
+    );
   return financialOperation(db, a, key, 'mail:settings', input, 'users:manage', async (tx) => {
     await tx
       .insert(s.mailSettings)
@@ -54,11 +78,11 @@ export function updateMailSettings(
       'automaticFeeReminders',
       'reminderIntervalDays',
     ]);
-    return { ...input, lastRunOn: null };
+    return { ...input, lastRunOn: null, deadlineLastRunOn: null };
   });
 }
 
-type Candidate = MailPreviewItem & { dedupeKey: string };
+type Candidate = MailPreviewItem & { personId: string; userId: null; dedupeKey: string };
 const digest = (value: unknown) => createHash('sha256').update(canonicalJson(value)).digest('hex');
 async function candidates(
   db: Executor,
@@ -67,6 +91,7 @@ async function candidates(
   config: Config,
   only?: { sourceId: string; personId: string },
 ) {
+  supportedMailRequest(request);
   const [organization] = await db.select().from(s.organizations).where(eq(s.organizations.id, org));
   if (!organization) throw new HttpError(404, 'NOT_FOUND', 'Organisation nicht gefunden.');
   const people = await db
@@ -87,7 +112,7 @@ async function candidates(
         only ? eq(s.persons.id, only.personId) : undefined,
       ),
     );
-  const skipped = { invalidEmail: 0, noAccount: 0, recentlyContacted: 0 };
+  const skipped = { invalidEmail: 0, noAccount: 0, recentlyContacted: 0, optedOut: 0 };
   const items: Candidate[] = [];
   const today = await businessDate(db, org);
   const add = (
@@ -103,6 +128,7 @@ async function candidates(
     const name = `${person.firstName} ${person.lastName}`;
     items.push({
       personId: person.id,
+      userId: null,
       sourceId,
       recipient,
       name,
@@ -209,6 +235,7 @@ async function buildPreview(
   request: MailRequest,
   config: Config,
 ): Promise<MailPreview> {
+  supportedMailRequest(request);
   const { items, skipped } = await candidates(db, org, request, config);
   const settings = await getMailSettings(db, org);
   const since = new Date(Date.now() - settings.reminderIntervalDays * 86_400_000);
@@ -293,6 +320,7 @@ async function queueItems(
   preview: MailPreview,
 ) {
   const { request } = preview;
+  supportedMailRequest(request);
   const today = await businessDate(tx, a.organizationId);
   for (const item of preview.items)
     await tx.insert(s.mailMessages).values({
@@ -318,7 +346,9 @@ async function queueItems(
 export async function listMail(db: Database, a: Access, page: number) {
   const kinds: MailKind[] = [];
   if (can(a.role, 'finance:read')) kinds.push('fee_reminder');
-  if (can(a.role, 'mail:invite')) kinds.push('event_invitation');
+  if (can(a.role, 'mail:invite')) kinds.push('event_invitation', 'newsletter');
+  if (can(a.role, 'compliance:write')) kinds.push('deadline_reminder');
+  if (can(a.role, 'users:manage')) kinds.push('account_invitation', 'password_reset', 'test');
   if (!kinds.length) throw new HttpError(403, 'FORBIDDEN', 'Keine Berechtigung.');
   const where = and(
     eq(s.mailMessages.organizationId, a.organizationId),
@@ -340,6 +370,10 @@ export async function listMail(db: Database, a: Access, page: number) {
       subject: r.subject,
       text: r.body,
       state: r.state,
+      attempts: r.attempts,
+      resolution: r.resolution,
+      resolutionNote: r.resolutionNote,
+      resolvedAt: r.resolvedAt?.toISOString() ?? null,
       createdAt: r.createdAt.toISOString(),
       sentAt: r.sentAt?.toISOString() ?? null,
       errorCode: r.errorCode,
@@ -354,6 +388,7 @@ export async function revalidateMail(
   row: typeof s.mailMessages.$inferSelect,
   config: Config,
 ) {
+  if (!isSupportedMailKind(row.kind) || !row.personId) return false;
   const [actor] = await db
     .select({ role: s.organizationUserRoles.role })
     .from(s.organizationUserRoles)

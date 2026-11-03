@@ -5,6 +5,7 @@ import documents from './documents-de';
 import volunteers from './volunteers-de';
 import mail from './mail-de';
 import inventory from './inventory-de';
+import community from './community-de';
 export default {
   ...events,
   ...finance,
@@ -13,6 +14,7 @@ export default {
   ...volunteers,
   ...mail,
   ...inventory,
+  ...community,
   membershipNumber: 'Mitgliedsnummer',
   joinedAt: 'Eintrittsdatum',
   preferredLanguage: 'Bevorzugte Sprache',

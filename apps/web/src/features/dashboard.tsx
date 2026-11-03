@@ -41,6 +41,10 @@ export function Dashboard() {
           <h2>b*nature</h2>
           <p>{t('welcome')}</p>
           <div className="heading-actions">
+            <Link className="button button-primary" to="/community">
+              {t('commTitle')}
+              <ArrowRight size={16} />
+            </Link>
             <Link className="button button-primary" to="/profile">
               {t('profile')}
               <ArrowRight size={16} />

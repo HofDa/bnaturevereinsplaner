@@ -19,6 +19,7 @@ import { registerDocumentRoutes } from './document-routes';
 import { registerVolunteerRoutes } from './volunteers/routes';
 import { registerMailRoutes } from './mail-routes';
 import { registerInventoryRoutes } from './inventory-routes';
+import { registerCommunityRoutes } from './community-routes';
 export async function registerRoutes(
   server: FastifyInstance,
   db: Database,
@@ -42,4 +43,5 @@ export async function registerRoutes(
   registerVolunteerRoutes(context);
   registerMailRoutes(context);
   registerInventoryRoutes(context);
+  registerCommunityRoutes(context);
 }

@@ -1,5 +1,404 @@
 @import 'tailwindcss';
 @custom-variant dark (&:where(.dark, .dark *));
+.community-chat-heading,
+.community-chat-compose {
+  padding: 1.25rem;
+}
+.community-chat-heading h2 {
+  font-size: 1.1rem;
+  margin-bottom: 0.4rem;
+}
+.community-chat-heading p {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.community-chat-pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-inline: 1.25rem;
+}
+.community-chat-log {
+  max-height: 58dvh;
+  min-height: 260px;
+  overflow-y: auto;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  scroll-padding-block: 1rem;
+}
+.community-chat-message {
+  flex-shrink: 0;
+  overflow-wrap: anywhere;
+  background: var(--surface-subtle);
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  max-width: 90%;
+  align-self: flex-start;
+  min-width: 0;
+}
+.community-chat-own {
+  align-self: flex-end;
+  border-color: var(--accent);
+}
+.community-chat-message header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  align-items: center;
+  font-size: 0.8rem;
+}
+.community-chat-message time {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.community-chat-message p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-top: 0.6rem;
+  line-height: 1.65;
+}
+.community-chat-message .button {
+  scroll-margin-block: 7rem;
+  font-size: 0.7rem;
+  min-height: 36px;
+  margin-top: 0.3rem;
+  padding: 0.3rem 0.6rem;
+}
+.chat-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.6rem;
+}
+.community-chat-message .chat-reaction,
+.chat-reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 32px;
+  min-width: 32px;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.8rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.chat-reaction:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+.chat-reaction-mine {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+.chat-reaction-add {
+  justify-content: center;
+  color: var(--muted);
+}
+.chat-reaction:disabled {
+  opacity: 0.6;
+}
+.emoji-popover-root {
+  position: relative;
+  display: inline-flex;
+}
+.emoji-popover {
+  position: absolute;
+  z-index: 20;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow);
+  padding: 0.5rem;
+}
+.chat-reaction-menu {
+  bottom: calc(100% + 0.35rem);
+  left: 0;
+  display: flex;
+  gap: 0.15rem;
+}
+.community-chat-own .chat-reaction-menu {
+  left: auto;
+  right: 0;
+}
+/* The picker opens inline as a full-width row under the send controls, so it never
+   leaves the viewport on phones. `display: contents` lifts it into the flex row. */
+.community-chat-compose .emoji-popover-root {
+  display: contents;
+}
+.community-chat-compose .form-actions {
+  flex-wrap: wrap;
+}
+.emoji-picker,
+.emoji-option,
+.chat-reaction {
+  /* Clears the fixed mobile bottom nav when scrolled into view. */
+  scroll-margin-block: 7rem;
+}
+.emoji-picker {
+  position: static;
+  order: 10;
+  flex: 1 0 100%;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+.emoji-picker section + section {
+  margin-top: 0.5rem;
+}
+.emoji-picker h3 {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0.15rem 0.25rem 0.3rem;
+}
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.25rem, 1fr));
+}
+.emoji-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  border-radius: 0.5rem;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+.emoji-option:hover,
+.emoji-option[aria-pressed='true'] {
+  background: var(--accent-soft);
+}
+.community-chat-compose .emoji-trigger {
+  min-width: 42px;
+  padding-inline: 0.6rem;
+}
+.community-chat-removed {
+  font-style: italic;
+  color: var(--muted);
+}
+.community-chat-compose {
+  border-top: 1px solid var(--border);
+}
+.community-chat-compose .form-actions {
+  margin: 0;
+  align-items: center;
+}
+.community-chat-compose small {
+  color: var(--muted);
+}
+.community-tabs {
+  display: flex;
+  gap: 0.3rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+}
+.community-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  padding: 0.7rem 1rem;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+}
+.community-tabs button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.community-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.community-filters .field {
+  flex: 1 1 220px;
+  max-width: 360px;
+}
+.community-feed {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+.community-card {
+  padding: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-wrap: anywhere;
+}
+.community-card-pinned {
+  border-top: 3px solid var(--accent);
+}
+.community-card h2 {
+  font-size: 1.2rem;
+  line-height: 1.45;
+}
+.community-card h2 a:hover {
+  text-decoration: underline;
+}
+.community-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.8rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.community-pinned {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.community-excerpt {
+  color: var(--muted);
+  line-height: 1.7;
+  flex: 1;
+  white-space: pre-wrap;
+}
+.community-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.community-detail {
+  padding: 1.75rem;
+  max-width: 960px;
+}
+.community-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.8;
+  margin: 1.5rem 0;
+  font-size: 0.95rem;
+}
+.community-poll-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 1rem;
+}
+.community-ballot {
+  margin-top: 1.5rem;
+}
+.community-ballot legend {
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+.community-answer {
+  border: 1px solid var(--border);
+  padding: 1rem;
+  border-radius: 0.65rem;
+  margin: 0.8rem 0;
+  overflow-wrap: anywhere;
+}
+.community-answer-own {
+  border-color: var(--accent);
+  background: var(--surface-subtle);
+}
+.community-answer label {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 44px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+.community-answer input[type='radio'] {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+.community-answer small {
+  display: block;
+  color: var(--accent);
+  margin: 0.3rem 0;
+}
+.community-result {
+  margin-top: 0.7rem;
+}
+.community-result-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+}
+.community-result-track {
+  height: 7px;
+  border-radius: 20px;
+  background: var(--border);
+  overflow: hidden;
+}
+.community-result-track > div {
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+}
+.community-total {
+  font-weight: 600;
+  margin-top: 1rem;
+}
+.community-hint {
+  color: var(--muted);
+  line-height: 1.65;
+  font-size: 0.8rem;
+  margin: 1rem 0;
+}
+.community-language-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.community-language-fields > fieldset {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+}
+.community-language-fields legend {
+  font-weight: 600;
+  padding-inline: 0.4rem;
+}
+.community-option-editor {
+  padding-block: 0.8rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.8rem;
+}
+@media (max-width: 700px) {
+  .community-feed,
+  .community-language-fields {
+    grid-template-columns: 1fr;
+  }
+  .community-detail {
+    padding: 1.1rem;
+  }
+  .community-card {
+    padding: 1.1rem;
+  }
+  .community-filters .field {
+    max-width: none;
+  }
+}
 .mail-compose,
 .mail-outbox {
   margin-top: 1.25rem;
