@@ -32,6 +32,7 @@ import {
   SearchInput,
   Field,
   formatDate,
+  QueryView,
 } from '../../components/ui';
 import { useDebounced } from '../../hooks/use-debounced';
 import {
@@ -102,82 +103,80 @@ export function VolunteerOverview() {
     <>
       <PageHeading title={t('volunteers')} description={t('volIntro')} />
       <VolunteerNavigation />
-      {query.isPending ? (
-        <Loading />
-      ) : query.isError ? (
-        <ErrorState error={query.error} retry={() => void query.refetch()} />
-      ) : (
-        <>
-          <div className="stats-grid volunteer-stats">
-            <Stat
-              label={t('volActiveRegular')}
-              value={query.data.activeRegular}
-              icon={Users}
-              to="/volunteers/list"
-              note={t('volRegularNote')}
-            />
-            <Stat
-              label={t('volActiveOccasional')}
-              value={query.data.activeOccasional}
-              icon={UserCheck}
-              to="/volunteers/list"
-              note={t('volOccasionalNote')}
-            />
-            <Stat
-              label={t('volPlannedAssignments')}
-              value={query.data.plannedAssignments}
-              icon={CalendarClock}
-              to="/volunteers/assignments"
-            />
-            <Stat
-              label={t('volConfirmedHours')}
-              value={hoursLabel(query.data.confirmedMinutesThisYear)}
-              icon={Clock3}
-              to="/volunteers/hours"
-              note={`${t('volPendingHours')}: ${hoursLabel(query.data.pendingMinutesThisYear)}`}
-            />
-            {query.data.unclearCoverage !== null && (
+      <QueryView query={query}>
+        {(data) => (
+          <>
+            <div className="stats-grid volunteer-stats">
               <Stat
-                label={t('volUnclearCoverage')}
-                value={query.data.unclearCoverage}
-                icon={ShieldAlert}
-                to="/volunteers/insurance"
-                note={t('volCoverageNote')}
+                label={t('volActiveRegular')}
+                value={data.activeRegular}
+                icon={Users}
+                to="/volunteers/list"
+                note={t('volRegularNote')}
               />
-            )}
-            {query.data.expiringPolicies !== null && (
               <Stat
-                label={t('volExpiringPolicies')}
-                value={query.data.expiringPolicies}
-                icon={FileClock}
-                to="/volunteers/insurance"
+                label={t('volActiveOccasional')}
+                value={data.activeOccasional}
+                icon={UserCheck}
+                to="/volunteers/list"
+                note={t('volOccasionalNote')}
               />
-            )}
-            {me.permissions.includes('register:read') && (
               <Stat
-                label={t('volSnapshotStatus')}
-                value={query.data.lastSnapshot ? `#${query.data.lastSnapshot.snapshotNumber}` : '—'}
-                icon={FileClock}
-                to="/volunteers/register"
-                note={
-                  query.data.lastSnapshot
-                    ? `${t(`snapshot_${query.data.lastSnapshot.status}`)} · ${formatDate(query.data.lastSnapshot.cutoffDate, i18n.language)}${query.data.snapshotDue ? ` · ${t('volSnapshotDue')}` : ''}`
-                    : t('volSnapshotNone')
-                }
+                label={t('volPlannedAssignments')}
+                value={data.plannedAssignments}
+                icon={CalendarClock}
+                to="/volunteers/assignments"
               />
-            )}
-            {query.data.openLegalDeadlines !== null && (
               <Stat
-                label={t('volOpenLegalDeadlines')}
-                value={query.data.openLegalDeadlines}
-                icon={Scale}
-                to="/compliance"
+                label={t('volConfirmedHours')}
+                value={hoursLabel(data.confirmedMinutesThisYear)}
+                icon={Clock3}
+                to="/volunteers/hours"
+                note={`${t('volPendingHours')}: ${hoursLabel(data.pendingMinutesThisYear)}`}
               />
-            )}
-          </div>
-          <Notice>{t('volLegalNotice')}</Notice>
-        </>
-      )}
+              {data.unclearCoverage !== null && (
+                <Stat
+                  label={t('volUnclearCoverage')}
+                  value={data.unclearCoverage}
+                  icon={ShieldAlert}
+                  to="/volunteers/insurance"
+                  note={t('volCoverageNote')}
+                />
+              )}
+              {data.expiringPolicies !== null && (
+                <Stat
+                  label={t('volExpiringPolicies')}
+                  value={data.expiringPolicies}
+                  icon={FileClock}
+                  to="/volunteers/insurance"
+                />
+              )}
+              {me.permissions.includes('register:read') && (
+                <Stat
+                  label={t('volSnapshotStatus')}
+                  value={data.lastSnapshot ? `#${data.lastSnapshot.snapshotNumber}` : '—'}
+                  icon={FileClock}
+                  to="/volunteers/register"
+                  note={
+                    data.lastSnapshot
+                      ? `${t(`snapshot_${data.lastSnapshot.status}`)} · ${formatDate(data.lastSnapshot.cutoffDate, i18n.language)}${data.snapshotDue ? ` · ${t('volSnapshotDue')}` : ''}`
+                      : t('volSnapshotNone')
+                  }
+                />
+              )}
+              {data.openLegalDeadlines !== null && (
+                <Stat
+                  label={t('volOpenLegalDeadlines')}
+                  value={data.openLegalDeadlines}
+                  icon={Scale}
+                  to="/compliance"
+                />
+              )}
+            </div>
+            <Notice>{t('volLegalNotice')}</Notice>
+          </>
+        )}
+      </QueryView>
     </>
   );
 }
@@ -404,67 +403,67 @@ export function VolunteerList() {
             ),
           ])}
         </div>
-        {query.isPending ? (
-          <Loading />
-        ) : query.isError ? (
-          <ErrorState error={query.error} retry={() => void query.refetch()} />
-        ) : query.data.items.length ? (
-          <>
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>{t('name')}</th>
-                    <th>{t('volType')}</th>
-                    <th>{t('status')}</th>
-                    <th>{t('volFocusAreas')}</th>
-                    <th>{t('volRegisterState')}</th>
-                    <th>{t('volInsuranceStatus')}</th>
-                    <th>{t('volConfirmedHours')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {query.data.items.map((v) => (
-                    <tr key={v.id}>
-                      <td>
-                        <Link className="finance-name-link" to={`/volunteers/${v.id}`}>
-                          <strong>
-                            {v.firstName} {v.lastName}
-                          </strong>
-                          <small>
-                            {formatDate(v.startedOn, i18n.language)}
-                            {v.endedOn ? ` – ${formatDate(v.endedOn, i18n.language)}` : ''}
-                            {v.isMember ? ` · ${t('volIsMember')}` : ''}
-                          </small>
-                        </Link>
-                      </td>
-                      <td>{t(`vol_${v.volunteerType}`)}</td>
-                      <td>
-                        <StatusTag prefix="engagement" value={v.status} />
-                      </td>
-                      <td>{v.focusAreas.join(', ') || '—'}</td>
-                      <td>
-                        <StatusTag prefix="registerState" value={v.registerState} />
-                      </td>
-                      <td>
-                        <CoverageBadge status={v.coverageStatus} />
-                      </td>
-                      <td className="numeric">{hoursLabel(v.confirmedMinutes)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Pagination
-              page={page}
-              pageSize={query.data.pageSize}
-              total={query.data.total}
-              onChange={setPage}
-            />
-          </>
-        ) : (
-          <Empty description={t('volEmpty')} />
-        )}
+        <QueryView query={query}>
+          {(data) =>
+            data.items.length ? (
+              <>
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>{t('name')}</th>
+                        <th>{t('volType')}</th>
+                        <th>{t('status')}</th>
+                        <th>{t('volFocusAreas')}</th>
+                        <th>{t('volRegisterState')}</th>
+                        <th>{t('volInsuranceStatus')}</th>
+                        <th>{t('volConfirmedHours')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.items.map((v) => (
+                        <tr key={v.id}>
+                          <td>
+                            <Link className="finance-name-link" to={`/volunteers/${v.id}`}>
+                              <strong>
+                                {v.firstName} {v.lastName}
+                              </strong>
+                              <small>
+                                {formatDate(v.startedOn, i18n.language)}
+                                {v.endedOn ? ` – ${formatDate(v.endedOn, i18n.language)}` : ''}
+                                {v.isMember ? ` · ${t('volIsMember')}` : ''}
+                              </small>
+                            </Link>
+                          </td>
+                          <td>{t(`vol_${v.volunteerType}`)}</td>
+                          <td>
+                            <StatusTag prefix="engagement" value={v.status} />
+                          </td>
+                          <td>{v.focusAreas.join(', ') || '—'}</td>
+                          <td>
+                            <StatusTag prefix="registerState" value={v.registerState} />
+                          </td>
+                          <td>
+                            <CoverageBadge status={v.coverageStatus} />
+                          </td>
+                          <td className="numeric">{hoursLabel(v.confirmedMinutes)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Pagination
+                  page={page}
+                  pageSize={data.pageSize}
+                  total={data.total}
+                  onChange={setPage}
+                />
+              </>
+            ) : (
+              <Empty description={t('volEmpty')} />
+            )
+          }
+        </QueryView>
       </section>
       {creating && <RegisterVolunteer onClose={() => setCreating(false)} />}
     </>

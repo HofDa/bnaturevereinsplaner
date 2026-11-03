@@ -24,6 +24,9 @@ const ScheduleDetailPage = lazy(() =>
     default: module.ScheduleDetailPage,
   })),
 );
+const Reports = lazy(() =>
+  import('../features/reports').then((module) => ({ default: module.Reports })),
+);
 const Members = lazy(() =>
   import('../features/members').then((module) => ({ default: module.Members })),
 );

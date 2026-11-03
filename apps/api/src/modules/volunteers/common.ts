@@ -140,9 +140,18 @@ export async function coverageFor(
   date?: string,
 ) {
   date ??= await businessDate(db, organizationId);
-  const ids = engagements.map((e) => e.id);
   const result = new Map<string, ReturnType<typeof assessCoverage>>();
-  if (!ids.length) return result;
+  if (!engagements.length) return result;
+  const assess = await coverageAssessor(
+    db,
+    organizationId,
+    engagements.map((e) => e.id),
+  );
+  for (const engagement of engagements) result.set(engagement.id, assess(engagement, date));
+  return result;
+}
+// Loads coverage data for many engagements at once; the result assesses any of them on any date.
+export async function coverageAssessor(db: Executor, organizationId: string, ids: string[]) {
   const rows = await db
     .select({
       engagementId: s.insuranceCoverages.engagementId,
@@ -184,31 +193,26 @@ export async function coverageFor(
       ),
     )
     .groupBy(s.volunteerRegisterEntries.engagementId);
-  for (const engagement of engagements)
-    result.set(
-      engagement.id,
-      assessCoverage({
-        date,
-        engagement,
-        registeredOn:
-          admissions.find((x) => x.engagementId === engagement.id)?.effectiveDate ?? null,
-        coverages: rows
-          .filter((r) => r.engagementId === engagement.id)
-          .map((r) => ({
-            coveredFrom: r.coveredFrom,
-            coveredTo: r.coveredTo,
-            notified: r.notified,
-            policy: {
-              status: r.status,
-              startsOn: r.startsOn,
-              endsOn: r.endsOn,
-              coverageTypes: r.coverageTypes as InsuranceType[],
-              hasDocument: r.hasDocument,
-            },
-          })),
-      }),
-    );
-  return result;
+  return (engagement: EngagementLike, date: string) =>
+    assessCoverage({
+      date,
+      engagement,
+      registeredOn: admissions.find((x) => x.engagementId === engagement.id)?.effectiveDate ?? null,
+      coverages: rows
+        .filter((r) => r.engagementId === engagement.id)
+        .map((r) => ({
+          coveredFrom: r.coveredFrom,
+          coveredTo: r.coveredTo,
+          notified: r.notified,
+          policy: {
+            status: r.status,
+            startsOn: r.startsOn,
+            endsOn: r.endsOn,
+            coverageTypes: r.coverageTypes as InsuranceType[],
+            hasDocument: r.hasDocument,
+          },
+        })),
+    });
 }
 export async function engagementHistory(
   tx: Transaction,

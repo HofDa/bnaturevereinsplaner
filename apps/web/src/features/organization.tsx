@@ -1,3 +1,4 @@
+import { QueryView } from '../components/ui';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -44,19 +45,15 @@ export function OrganizationPage() {
   return (
     <>
       <PageHeading title={t('organization')} description={t('organizationIntro')} />
-      {query.isPending ? (
-        <Loading />
-      ) : query.isError ? (
-        <ErrorState error={query.error} />
-      ) : (
+      {<QueryView query={query}>{(queryData) => ((
         <section className="panel form-panel">
           {saved && <Notice>{t('saved')}</Notice>}
           {me.permissions.includes('organization:write') ? (
             <DataForm
-              key={query.data.id + query.data.name}
+              key={queryData.id + queryData.name}
               schema={organizationSchema}
               fields={fields}
-              defaults={query.data}
+              defaults={queryData}
               onSubmit={async (data) => {
                 await api(`/organizations/${me.activeOrganizationId}`, {
                   method: 'PATCH',
@@ -71,13 +68,13 @@ export function OrganizationPage() {
               {fields.map((field) => (
                 <div key={field.name}>
                   <dt>{t(field.label ?? field.name)}</dt>
-                  <dd>{String(query.data[field.name as keyof Organization] || '—')}</dd>
+                  <dd>{String(queryData[field.name as keyof Organization] || '—')}</dd>
                 </div>
               ))}
             </dl>
           )}
         </section>
-      )}
+      ))}</QueryView>}
       <MemberFieldSettings />
     </>
   );

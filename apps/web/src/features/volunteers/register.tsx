@@ -9,12 +9,11 @@ import { useSession } from '../../app/session';
 import {
   Button,
   Empty,
-  ErrorState,
   Field,
-  Loading,
   Notice,
   PageHeading,
   formatDate,
+  QueryView,
 } from '../../components/ui';
 import {
   FormModal,
@@ -161,136 +160,140 @@ function Snapshots() {
             ` · ${validation.invalid.map((i) => `${i.name}: ${i.issues.map((x) => t(x)).join(' ')}`).join('; ')}`}
         </Notice>
       )}
-      {snapshots.isPending ? (
-        <Loading />
-      ) : snapshots.isError ? (
-        <ErrorState error={snapshots.error} />
-      ) : snapshots.data.items.length ? (
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>{t('regSnapshot')}</th>
-                <th>{t('regCounts')}</th>
-                <th>SHA-256</th>
-                <th>{t('status')}</th>
-                <th>{t('actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {snapshots.data.items.map((s) => (
-                <tr key={s.id}>
-                  <td>
-                    <strong>#{s.snapshotNumber}</strong> · {formatDate(s.cutoffDate, i18n.language)}
-                    <small className="cell-note">
-                      {dateTime(s.createdAt, i18n.language)} · {s.createdByName ?? '—'}
-                    </small>
-                  </td>
-                  <td>
-                    {s.mainCount} / {s.occasionalCount}
-                  </td>
-                  <td>
-                    <code title={s.sha256}>{s.sha256.slice(0, 16)}…</code>
-                    {s.previousSha256 && (
-                      <small className="cell-note">← {s.previousSha256.slice(0, 10)}…</small>
-                    )}
-                  </td>
-                  <td>
-                    <SnapshotStatus snapshot={s} />
-                    {s.status !== 'signature_pending' && s.technicalChecks.signed !== undefined && (
-                      <small className="cell-note">
-                        {t('regTechnicalCheck')}:{' '}
-                        {(s.technicalChecks.signed as { preservesSnapshot?: boolean })
-                          .preservesSnapshot
-                          ? t('regContentMatches')
-                          : t('regContentMismatch')}
-                      </small>
-                    )}
-                    <small className="cell-note">
-                      {t(s.legallyApproved ? 'regProcedureApproved' : 'regProcedureNotApproved')}
-                    </small>
-                  </td>
-                  <td className="row-actions">
-                    {can('evidence:download') && (
-                      <>
-                        <Button variant="ghost" onClick={() => file(s, 'snapshot')}>
-                          <Download size={15} /> PDF
-                        </Button>
-                        {s.signedDocumentId && (
-                          <Button variant="ghost" onClick={() => file(s, 'signed')}>
-                            <Download size={15} /> {t('regSigned')}
-                          </Button>
+      <QueryView query={snapshots}>
+        {(data) =>
+          data.items.length ? (
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>{t('regSnapshot')}</th>
+                    <th>{t('regCounts')}</th>
+                    <th>SHA-256</th>
+                    <th>{t('status')}</th>
+                    <th>{t('actions')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.items.map((s) => (
+                    <tr key={s.id}>
+                      <td>
+                        <strong>#{s.snapshotNumber}</strong> ·{' '}
+                        {formatDate(s.cutoffDate, i18n.language)}
+                        <small className="cell-note">
+                          {dateTime(s.createdAt, i18n.language)} · {s.createdByName ?? '—'}
+                        </small>
+                      </td>
+                      <td>
+                        {s.mainCount} / {s.occasionalCount}
+                      </td>
+                      <td>
+                        <code title={s.sha256}>{s.sha256.slice(0, 16)}…</code>
+                        {s.previousSha256 && (
+                          <small className="cell-note">← {s.previousSha256.slice(0, 10)}…</small>
                         )}
-                        {s.timestampDocumentId && (
-                          <Button variant="ghost" onClick={() => file(s, 'timestamp')}>
-                            <Download size={15} /> {t('regTimestamp')}
-                          </Button>
+                      </td>
+                      <td>
+                        <SnapshotStatus snapshot={s} />
+                        {s.status !== 'signature_pending' &&
+                          s.technicalChecks.signed !== undefined && (
+                            <small className="cell-note">
+                              {t('regTechnicalCheck')}:{' '}
+                              {(s.technicalChecks.signed as { preservesSnapshot?: boolean })
+                                .preservesSnapshot
+                                ? t('regContentMatches')
+                                : t('regContentMismatch')}
+                            </small>
+                          )}
+                        <small className="cell-note">
+                          {t(
+                            s.legallyApproved ? 'regProcedureApproved' : 'regProcedureNotApproved',
+                          )}
+                        </small>
+                      </td>
+                      <td className="row-actions">
+                        {can('evidence:download') && (
+                          <>
+                            <Button variant="ghost" onClick={() => file(s, 'snapshot')}>
+                              <Download size={15} /> PDF
+                            </Button>
+                            {s.signedDocumentId && (
+                              <Button variant="ghost" onClick={() => file(s, 'signed')}>
+                                <Download size={15} /> {t('regSigned')}
+                              </Button>
+                            )}
+                            {s.timestampDocumentId && (
+                              <Button variant="ghost" onClick={() => file(s, 'timestamp')}>
+                                <Download size={15} /> {t('regTimestamp')}
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              onClick={() =>
+                                void api<{ reproducible: boolean; archivedFileIntact: boolean }>(
+                                  `/register-snapshots/${s.id}/integrity`,
+                                ).then(
+                                  (r) =>
+                                    setMessage(
+                                      t(
+                                        r.reproducible && r.archivedFileIntact
+                                          ? 'regIntegrityOk'
+                                          : 'regIntegrityFailed',
+                                        { number: s.snapshotNumber },
+                                      ),
+                                    ),
+                                  fail,
+                                )
+                              }
+                            >
+                              <ShieldCheck size={15} /> {t('regIntegrity')}
+                            </Button>
+                          </>
                         )}
-                        <Button
-                          variant="ghost"
-                          onClick={() =>
-                            void api<{ reproducible: boolean; archivedFileIntact: boolean }>(
-                              `/register-snapshots/${s.id}/integrity`,
-                            ).then(
-                              (r) =>
-                                setMessage(
-                                  t(
-                                    r.reproducible && r.archivedFileIntact
-                                      ? 'regIntegrityOk'
-                                      : 'regIntegrityFailed',
-                                    { number: s.snapshotNumber },
-                                  ),
-                                ),
-                              fail,
-                            )
-                          }
-                        >
-                          <ShieldCheck size={15} /> {t('regIntegrity')}
-                        </Button>
-                      </>
-                    )}
-                    {can('register:finalize') && s.status !== 'verified' && (
-                      <>
-                        {(!s.signedDocumentId || s.status === 'verification_failed') && (
-                          <label className="button button-ghost file-button">
-                            {t('regImportSigned')}
-                            <input
-                              type="file"
-                              accept=".pdf,.p7m,application/pdf,application/pkcs7-mime"
-                              onChange={(e) => {
-                                importFile(s, 'signed', e.target.files?.[0]);
-                                e.target.value = '';
-                              }}
-                            />
-                          </label>
+                        {can('register:finalize') && s.status !== 'verified' && (
+                          <>
+                            {(!s.signedDocumentId || s.status === 'verification_failed') && (
+                              <label className="button button-ghost file-button">
+                                {t('regImportSigned')}
+                                <input
+                                  type="file"
+                                  accept=".pdf,.p7m,application/pdf,application/pkcs7-mime"
+                                  onChange={(e) => {
+                                    importFile(s, 'signed', e.target.files?.[0]);
+                                    e.target.value = '';
+                                  }}
+                                />
+                              </label>
+                            )}
+                            <label className="button button-ghost file-button">
+                              {t('regImportTimestamp')}
+                              <input
+                                type="file"
+                                accept=".tsr,.tsd,.p7m"
+                                onChange={(e) => {
+                                  importFile(s, 'timestamp', e.target.files?.[0]);
+                                  e.target.value = '';
+                                }}
+                              />
+                            </label>
+                            {s.status === 'signature_imported' && (
+                              <Button variant="ghost" onClick={() => setVerifying(s)}>
+                                {t('regRecordVerification')}
+                              </Button>
+                            )}
+                          </>
                         )}
-                        <label className="button button-ghost file-button">
-                          {t('regImportTimestamp')}
-                          <input
-                            type="file"
-                            accept=".tsr,.tsd,.p7m"
-                            onChange={(e) => {
-                              importFile(s, 'timestamp', e.target.files?.[0]);
-                              e.target.value = '';
-                            }}
-                          />
-                        </label>
-                        {s.status === 'signature_imported' && (
-                          <Button variant="ghost" onClick={() => setVerifying(s)}>
-                            {t('regRecordVerification')}
-                          </Button>
-                        )}
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <Empty description={t('regNoSnapshots')} />
-      )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <Empty description={t('regNoSnapshots')} />
+          )
+        }
+      </QueryView>
       <p className="form-hint">{t('regSignatureNotice')}</p>
       {verifying && (
         <FormModal
@@ -493,128 +496,133 @@ export function VolunteerRegister() {
             </button>
           ))}
         </div>
-        {view.isPending ? (
-          <Loading />
-        ) : view.isError ? (
-          <ErrorState error={view.error} />
-        ) : (
-          <div className="register-body">
-            {chain.data?.[section] && (
-              <p className={`chain-state ${chain.data[section]!.valid ? 'ok' : 'broken'}`}>
-                <ShieldCheck size={16} />{' '}
-                {t(chain.data[section]!.valid ? 'regChainValid' : 'regChainBroken', {
-                  count: chain.data[section]!.entries,
-                })}
-              </p>
-            )}
-            {view.data.pending.length > 0 && (
-              <>
-                <h3>{t('regPending')}</h3>
-                <ul className="pending-list">
-                  {view.data.pending.map((p) => (
-                    <li key={`${p.engagementId}${p.action}`}>
-                      <span>
-                        <strong>{p.name}</strong> · {t(`regAction_${p.action}`)}
-                        {p.issues.length > 0 && (
-                          <small className="cell-note error-text">
-                            {p.issues.map((i) => t(i)).join(' ')}
-                          </small>
+        <QueryView query={view}>
+          {(viewData) => (
+            <div className="register-body">
+              {chain.data?.[section] && (
+                <p className={`chain-state ${chain.data[section]!.valid ? 'ok' : 'broken'}`}>
+                  <ShieldCheck size={16} />{' '}
+                  {t(chain.data[section]!.valid ? 'regChainValid' : 'regChainBroken', {
+                    count: chain.data[section]!.entries,
+                  })}
+                </p>
+              )}
+              {viewData.pending.length > 0 && (
+                <>
+                  <h3>{t('regPending')}</h3>
+                  <ul className="pending-list">
+                    {viewData.pending.map((p) => (
+                      <li key={`${p.engagementId}${p.action}`}>
+                        <span>
+                          <strong>{p.name}</strong> · {t(`regAction_${p.action}`)}
+                          {p.issues.length > 0 && (
+                            <small className="cell-note error-text">
+                              {p.issues.map((i) => t(i)).join(' ')}
+                            </small>
+                          )}
+                        </span>
+                        {can('register:write') && (
+                          <Button
+                            variant="secondary"
+                            disabled={p.issues.length > 0}
+                            onClick={() =>
+                              p.action === 'correction' ? setCorrecting(p) : record(p)
+                            }
+                          >
+                            {t('regRecord')}
+                          </Button>
                         )}
-                      </span>
-                      {can('register:write') && (
-                        <Button
-                          variant="secondary"
-                          disabled={p.issues.length > 0}
-                          onClick={() => (p.action === 'correction' ? setCorrecting(p) : record(p))}
-                        >
-                          {t('regRecord')}
-                        </Button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-            <h3>{t('regCurrent', { count: view.data.current.length })}</h3>
-            {view.data.current.length ? (
-              // Read-only tables scroll on small screens and must be reachable by keyboard.
-              <div
-                className="table-scroll"
-                tabIndex={0}
-                role="region"
-                aria-label={t('regCurrent', { count: view.data.current.length })}
-              >
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Nr.</th>
-                      <th>{t('name')}</th>
-                      <th>{t('volResidence')}</th>
-                      <th>{t('volStartedOn')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {view.data.current.map((c) => (
-                      <tr key={c.engagementId}>
-                        <td className="numeric">{c.entryNumber}</td>
-                        <td>{person(c.data)}</td>
-                        <td>
-                          {[c.data.street, c.data.postalCode, c.data.city]
-                            .filter(Boolean)
-                            .join(', ') || c.data.domicile}
-                        </td>
-                        <td>{formatDate(c.data.startedOn, i18n.language)}</td>
-                      </tr>
+                      </li>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <Empty description={t('regEmpty')} />
-            )}
-            <h3>{t('regEntries')}</h3>
-            {view.data.entries.length ? (
-              <div className="table-scroll" tabIndex={0} role="region" aria-label={t('regEntries')}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Nr.</th>
-                      <th>{t('regEntryType')}</th>
-                      <th>{t('regEffective')}</th>
-                      <th>{t('name')}</th>
-                      <th>{t('regRecordedBy')}</th>
-                      <th>Hash</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {view.data.entries.map((e) => (
-                      <tr key={e.id}>
-                        <td className="numeric">{e.entryNumber}</td>
-                        <td>
-                          {t(`regAction_${e.entryType}`)}
-                          {e.reason && <small className="cell-note">{e.reason}</small>}
-                        </td>
-                        <td>{formatDate(e.effectiveDate, i18n.language)}</td>
-                        <td>{person(e.data)}</td>
-                        <td>
-                          {e.recordedByName ?? '—'}
-                          <small className="cell-note">
-                            {dateTime(e.recordedAt, i18n.language)}
-                          </small>
-                        </td>
-                        <td>
-                          <code title={e.entryHash}>{e.entryHash.slice(0, 10)}…</code>
-                        </td>
+                  </ul>
+                </>
+              )}
+              <h3>{t('regCurrent', { count: viewData.current.length })}</h3>
+              {viewData.current.length ? (
+                // Read-only tables scroll on small screens and must be reachable by keyboard.
+                <div
+                  className="table-scroll"
+                  tabIndex={0}
+                  role="region"
+                  aria-label={t('regCurrent', { count: viewData.current.length })}
+                >
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Nr.</th>
+                        <th>{t('name')}</th>
+                        <th>{t('volResidence')}</th>
+                        <th>{t('volStartedOn')}</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <Empty description={t('regNoEntries')} />
-            )}
-          </div>
-        )}
+                    </thead>
+                    <tbody>
+                      {viewData.current.map((c) => (
+                        <tr key={c.engagementId}>
+                          <td className="numeric">{c.entryNumber}</td>
+                          <td>{person(c.data)}</td>
+                          <td>
+                            {[c.data.street, c.data.postalCode, c.data.city]
+                              .filter(Boolean)
+                              .join(', ') || c.data.domicile}
+                          </td>
+                          <td>{formatDate(c.data.startedOn, i18n.language)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <Empty description={t('regEmpty')} />
+              )}
+              <h3>{t('regEntries')}</h3>
+              {viewData.entries.length ? (
+                <div
+                  className="table-scroll"
+                  tabIndex={0}
+                  role="region"
+                  aria-label={t('regEntries')}
+                >
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Nr.</th>
+                        <th>{t('regEntryType')}</th>
+                        <th>{t('regEffective')}</th>
+                        <th>{t('name')}</th>
+                        <th>{t('regRecordedBy')}</th>
+                        <th>Hash</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {viewData.entries.map((e) => (
+                        <tr key={e.id}>
+                          <td className="numeric">{e.entryNumber}</td>
+                          <td>
+                            {t(`regAction_${e.entryType}`)}
+                            {e.reason && <small className="cell-note">{e.reason}</small>}
+                          </td>
+                          <td>{formatDate(e.effectiveDate, i18n.language)}</td>
+                          <td>{person(e.data)}</td>
+                          <td>
+                            {e.recordedByName ?? '—'}
+                            <small className="cell-note">
+                              {dateTime(e.recordedAt, i18n.language)}
+                            </small>
+                          </td>
+                          <td>
+                            <code title={e.entryHash}>{e.entryHash.slice(0, 10)}…</code>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <Empty description={t('regNoEntries')} />
+              )}
+            </div>
+          )}
+        </QueryView>
       </section>
       <Snapshots />
       {correcting && (

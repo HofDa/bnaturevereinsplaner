@@ -9,14 +9,13 @@ import { useSession } from '../app/session';
 import {
   Button,
   Empty,
-  ErrorState,
   Field,
-  Loading,
   Modal,
   Notice,
   PageHeading,
   Pagination,
   formatDate,
+  QueryView,
 } from '../components/ui';
 import {
   FormModal,
@@ -296,83 +295,83 @@ function Rules() {
         )}
       </div>
       {error && <Notice error>{error}</Notice>}
-      {rules.isPending ? (
-        <Loading />
-      ) : rules.isError ? (
-        <ErrorState error={rules.error} />
-      ) : rules.data.items.length ? (
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>{t('cmpRule')}</th>
-                <th>{t('cmpKind')}</th>
-                <th>{t('cmpCalculation')}</th>
-                <th>{t('cmpLegalBasis')}</th>
-                <th>{t('cmpValidity')}</th>
-                {can('compliance:write') && <th>{t('actions')}</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {rules.data.items.map((r) => (
-                <tr key={r.id} className={r.validTo ? 'row-muted' : ''}>
-                  <td>
-                    <strong>{r.titleI18n[language]}</strong>
-                    <small className="cell-note">
-                      {r.ruleKey} · v{r.version}
-                      {r.reviewNote && ` · ${t('cmpReviewRequired')}`}
-                    </small>
-                  </td>
-                  <td>
-                    <KindBadge kind={r.kind} />
-                  </td>
-                  <td>{calc(r)}</td>
-                  <td>
-                    {r.legalBasis || '—'}
-                    {r.sourceUrl && (
-                      <small className="cell-note">
-                        <a href={r.sourceUrl} target="_blank" rel="noreferrer noopener">
-                          {t('cmpOfficialSource')}
-                        </a>
-                      </small>
-                    )}
-                  </td>
-                  <td>
-                    {formatDate(r.validFrom, i18n.language)} –{' '}
-                    {r.validTo ? formatDate(r.validTo, i18n.language) : t('ongoing')}
-                    {!r.active && <small className="cell-note">{t('inactive')}</small>}
-                  </td>
-                  {can('compliance:write') && (
-                    <td className="row-actions">
-                      {!r.validTo && (
-                        <>
-                          <Button variant="ghost" onClick={() => setVersioning(r)}>
-                            {t('cmpNewVersion')}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            onClick={() =>
-                              void write(
-                                `/compliance-rules/${r.id}`,
-                                { active: !r.active, reviewNote: r.reviewNote },
-                                'PATCH',
-                              ).then(refresh, (e) => setError(errorMessage(e)))
-                            }
-                          >
-                            {t(r.active ? 'cmpDeactivate' : 'cmpActivate')}
-                          </Button>
-                        </>
+      <QueryView query={rules}>
+        {(data) =>
+          data.items.length ? (
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>{t('cmpRule')}</th>
+                    <th>{t('cmpKind')}</th>
+                    <th>{t('cmpCalculation')}</th>
+                    <th>{t('cmpLegalBasis')}</th>
+                    <th>{t('cmpValidity')}</th>
+                    {can('compliance:write') && <th>{t('actions')}</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.items.map((r) => (
+                    <tr key={r.id} className={r.validTo ? 'row-muted' : ''}>
+                      <td>
+                        <strong>{r.titleI18n[language]}</strong>
+                        <small className="cell-note">
+                          {r.ruleKey} · v{r.version}
+                          {r.reviewNote && ` · ${t('cmpReviewRequired')}`}
+                        </small>
+                      </td>
+                      <td>
+                        <KindBadge kind={r.kind} />
+                      </td>
+                      <td>{calc(r)}</td>
+                      <td>
+                        {r.legalBasis || '—'}
+                        {r.sourceUrl && (
+                          <small className="cell-note">
+                            <a href={r.sourceUrl} target="_blank" rel="noreferrer noopener">
+                              {t('cmpOfficialSource')}
+                            </a>
+                          </small>
+                        )}
+                      </td>
+                      <td>
+                        {formatDate(r.validFrom, i18n.language)} –{' '}
+                        {r.validTo ? formatDate(r.validTo, i18n.language) : t('ongoing')}
+                        {!r.active && <small className="cell-note">{t('inactive')}</small>}
+                      </td>
+                      {can('compliance:write') && (
+                        <td className="row-actions">
+                          {!r.validTo && (
+                            <>
+                              <Button variant="ghost" onClick={() => setVersioning(r)}>
+                                {t('cmpNewVersion')}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                onClick={() =>
+                                  void write(
+                                    `/compliance-rules/${r.id}`,
+                                    { active: !r.active, reviewNote: r.reviewNote },
+                                    'PATCH',
+                                  ).then(refresh, (e) => setError(errorMessage(e)))
+                                }
+                              >
+                                {t(r.active ? 'cmpDeactivate' : 'cmpActivate')}
+                              </Button>
+                            </>
+                          )}
+                        </td>
                       )}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <Empty description={t('cmpNoRules')} />
-      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <Empty description={t('cmpNoRules')} />
+          )
+        }
+      </QueryView>
       {versioning && (
         <FormModal
           wide
@@ -643,76 +642,78 @@ export function Compliance() {
                 </select>
               </Field>
             </div>
-            {query.isPending ? (
-              <Loading />
-            ) : query.isError ? (
-              <ErrorState error={query.error} retry={() => void query.refetch()} />
-            ) : query.data.items.length ? (
-              <>
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>{t('cmpDue')}</th>
-                        <th>{t('cmpObligation')}</th>
-                        <th>{t('cmpKind')}</th>
-                        <th>{t('cmpResponsible')}</th>
-                        <th>{t('status')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {query.data.items.map((d) => (
-                        <tr key={d.id} className={d.overdue ? 'row-warning' : ''}>
-                          <td>
-                            {formatDate(d.dueDate, i18n.language)}
-                            {d.overdue && (
-                              <small className="cell-note error-text">{t('cmpOverdue')}</small>
-                            )}
-                            {d.nextReminder && (
-                              <small className="cell-note">
-                                {t('cmpNextReminder')}: {formatDate(d.nextReminder, i18n.language)}
-                              </small>
-                            )}
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              className="finance-name-link"
-                              onClick={() => setOpen(d)}
-                            >
-                              <strong>{d.titleI18n[language]}</strong>
-                              <small>{d.sourceLabel || d.legalBasis}</small>
-                            </button>
-                          </td>
-                          <td>
-                            <KindBadge kind={d.kind} />
-                          </td>
-                          <td>
-                            {d.responsibleName ?? (d.responsibleRole ? t(d.responsibleRole) : '—')}
-                          </td>
-                          <td>
-                            <StatusTag prefix="deadline" value={d.status} />
-                            {d.evidence.length > 0 && (
-                              <small className="cell-note">
-                                {t('cmpEvidenceCount', { count: d.evidence.length })}
-                              </small>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <Pagination
-                  page={page}
-                  pageSize={query.data.pageSize}
-                  total={query.data.total}
-                  onChange={setPage}
-                />
-              </>
-            ) : (
-              <Empty description={t('cmpEmpty')} />
-            )}
+            <QueryView query={query}>
+              {(data) =>
+                data.items.length ? (
+                  <>
+                    <div className="table-scroll">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>{t('cmpDue')}</th>
+                            <th>{t('cmpObligation')}</th>
+                            <th>{t('cmpKind')}</th>
+                            <th>{t('cmpResponsible')}</th>
+                            <th>{t('status')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {data.items.map((d) => (
+                            <tr key={d.id} className={d.overdue ? 'row-warning' : ''}>
+                              <td>
+                                {formatDate(d.dueDate, i18n.language)}
+                                {d.overdue && (
+                                  <small className="cell-note error-text">{t('cmpOverdue')}</small>
+                                )}
+                                {d.nextReminder && (
+                                  <small className="cell-note">
+                                    {t('cmpNextReminder')}:{' '}
+                                    {formatDate(d.nextReminder, i18n.language)}
+                                  </small>
+                                )}
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="finance-name-link"
+                                  onClick={() => setOpen(d)}
+                                >
+                                  <strong>{d.titleI18n[language]}</strong>
+                                  <small>{d.sourceLabel || d.legalBasis}</small>
+                                </button>
+                              </td>
+                              <td>
+                                <KindBadge kind={d.kind} />
+                              </td>
+                              <td>
+                                {d.responsibleName ??
+                                  (d.responsibleRole ? t(d.responsibleRole) : '—')}
+                              </td>
+                              <td>
+                                <StatusTag prefix="deadline" value={d.status} />
+                                {d.evidence.length > 0 && (
+                                  <small className="cell-note">
+                                    {t('cmpEvidenceCount', { count: d.evidence.length })}
+                                  </small>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <Pagination
+                      page={page}
+                      pageSize={data.pageSize}
+                      total={data.total}
+                      onChange={setPage}
+                    />
+                  </>
+                ) : (
+                  <Empty description={t('cmpEmpty')} />
+                )
+              }
+            </QueryView>
           </>
         )}
       </section>

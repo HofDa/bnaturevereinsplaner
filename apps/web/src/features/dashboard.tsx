@@ -1,3 +1,4 @@
+import { QueryView } from '../components/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
@@ -85,35 +86,31 @@ export function Dashboard() {
           )
         }
       />
-      {query.isPending ? (
-        <Loading />
-      ) : query.isError ? (
-        <ErrorState error={query.error} retry={() => void query.refetch()} />
-      ) : (
+      {<QueryView query={query}>{(queryData) => ((
         <>
           <section className="stats-grid" aria-label={t('overview')}>
             {[
               {
                 title: 'activeMembers',
-                value: query.data.activeMembers,
-                hint: `${query.data.totalMembers} ${t('totalMembers').toLowerCase()}`,
+                value: queryData.activeMembers,
+                hint: `${queryData.totalMembers} ${t('totalMembers').toLowerCase()}`,
                 icon: Users,
               },
               {
                 title: 'newMembers',
-                value: query.data.newMembers,
+                value: queryData.newMembers,
                 hint: t('thisMonth'),
                 icon: UserPlus,
               },
               {
                 title: 'activeGroups',
-                value: query.data.activeGroups,
+                value: queryData.activeGroups,
                 hint: t('workingTogether'),
                 icon: Layers,
               },
               {
                 title: 'currentBoard',
-                value: query.data.board.length,
+                value: queryData.board.length,
                 hint: t('currentMandates'),
                 icon: ShieldCheck,
               },
@@ -143,7 +140,7 @@ export function Dashboard() {
                   <ArrowUpRight size={15} />
                 </Link>
               </header>
-              {query.data.recentMembers.length ? (
+              {queryData.recentMembers.length ? (
                 <div className="table-scroll">
                   <table>
                     <thead>
@@ -155,7 +152,7 @@ export function Dashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {query.data.recentMembers.map((member) => (
+                      {queryData.recentMembers.map((member) => (
                         <tr key={member.id}>
                           <td>
                             <Link to={`/members/${member.id}`} className="person-cell">
@@ -192,16 +189,16 @@ export function Dashboard() {
                 </div>
               </header>
               <div className="status-total">
-                <strong>{query.data.totalMembers}</strong>
+                <strong>{queryData.totalMembers}</strong>
                 <span>{t('totalMembers')}</span>
               </div>
               <div className="stacked-bar" aria-hidden="true">
-                {Object.entries(query.data.statuses).map(([status, n]) => (
+                {Object.entries(queryData.statuses).map(([status, n]) => (
                   <span className={`segment-${status}`} key={status} style={{ flexGrow: n }} />
                 ))}
               </div>
               <div className="status-legend">
-                {Object.entries(query.data.statuses).map(([status, n]) => (
+                {Object.entries(queryData.statuses).map(([status, n]) => (
                   <div key={status}>
                     <span>
                       <i className={`dot-${status}`} />
@@ -262,9 +259,9 @@ export function Dashboard() {
                   <ArrowUpRight size={18} />
                 </Link>
               </header>
-              {query.data.board.length ? (
+              {queryData.board.length ? (
                 <div className="board-preview">
-                  {query.data.board.slice(0, 4).map((person) => (
+                  {queryData.board.slice(0, 4).map((person) => (
                     <div key={person.id}>
                       <Avatar firstName={person.firstName} lastName={person.lastName} />
                       <span>
@@ -283,7 +280,7 @@ export function Dashboard() {
             <Occasions />
           </div>
         </>
-      )}
+      ))}</QueryView>}
     </>
   );
 }
@@ -316,15 +313,11 @@ function Occasions() {
           <p>{t('occasionsIntro')}</p>
         </div>
       </header>
-      {query.isPending ? (
-        <Loading />
-      ) : query.isError ? (
-        <ErrorState error={query.error} retry={() => void query.refetch()} />
-      ) : !query.data.items.length ? (
+      {<QueryView query={query}>{(queryData) => (!queryData.items.length ? (
         <Empty description={t('occasionsEmpty')} />
       ) : (
         <ul className="occasion-list">
-          {query.data.items.map((item) => (
+          {queryData.items.map((item) => (
             <li
               key={`${item.personId}:${item.kind}`}
               className={item.daysAway === 0 ? 'today' : ''}
@@ -356,7 +349,7 @@ function Occasions() {
             </li>
           ))}
         </ul>
-      )}
+      ))}</QueryView>}
     </section>
   );
 }

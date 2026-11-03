@@ -15,13 +15,12 @@ import { useSession } from '../../app/session';
 import {
   Button,
   Empty,
-  ErrorState,
   Field,
-  Loading,
   Modal,
   Notice,
   PageHeading,
   formatDate,
+  QueryView,
 } from '../../components/ui';
 import {
   CoverageBadge,
@@ -167,60 +166,64 @@ function PolicyDetail({ policy, onClose }: { policy: InsurancePolicy; onClose: (
         </label>
       )}
       <h3>{t('insCoverages')}</h3>
-      {coverages.isPending ? (
-        <Loading />
-      ) : coverages.data?.items.length ? (
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>{t('volVolunteer')}</th>
-                <th>{t('insPeriod')}</th>
-                <th>{t('insNotifiedOn')}</th>
-                {can('insurance:write') && <th>{t('actions')}</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {coverages.data.items.map((c) => (
-                <tr key={c.id}>
-                  <td>
-                    {c.volunteerName}{' '}
-                    <small className="cell-note">{t(`vol_${c.volunteerType}`)}</small>
-                  </td>
-                  <td>
-                    {formatDate(c.coveredFrom, i18n.language)} –{' '}
-                    {c.coveredTo
-                      ? formatDate(c.coveredTo, i18n.language)
-                      : formatDate(policy.endsOn, i18n.language)}
-                  </td>
-                  <td>
-                    {c.notifiedOn ? formatDate(c.notifiedOn, i18n.language) : t('insNotNotified')}
-                  </td>
-                  {can('insurance:write') && (
-                    <td>
-                      {!c.coveredTo && (
-                        <Button
-                          variant="ghost"
-                          onClick={() =>
-                            void write(`/insurance-coverages/${c.id}/end`, {
-                              coveredTo: todayIso(),
-                              reason: t('insEndedManually'),
-                            }).then(refresh, fail)
-                          }
-                        >
-                          {t('insEndCoverage')}
-                        </Button>
+      <QueryView query={coverages}>
+        {(data) =>
+          data.items.length ? (
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>{t('volVolunteer')}</th>
+                    <th>{t('insPeriod')}</th>
+                    <th>{t('insNotifiedOn')}</th>
+                    {can('insurance:write') && <th>{t('actions')}</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.items.map((c) => (
+                    <tr key={c.id}>
+                      <td>
+                        {c.volunteerName}{' '}
+                        <small className="cell-note">{t(`vol_${c.volunteerType}`)}</small>
+                      </td>
+                      <td>
+                        {formatDate(c.coveredFrom, i18n.language)} –{' '}
+                        {c.coveredTo
+                          ? formatDate(c.coveredTo, i18n.language)
+                          : formatDate(policy.endsOn, i18n.language)}
+                      </td>
+                      <td>
+                        {c.notifiedOn
+                          ? formatDate(c.notifiedOn, i18n.language)
+                          : t('insNotNotified')}
+                      </td>
+                      {can('insurance:write') && (
+                        <td>
+                          {!c.coveredTo && (
+                            <Button
+                              variant="ghost"
+                              onClick={() =>
+                                void write(`/insurance-coverages/${c.id}/end`, {
+                                  coveredTo: todayIso(),
+                                  reason: t('insEndedManually'),
+                                }).then(refresh, fail)
+                              }
+                            >
+                              {t('insEndCoverage')}
+                            </Button>
+                          )}
+                        </td>
                       )}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="muted">{t('insNoCoverage')}</p>
-      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="muted">{t('insNoCoverage')}</p>
+          )
+        }
+      </QueryView>
       {can('insurance:write') && (
         <div className="heading-actions">
           <Button variant="secondary" onClick={() => setAdding(true)}>
@@ -461,80 +464,80 @@ export function VolunteerInsurance() {
             <h2>{t('insPolicies')}</h2>
           </div>
         </div>
-        {policies.isPending ? (
-          <Loading />
-        ) : policies.isError ? (
-          <ErrorState error={policies.error} />
-        ) : policies.data.items.length ? (
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>{t('insInsurer')}</th>
-                  <th>{t('insTypes')}</th>
-                  <th>{t('insPeriod')}</th>
-                  <th>{t('insGroup')}</th>
-                  <th>{t('status')}</th>
-                  <th>{t('insCoverages')}</th>
-                  <th>{t('actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {policies.data.items.map((p) => (
-                  <tr
-                    key={p.id}
-                    className={
-                      p.status === 'active' && p.expiresInDays >= 0 && p.expiresInDays <= 60
-                        ? 'row-warning'
-                        : ''
-                    }
-                  >
-                    <td>
-                      <button
-                        type="button"
-                        className="finance-name-link"
-                        onClick={() => setOpen(p)}
+        <QueryView query={policies}>
+          {(data) =>
+            data.items.length ? (
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>{t('insInsurer')}</th>
+                      <th>{t('insTypes')}</th>
+                      <th>{t('insPeriod')}</th>
+                      <th>{t('insGroup')}</th>
+                      <th>{t('status')}</th>
+                      <th>{t('insCoverages')}</th>
+                      <th>{t('actions')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.items.map((p) => (
+                      <tr
+                        key={p.id}
+                        className={
+                          p.status === 'active' && p.expiresInDays >= 0 && p.expiresInDays <= 60
+                            ? 'row-warning'
+                            : ''
+                        }
                       >
-                        <strong>{p.insurer}</strong>
-                        <small>{p.policyNumber}</small>
-                      </button>
-                    </td>
-                    <td>{p.coverageTypes.map((c) => t(`insurance_${c}`)).join(', ')}</td>
-                    <td>
-                      {formatDate(p.startsOn, i18n.language)} –{' '}
-                      {formatDate(p.endsOn, i18n.language)}
-                      {p.status === 'active' && p.expiresInDays >= 0 && (
-                        <small className="cell-note">
-                          {t('insExpiresIn', { count: p.expiresInDays })}
-                        </small>
-                      )}
-                    </td>
-                    <td>{t(`insuredGroup_${p.insuredGroup}`)}</td>
-                    <td>
-                      <StatusTag prefix="policy" value={p.status} />
-                      {!p.documentCount && (
-                        <small className="cell-note">{t('insNoDocument')}</small>
-                      )}
-                    </td>
-                    <td className="numeric">{p.coverageCount}</td>
-                    <td className="row-actions">
-                      <Button variant="ghost" onClick={() => setOpen(p)}>
-                        {t('insOpen')}
-                      </Button>
-                      {can('insurance:write') && (
-                        <Button variant="ghost" onClick={() => setEditing(p)}>
-                          {t('edit')}
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <Empty description={t('insEmpty')} />
-        )}
+                        <td>
+                          <button
+                            type="button"
+                            className="finance-name-link"
+                            onClick={() => setOpen(p)}
+                          >
+                            <strong>{p.insurer}</strong>
+                            <small>{p.policyNumber}</small>
+                          </button>
+                        </td>
+                        <td>{p.coverageTypes.map((c) => t(`insurance_${c}`)).join(', ')}</td>
+                        <td>
+                          {formatDate(p.startsOn, i18n.language)} –{' '}
+                          {formatDate(p.endsOn, i18n.language)}
+                          {p.status === 'active' && p.expiresInDays >= 0 && (
+                            <small className="cell-note">
+                              {t('insExpiresIn', { count: p.expiresInDays })}
+                            </small>
+                          )}
+                        </td>
+                        <td>{t(`insuredGroup_${p.insuredGroup}`)}</td>
+                        <td>
+                          <StatusTag prefix="policy" value={p.status} />
+                          {!p.documentCount && (
+                            <small className="cell-note">{t('insNoDocument')}</small>
+                          )}
+                        </td>
+                        <td className="numeric">{p.coverageCount}</td>
+                        <td className="row-actions">
+                          <Button variant="ghost" onClick={() => setOpen(p)}>
+                            {t('insOpen')}
+                          </Button>
+                          {can('insurance:write') && (
+                            <Button variant="ghost" onClick={() => setEditing(p)}>
+                              {t('edit')}
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <Empty description={t('insEmpty')} />
+            )
+          }
+        </QueryView>
       </section>
       <section className="panel">
         <div className="panel-header">
@@ -550,56 +553,57 @@ export function VolunteerInsurance() {
             />
           </Field>
         </div>
-        {overview.isPending ? (
-          <Loading />
-        ) : overview.isError ? (
-          <ErrorState error={overview.error} />
-        ) : overview.data.items.length ? (
-          <div
-            className="table-scroll"
-            tabIndex={0}
-            role="region"
-            aria-label={t('insCoverageCheck')}
-          >
-            <table>
-              <thead>
-                <tr>
-                  <th>{t('volVolunteer')}</th>
-                  <th>{t('volInsuranceStatus')}</th>
-                  <th>{t('insFindings')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {overview.data.items.map((i) => (
-                  <tr key={i.engagementId}>
-                    <td>
-                      {i.name} <small className="cell-note">{t(`vol_${i.volunteerType}`)}</small>
-                    </td>
-                    <td>
-                      <CoverageBadge status={i.status} />
-                    </td>
-                    <td>
-                      {i.reasons.map((r) => t(r)).join(' · ')}
-                      {i.gaps.length > 0 && (
-                        <small className="cell-note">
-                          {t('volCoverageGaps')}:{' '}
-                          {i.gaps
-                            .map(
-                              (g) =>
-                                `${t(`insurance_${g.type}`)} ${formatDate(g.from, i18n.language)}–${g.to ? formatDate(g.to, i18n.language) : '…'}`,
-                            )
-                            .join('; ')}
-                        </small>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <Empty description={t('volEmpty')} />
-        )}
+        <QueryView query={overview}>
+          {(data) =>
+            data.items.length ? (
+              <div
+                className="table-scroll"
+                tabIndex={0}
+                role="region"
+                aria-label={t('insCoverageCheck')}
+              >
+                <table>
+                  <thead>
+                    <tr>
+                      <th>{t('volVolunteer')}</th>
+                      <th>{t('volInsuranceStatus')}</th>
+                      <th>{t('insFindings')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.items.map((i) => (
+                      <tr key={i.engagementId}>
+                        <td>
+                          {i.name}{' '}
+                          <small className="cell-note">{t(`vol_${i.volunteerType}`)}</small>
+                        </td>
+                        <td>
+                          <CoverageBadge status={i.status} />
+                        </td>
+                        <td>
+                          {i.reasons.map((r) => t(r)).join(' · ')}
+                          {i.gaps.length > 0 && (
+                            <small className="cell-note">
+                              {t('volCoverageGaps')}:{' '}
+                              {i.gaps
+                                .map(
+                                  (g) =>
+                                    `${t(`insurance_${g.type}`)} ${formatDate(g.from, i18n.language)}–${g.to ? formatDate(g.to, i18n.language) : '…'}`,
+                                )
+                                .join('; ')}
+                            </small>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <Empty description={t('volEmpty')} />
+            )
+          }
+        </QueryView>
       </section>
       {editing && (
         <FormModal

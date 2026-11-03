@@ -18,12 +18,11 @@ import {
   Avatar,
   Button,
   Empty,
-  ErrorState,
-  Loading,
   Modal,
   PageHeading,
   Pagination,
   SearchInput,
+  QueryView,
 } from '../components/ui';
 import { DataForm } from '../components/data-form';
 type UserRow = { id: string; name: string; email: string; role: Role };
@@ -67,108 +66,104 @@ export function UsersPage() {
             }}
           />
         </div>
-        {query.isPending ? (
-          <Loading />
-        ) : query.isError ? (
-          <ErrorState error={query.error} />
-        ) : (
-          <>
-            {query.data.items.length ? (
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>{t('name')}</th>
-                      <th>{t('email')}</th>
-                      <th>{t('role')}</th>
-                      <th>{t('actions')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {query.data.items.map((user) => (
-                      <tr key={user.id}>
-                        <td>
-                          <div className="person-cell">
-                            <Avatar firstName={user.name} lastName="" />
-                            <strong>{user.name}</strong>
-                          </div>
-                        </td>
-                        <td>{user.email}</td>
-                        <td>
-                          <span className="subtle-tag">{t(user.role)}</span>
-                        </td>
-                        <td>
-                          <Button
-                            variant="ghost"
-                            aria-label={`${t('edit')}: ${user.name}`}
-                            onClick={() => setEditing(user)}
-                          >
-                            <Pencil size={16} />
-                          </Button>
-                        </td>
+        <QueryView query={query}>
+          {(data) => (
+            <>
+              {data.items.length ? (
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>{t('name')}</th>
+                        <th>{t('email')}</th>
+                        <th>{t('role')}</th>
+                        <th>{t('actions')}</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <Empty />
-            )}
-            <Pagination
-              page={page}
-              pageSize={query.data.pageSize}
-              total={query.data.total}
-              onChange={setPage}
-            />
-          </>
-        )}
+                    </thead>
+                    <tbody>
+                      {data.items.map((user) => (
+                        <tr key={user.id}>
+                          <td>
+                            <div className="person-cell">
+                              <Avatar firstName={user.name} lastName="" />
+                              <strong>{user.name}</strong>
+                            </div>
+                          </td>
+                          <td>{user.email}</td>
+                          <td>
+                            <span className="subtle-tag">{t(user.role)}</span>
+                          </td>
+                          <td>
+                            <Button
+                              variant="ghost"
+                              aria-label={`${t('edit')}: ${user.name}`}
+                              onClick={() => setEditing(user)}
+                            >
+                              <Pencil size={16} />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <Empty />
+              )}
+              <Pagination
+                page={page}
+                pageSize={data.pageSize}
+                total={data.total}
+                onChange={setPage}
+              />
+            </>
+          )}
+        </QueryView>
       </section>
       {editing && (
         <Modal title={t(editing === 'new' ? 'addUser' : 'role')} onClose={() => setEditing(null)}>
           {editing === 'new' ? (
-            members.isPending ? (
-              <Loading />
-            ) : members.isError ? (
-              <ErrorState error={members.error} />
-            ) : (
-              <DataForm
-                schema={userProvisionSchema.extend({
-                  personId: z.union([z.uuid(), z.literal('')]).transform((v) => v || undefined),
-                })}
-                fields={[
-                  { name: 'name', required: true },
-                  { name: 'email', type: 'email', required: true },
-                  {
-                    name: 'password',
-                    label: 'temporaryPassword',
-                    type: 'password',
-                    required: true,
-                    minLength: 12,
-                  },
-                  { name: 'role', type: 'select', options: roleOptions },
-                  {
-                    name: 'personId',
-                    label: 'linkedPerson',
-                    type: 'select',
-                    options: [
-                      { value: '', label: t('noLink') },
-                      ...members.data.map((member) => ({
-                        value: member.personId,
-                        label: `${member.firstName} ${member.lastName}`,
-                      })),
-                    ],
-                  },
-                ]}
-                defaults={{ role: 'member' }}
-                create
-                onCancel={() => setEditing(null)}
-                onSubmit={async (data) => {
-                  await api('/users', { method: 'POST', body: JSON.stringify(data) });
-                  void queryClient.invalidateQueries();
-                  setEditing(null);
-                }}
-              />
-            )
+            <QueryView query={members}>
+              {(membersData) => (
+                <DataForm
+                  schema={userProvisionSchema.extend({
+                    personId: z.union([z.uuid(), z.literal('')]).transform((v) => v || undefined),
+                  })}
+                  fields={[
+                    { name: 'name', required: true },
+                    { name: 'email', type: 'email', required: true },
+                    {
+                      name: 'password',
+                      label: 'temporaryPassword',
+                      type: 'password',
+                      required: true,
+                      minLength: 12,
+                    },
+                    { name: 'role', type: 'select', options: roleOptions },
+                    {
+                      name: 'personId',
+                      label: 'linkedPerson',
+                      type: 'select',
+                      options: [
+                        { value: '', label: t('noLink') },
+                        ...membersData.map((member) => ({
+                          value: member.personId,
+                          label: `${member.firstName} ${member.lastName}`,
+                        })),
+                      ],
+                    },
+                  ]}
+                  defaults={{ role: 'member' }}
+                  create
+                  onCancel={() => setEditing(null)}
+                  onSubmit={async (data) => {
+                    await api('/users', { method: 'POST', body: JSON.stringify(data) });
+                    void queryClient.invalidateQueries();
+                    setEditing(null);
+                  }}
+                />
+              )}
+            </QueryView>
           ) : (
             <DataForm
               schema={z.object({ role: roleSchema })}

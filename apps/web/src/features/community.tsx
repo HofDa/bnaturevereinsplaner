@@ -1,3 +1,4 @@
+import { QueryView } from '../components/ui';
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -489,11 +490,7 @@ export function CommunityIndex() {
           <CommunityChat key={`${me.activeOrganizationId}:${groupId}`} groupId={groupId || null} />
         ) : kind === 'schedule' ? (
           <ScheduleList state={scheduleState} groupId={groupId} />
-        ) : posts.isPending ? (
-          <Loading />
-        ) : posts.isError ? (
-          <ErrorState error={posts.error} />
-        ) : !posts.data.items.length ? (
+        ) : <QueryView query={posts}>{(queryData) => (!queryData.items.length ? (
           <div className="panel">
             <Empty
               title={t(kind === 'news' ? 'commEmptyNews' : 'commEmptyPolls')}
@@ -503,7 +500,7 @@ export function CommunityIndex() {
         ) : (
           <>
             <div className="community-feed">
-              {posts.data.items.map((post) => (
+              {queryData.items.map((post) => (
                 <article
                   className={`panel community-card ${post.pinned ? 'community-card-pinned' : ''}`}
                   key={post.id}
@@ -546,7 +543,7 @@ export function CommunityIndex() {
             <Pagination
               page={page}
               pageSize={12}
-              total={posts.data.total}
+              total={queryData.total}
               onChange={(next) => {
                 const q = new URLSearchParams(params);
                 q.set('page', String(next));
@@ -554,7 +551,7 @@ export function CommunityIndex() {
               }}
             />
           </>
-        )}
+        ))}</QueryView>}
       </section>
       {creatingSchedule && (
         <ScheduleEditor
@@ -730,11 +727,7 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
           </Button>
         )}
       </div>
-      {query.isPending ? (
-        <Loading />
-      ) : query.isError ? (
-        <ErrorState error={query.error} />
-      ) : (
+      {<QueryView query={query}>{(queryData) => ((
         <div
           ref={log}
           className="community-chat-log"
@@ -747,10 +740,10 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
                 log.current.scrollHeight - log.current.scrollTop - log.current.clientHeight < 100;
           }}
         >
-          {!query.data.items.length ? (
+          {!queryData.items.length ? (
             <Empty title={t('commChatEmpty')} />
           ) : (
-            query.data.items.map((message) => (
+            queryData.items.map((message) => (
               <article
                 key={message.id}
                 id={`msg-${message.id}`}
@@ -804,7 +797,7 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
             ))
           )}
         </div>
-      )}
+      ))}</QueryView>}
       {error != null && !removing && <Notice error>{errorMessage(error)}</Notice>}
       <form className="community-chat-compose" onSubmit={(event) => void send(event)}>
         {replyTo && (
@@ -1086,11 +1079,7 @@ export function CommunityDetail() {
         <ArrowLeft size={16} />
         {t('commBack')}
       </Link>
-      {query.isPending ? (
-        <Loading />
-      ) : query.isError ? (
-        <ErrorState error={query.error} />
-      ) : (
+      {<QueryView query={query}>{(queryData) => ((
         post && (
           <>
             <PageHeading
@@ -1216,7 +1205,7 @@ export function CommunityDetail() {
             )}
           </>
         )
-      )}
+      ))}</QueryView>}
     </>
   );
 }

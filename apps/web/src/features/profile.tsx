@@ -7,7 +7,7 @@ import { api, queryClient } from '../lib/api';
 import { authClient } from '../lib/auth';
 import { useSession } from '../app/session';
 import { DataForm } from '../components/data-form';
-import { ErrorState, Loading, Notice, PageHeading } from '../components/ui';
+import { Notice, PageHeading, QueryView } from '../components/ui';
 import { MyLoans } from './inventory';
 import { DigestSettings } from './community-unread';
 import { NewsletterSubscription } from './mail-newsletter';
@@ -78,39 +78,39 @@ export function Profile() {
         </section>
         <section className="panel form-panel">
           <h2>{t('contact')}</h2>
-          {query.isPending ? (
-            <Loading />
-          ) : query.isError ? (
-            <ErrorState error={query.error} />
-          ) : query.data.person ? (
-            <DataForm
-              schema={profileSchema}
-              defaults={query.data.person}
-              fields={[
-                { name: 'phone' },
-                { name: 'street' },
-                { name: 'postalCode' },
-                { name: 'city' },
-                { name: 'country', required: true },
-                {
-                  name: 'preferredLanguage',
-                  label: 'language',
-                  type: 'select',
-                  options: [
-                    { value: 'de', label: 'Deutsch' },
-                    { value: 'it', label: 'Italiano' },
-                  ],
-                },
-              ]}
-              onSubmit={async (data) => {
-                await api('/profile', { method: 'PATCH', body: JSON.stringify(data) });
-                void queryClient.invalidateQueries();
-                setSaved(t('saved'));
-              }}
-            />
-          ) : (
-            <p className="muted">{t('profileUnlinked')}</p>
-          )}
+          <QueryView query={query}>
+            {(queryData) =>
+              queryData.person ? (
+                <DataForm
+                  schema={profileSchema}
+                  defaults={queryData.person}
+                  fields={[
+                    { name: 'phone' },
+                    { name: 'street' },
+                    { name: 'postalCode' },
+                    { name: 'city' },
+                    { name: 'country', required: true },
+                    {
+                      name: 'preferredLanguage',
+                      label: 'language',
+                      type: 'select',
+                      options: [
+                        { value: 'de', label: 'Deutsch' },
+                        { value: 'it', label: 'Italiano' },
+                      ],
+                    },
+                  ]}
+                  onSubmit={async (data) => {
+                    await api('/profile', { method: 'PATCH', body: JSON.stringify(data) });
+                    void queryClient.invalidateQueries();
+                    setSaved(t('saved'));
+                  }}
+                />
+              ) : (
+                <p className="muted">{t('profileUnlinked')}</p>
+              )
+            }
+          </QueryView>
         </section>
         <DigestSettings />
         <NewsletterSubscription />

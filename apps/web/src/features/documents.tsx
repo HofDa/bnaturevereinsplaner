@@ -26,6 +26,7 @@ import {
   Pagination,
   SearchInput,
   formatDate,
+  QueryView,
 } from '../components/ui';
 import { api, allPages, downloadPrivateFile, errorMessage, queryClient } from '../lib/api';
 import { useSession } from '../app/session';
@@ -599,34 +600,34 @@ export function Documents() {
             </select>
           </label>
         </div>
-        {query.isPending ? (
-          <Loading />
-        ) : query.isError ? (
-          <ErrorState error={query.error} retry={() => void query.refetch()} />
-        ) : query.data.items.length ? (
-          <>
-            <DocumentTable
-              items={query.data.items}
-              onOpen={(id) => setEditor({ type: 'detail', id })}
-            />
-            <Pagination
-              page={page}
-              pageSize={query.data.pageSize}
-              total={query.data.total}
-              onChange={setPage}
-            />
-          </>
-        ) : (
-          <Empty
-            description={t(
-              debounced || category
-                ? 'noResults'
-                : archived === 'true'
-                  ? 'documentArchiveEmpty'
-                  : 'documentEmpty',
-            )}
-          />
-        )}
+        <QueryView query={query}>
+          {(data) =>
+            data.items.length ? (
+              <>
+                <DocumentTable
+                  items={data.items}
+                  onOpen={(id) => setEditor({ type: 'detail', id })}
+                />
+                <Pagination
+                  page={page}
+                  pageSize={data.pageSize}
+                  total={data.total}
+                  onChange={setPage}
+                />
+              </>
+            ) : (
+              <Empty
+                description={t(
+                  debounced || category
+                    ? 'noResults'
+                    : archived === 'true'
+                      ? 'documentArchiveEmpty'
+                      : 'documentEmpty',
+                )}
+              />
+            )
+          }
+        </QueryView>
       </section>
       <p className="finance-footnote">{t('documentPrivacyHint')}</p>
       {editor && (
@@ -704,17 +705,17 @@ export function EntryDocuments({
   return (
     <div className="finance-detail">
       {notice && <Notice>{notice}</Notice>}
-      {query.isPending ? (
-        <Loading />
-      ) : query.isError ? (
-        <ErrorState error={query.error} retry={() => void query.refetch()} />
-      ) : query.data.items.length ? (
-        <DocumentTable basePath={basePath} items={query.data.items} onOpen={setOpen} />
-      ) : (
-        <p className="finance-footnote">
-          {t(eventOccurrenceId ? 'documentEmpty' : 'documentNoReceipts')}
-        </p>
-      )}
+      <QueryView query={query}>
+        {(data) =>
+          data.items.length ? (
+            <DocumentTable basePath={basePath} items={data.items} onOpen={setOpen} />
+          ) : (
+            <p className="finance-footnote">
+              {t(eventOccurrenceId ? 'documentEmpty' : 'documentNoReceipts')}
+            </p>
+          )
+        }
+      </QueryView>
       {canWrite &&
         (uploading ? (
           <section

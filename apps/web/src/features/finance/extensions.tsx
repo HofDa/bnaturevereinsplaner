@@ -26,6 +26,7 @@ import {
   Modal,
   Notice,
   formatDate,
+  QueryView,
 } from '../../components/ui';
 import { DataForm } from '../../components/data-form';
 import { api, downloadPrivateFile, errorMessage } from '../../lib/api';
@@ -64,70 +65,68 @@ export function FinanceOverview() {
           ))}
         </select>
       </Field>
-      {dashboard.isPending ? (
-        <Loading />
-      ) : dashboard.isError ? (
-        <ErrorState error={dashboard.error} />
-      ) : (
-        <>
-          <section className="stats-grid finance-stats" aria-label={t('s22Overview')}>
-            {(
-              [
-                ['s22Total', 'totalCents'],
-                ['ledgerBank', 'bankCents'],
-                ['ledgerCash', 'cashCents'],
-                ['ledgerIncome', 'incomeCents'],
-                ['ledgerExpense', 'expenseCents'],
-                ['financeOutstanding', 'openFeesCents'],
-              ] as const
-            ).map(([label, key], i) => (
-              <article className={`stat-card stat-${i % 4}`} key={key}>
-                <span>{t(label)}</span>
-                <strong>{formatMoney(dashboard.data[key], i18n.language)}</strong>
-                <small>{dashboard.data.fiscalYear}</small>
-              </article>
-            ))}
-          </section>
-          <h2>{t('s22Trend')}</h2>
-          <div className="table-scroll" tabIndex={0} role="region" aria-label={t('s22Trend')}>
-            <table>
-              <thead>
-                <tr>
-                  <th>{t('s22Month')}</th>
-                  <th>{t('ledgerIncome')}</th>
-                  <th>{t('ledgerExpense')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dashboard.data.trend.map((m) => (
-                  <tr key={m.month}>
-                    <th>{m.month}</th>
-                    <td>{formatMoney(m.incomeCents, i18n.language)}</td>
-                    <td>{formatMoney(m.expenseCents, i18n.language)}</td>
+      <QueryView query={dashboard}>
+        {(data) => (
+          <>
+            <section className="stats-grid finance-stats" aria-label={t('s22Overview')}>
+              {(
+                [
+                  ['s22Total', 'totalCents'],
+                  ['ledgerBank', 'bankCents'],
+                  ['ledgerCash', 'cashCents'],
+                  ['ledgerIncome', 'incomeCents'],
+                  ['ledgerExpense', 'expenseCents'],
+                  ['financeOutstanding', 'openFeesCents'],
+                ] as const
+              ).map(([label, key], i) => (
+                <article className={`stat-card stat-${i % 4}`} key={key}>
+                  <span>{t(label)}</span>
+                  <strong>{formatMoney(data[key], i18n.language)}</strong>
+                  <small>{data.fiscalYear}</small>
+                </article>
+              ))}
+            </section>
+            <h2>{t('s22Trend')}</h2>
+            <div className="table-scroll" tabIndex={0} role="region" aria-label={t('s22Trend')}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>{t('s22Month')}</th>
+                    <th>{t('ledgerIncome')}</th>
+                    <th>{t('ledgerExpense')}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <h2>{t('s22Recent')}</h2>
-          <ul className="finance-allocation-history">
-            {dashboard.data.recent.map((e) => (
-              <li key={e.id}>
-                <span>
-                  {e.fiscalYear}/{e.entryNumber} · {e.description}
-                  <small className="finance-cell-note">
-                    {formatDate(e.bookingDate, i18n.language)} · {e.accountName}
-                  </small>
-                </span>
-                <strong>
-                  {e.direction === 'expense' ? '−' : '+'}
-                  {formatMoney(e.amountCents, i18n.language)}
-                </strong>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
+                </thead>
+                <tbody>
+                  {data.trend.map((m) => (
+                    <tr key={m.month}>
+                      <th>{m.month}</th>
+                      <td>{formatMoney(m.incomeCents, i18n.language)}</td>
+                      <td>{formatMoney(m.expenseCents, i18n.language)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <h2>{t('s22Recent')}</h2>
+            <ul className="finance-allocation-history">
+              {data.recent.map((e) => (
+                <li key={e.id}>
+                  <span>
+                    {e.fiscalYear}/{e.entryNumber} · {e.description}
+                    <small className="finance-cell-note">
+                      {formatDate(e.bookingDate, i18n.language)} · {e.accountName}
+                    </small>
+                  </span>
+                  <strong>
+                    {e.direction === 'expense' ? '−' : '+'}
+                    {formatMoney(e.amountCents, i18n.language)}
+                  </strong>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </QueryView>
     </div>
   );
 }
@@ -215,38 +214,38 @@ export function Transfers() {
       </div>
       {!selected ? (
         <Empty description={t('ledgerNoYear')} />
-      ) : query.isPending ? (
-        <Loading />
-      ) : query.isError ? (
-        <ErrorState error={query.error} />
       ) : (
-        <ul className="finance-allocation-history">
-          {items.map((tr) => (
-            <li key={tr.id}>
-              <span>
-                {formatDate(tr.bookingDate, i18n.language)} · {names.get(tr.fromAccountId)} →{' '}
-                {names.get(tr.toAccountId)}
-                <small className="finance-cell-note">
-                  {tr.description} ·{' '}
-                  {tr.reversesTransferId ? t('ledgerReverses') : tr.id.slice(0, 8)}
-                </small>
-              </span>
-              <strong>{formatMoney(tr.amountCents, i18n.language)}</strong>
-              {me.permissions.includes('documents:read') && (
-                <Button variant="secondary" onClick={() => setDocumentTransfer(tr)}>
-                  {t('documents')}
-                </Button>
-              )}
-              {me.permissions.includes('finance:write') &&
-                !tr.reversesTransferId &&
-                !reversed.has(tr.id) && (
-                  <Button variant="ghost" onClick={() => setEditor({ transfer: tr })}>
-                    {t('s22ReverseTransfer')}
-                  </Button>
-                )}
-            </li>
-          ))}
-        </ul>
+        <QueryView query={query}>
+          {() => (
+            <ul className="finance-allocation-history">
+              {items.map((tr) => (
+                <li key={tr.id}>
+                  <span>
+                    {formatDate(tr.bookingDate, i18n.language)} · {names.get(tr.fromAccountId)} →{' '}
+                    {names.get(tr.toAccountId)}
+                    <small className="finance-cell-note">
+                      {tr.description} ·{' '}
+                      {tr.reversesTransferId ? t('ledgerReverses') : tr.id.slice(0, 8)}
+                    </small>
+                  </span>
+                  <strong>{formatMoney(tr.amountCents, i18n.language)}</strong>
+                  {me.permissions.includes('documents:read') && (
+                    <Button variant="secondary" onClick={() => setDocumentTransfer(tr)}>
+                      {t('documents')}
+                    </Button>
+                  )}
+                  {me.permissions.includes('finance:write') &&
+                    !tr.reversesTransferId &&
+                    !reversed.has(tr.id) && (
+                      <Button variant="ghost" onClick={() => setEditor({ transfer: tr })}>
+                        {t('s22ReverseTransfer')}
+                      </Button>
+                    )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </QueryView>
       )}
       {documentTransfer && (
         <Modal title={t('documents')} onClose={() => setDocumentTransfer(null)}>
@@ -384,53 +383,51 @@ export function EtsMappings() {
       <h2>{t('s22Mappings')}</h2>
       <p>{t('s22MappingHelp')}</p>
       {error && <Notice error>{error}</Notice>}
-      {basics.categories.isPending ? (
-        <Loading />
-      ) : basics.categories.isError ? (
-        <ErrorState error={basics.categories.error} />
-      ) : (
-        <>
-          <Field label={t('ledgerCategory')}>
-            <select value={selected} onChange={(e) => setCategory(e.target.value)}>
-              {basics.categories.data?.items.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          {mappings.isError ? (
-            <ErrorState error={mappings.error} />
-          ) : (
-            <ul className="finance-allocation-history">
-              {mappings.data?.items.map((m) => (
-                <li key={m.id}>
-                  {m.effectiveFrom} · {m.position} · {m.definitionVersion}
-                </li>
-              ))}
-            </ul>
-          )}
-          {me.permissions.includes('finance:write') && current && (
-            <form onSubmit={(e) => void submit(e)} className="form-grid">
-              <Field label={t('s22EffectiveFrom')}>
-                <input name="effectiveFrom" type="date" required defaultValue={localDate()} />
-              </Field>
-              <Field label={t('s22Position')}>
-                <select name="position" required>
-                  {ETS_POSITIONS.filter((p) => p.direction === current.direction).map((p) => (
-                    <option key={p.code} value={p.code}>
-                      {p.code} · {p[i18n.language === 'it' ? 'it' : 'de']}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Button type="submit" disabled={pending}>
-                {t('save')}
-              </Button>
-            </form>
-          )}
-        </>
-      )}
+      <QueryView query={basics.categories}>
+        {(categoriesData) => (
+          <>
+            <Field label={t('ledgerCategory')}>
+              <select value={selected} onChange={(e) => setCategory(e.target.value)}>
+                {categoriesData?.items.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {mappings.isError ? (
+              <ErrorState error={mappings.error} />
+            ) : (
+              <ul className="finance-allocation-history">
+                {mappings.data?.items.map((m) => (
+                  <li key={m.id}>
+                    {m.effectiveFrom} · {m.position} · {m.definitionVersion}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {me.permissions.includes('finance:write') && current && (
+              <form onSubmit={(e) => void submit(e)} className="form-grid">
+                <Field label={t('s22EffectiveFrom')}>
+                  <input name="effectiveFrom" type="date" required defaultValue={localDate()} />
+                </Field>
+                <Field label={t('s22Position')}>
+                  <select name="position" required>
+                    {ETS_POSITIONS.filter((p) => p.direction === current.direction).map((p) => (
+                      <option key={p.code} value={p.code}>
+                        {p.code} · {p[i18n.language === 'it' ? 'it' : 'de']}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Button type="submit" disabled={pending}>
+                  {t('save')}
+                </Button>
+              </form>
+            )}
+          </>
+        )}
+      </QueryView>
     </section>
   );
 }
@@ -577,85 +574,83 @@ export function EtsReports({ year }: { year: string }) {
       </div>
       {error && <Notice error>{error}</Notice>}
       {!validRevenue && <Notice error>{t('financeInvalidAmount')}</Notice>}
-      {report.isPending ? (
-        <Loading />
-      ) : report.isError ? (
-        <ErrorState error={report.error} />
-      ) : (
-        <>
-          <Notice>{report.data.notice}</Notice>
-          <Notice error={report.data.eligibility !== 'within_limit'}>
-            {t(`s22Eligibility_${report.data.eligibility}`)}
-          </Notice>
-          <ul>
-            {report.data.checks.map((c) => (
-              <li key={c.code}>
-                {c.ok ? '✓' : '!'} {t(`s22Check_${c.code}`)}
-              </li>
-            ))}
-          </ul>
-          {report.data.unmappedEntryIds.length > 0 && (
-            <p className="ledger-warning">
-              {t('s22MissingMappings', { count: report.data.unmappedEntryIds.length })}
-            </p>
-          )}
-          <div className="toolbar">
-            <Button variant="secondary" onClick={() => void download('pdf')}>
-              {t('s22EtsPdf')}
-            </Button>
-            <Button variant="secondary" onClick={() => void download('csv')}>
-              {t('s22EtsCsv')}
-            </Button>
-          </div>
-          <div className="table-scroll" tabIndex={0} role="region" aria-label={t('s22Ets')}>
-            <table>
-              <thead>
-                <tr>
-                  <th>{t('ledgerSection')}</th>
-                  <th>{t('ledgerIncome')}</th>
-                  <th>{t('ledgerExpense')}</th>
-                  <th>{t('ledgerResult')}</th>
-                  <th>{t('s22PriorYear')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {report.data.rows.map((r) => (
-                  <tr key={r.code}>
-                    <th>
-                      {r.code} · {r.label}
-                    </th>
-                    <td>{formatMoney(r.incomeCents, i18n.language)}</td>
-                    <td>{formatMoney(r.expenseCents, i18n.language)}</td>
-                    <td>{formatMoney(r.resultCents, i18n.language)}</td>
-                    <td>
-                      {r.priorResultCents === null
-                        ? '—'
-                        : formatMoney(r.priorResultCents, i18n.language)}
-                    </td>
+      <QueryView query={report}>
+        {(data) => (
+          <>
+            <Notice>{data.notice}</Notice>
+            <Notice error={data.eligibility !== 'within_limit'}>
+              {t(`s22Eligibility_${data.eligibility}`)}
+            </Notice>
+            <ul>
+              {data.checks.map((c) => (
+                <li key={c.code}>
+                  {c.ok ? '✓' : '!'} {t(`s22Check_${c.code}`)}
+                </li>
+              ))}
+            </ul>
+            {data.unmappedEntryIds.length > 0 && (
+              <p className="ledger-warning">
+                {t('s22MissingMappings', { count: data.unmappedEntryIds.length })}
+              </p>
+            )}
+            <div className="toolbar">
+              <Button variant="secondary" onClick={() => void download('pdf')}>
+                {t('s22EtsPdf')}
+              </Button>
+              <Button variant="secondary" onClick={() => void download('csv')}>
+                {t('s22EtsCsv')}
+              </Button>
+            </div>
+            <div className="table-scroll" tabIndex={0} role="region" aria-label={t('s22Ets')}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>{t('ledgerSection')}</th>
+                    <th>{t('ledgerIncome')}</th>
+                    <th>{t('ledgerExpense')}</th>
+                    <th>{t('ledgerResult')}</th>
+                    <th>{t('s22PriorYear')}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <ul className="finance-allocation-history">
-            {report.data.accounts.map((a) => (
-              <li key={a.accountId}>
-                <span>
-                  {a.name} · {t(a.kind === 'cash' ? 'ledgerCash' : 'ledgerBank')}
-                </span>
-                <strong>
-                  {formatMoney(a.openingCents, i18n.language)} →{' '}
-                  {formatMoney(a.closingCents, i18n.language)}
-                </strong>
-              </li>
-            ))}
-          </ul>
-          <p>
-            {t('ledgerOpening')}: {formatMoney(report.data.openingCents, i18n.language)} ·{' '}
-            {t('ledgerClosing')}: {formatMoney(report.data.closingCents, i18n.language)}
-          </p>
-        </>
-      )}
+                </thead>
+                <tbody>
+                  {data.rows.map((r) => (
+                    <tr key={r.code}>
+                      <th>
+                        {r.code} · {r.label}
+                      </th>
+                      <td>{formatMoney(r.incomeCents, i18n.language)}</td>
+                      <td>{formatMoney(r.expenseCents, i18n.language)}</td>
+                      <td>{formatMoney(r.resultCents, i18n.language)}</td>
+                      <td>
+                        {r.priorResultCents === null
+                          ? '—'
+                          : formatMoney(r.priorResultCents, i18n.language)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <ul className="finance-allocation-history">
+              {data.accounts.map((a) => (
+                <li key={a.accountId}>
+                  <span>
+                    {a.name} · {t(a.kind === 'cash' ? 'ledgerCash' : 'ledgerBank')}
+                  </span>
+                  <strong>
+                    {formatMoney(a.openingCents, i18n.language)} →{' '}
+                    {formatMoney(a.closingCents, i18n.language)}
+                  </strong>
+                </li>
+              ))}
+            </ul>
+            <p>
+              {t('ledgerOpening')}: {formatMoney(data.openingCents, i18n.language)} ·{' '}
+              {t('ledgerClosing')}: {formatMoney(data.closingCents, i18n.language)}
+            </p>
+          </>
+        )}
+      </QueryView>
     </section>
   );
 }

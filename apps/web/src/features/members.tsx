@@ -1,3 +1,4 @@
+import { QueryView } from '../components/ui';
 import { useState } from 'react';
 import { Link, useParams, useSearchParams, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -191,13 +192,9 @@ export function Members() {
             </select>
           </label>
         </div>
-        {query.isPending ? (
-          <Loading />
-        ) : query.isError ? (
-          <ErrorState error={query.error} retry={() => void query.refetch()} />
-        ) : (
+        {<QueryView query={query}>{(queryData) => ((
           <>
-            {query.data.items.length ? (
+            {queryData.items.length ? (
               <div className="table-scroll">
                 <table>
                   <thead>
@@ -215,7 +212,7 @@ export function Members() {
                     </tr>
                   </thead>
                   <tbody>
-                    {query.data.items.map((member) => (
+                    {queryData.items.map((member) => (
                       <tr key={member.id}>
                         <td>
                           <Link to={`/members/${member.id}`} className="person-cell">
@@ -301,12 +298,12 @@ export function Members() {
             )}
             <Pagination
               page={page}
-              pageSize={query.data.pageSize}
-              total={query.data.total}
+              pageSize={queryData.pageSize}
+              total={queryData.total}
               onChange={setPage}
             />
           </>
-        )}
+        ))}</QueryView>}
       </section>
       {params.get('new') && write && (
         <Modal wide title={t('addMember')} onClose={() => setParams({})}>

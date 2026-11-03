@@ -1,4 +1,4 @@
-import { replay } from '../http';
+import { replay, idempotencyKey } from '../http';
 import { attachmentDisposition } from '../../services/http';
 import { z } from 'zod';
 import type { FastifyReply } from 'fastify';
@@ -421,7 +421,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
     async (req, reply) =>
       replay(
         reply,
-        await submitOwnTimeEntry(db, await access(req, 'organization:read'), key(req), req.body),
+        await submitOwnTimeEntry(db, await access(req, 'organization:read'), idempotencyKey(req), req.body),
         201,
       ),
   );

@@ -135,7 +135,7 @@ async function currentAccess(tx: Transaction, a: Access) {
     .from(s.organizations)
     .where(eq(s.organizations.id, a.organizationId))
     .for('no key update');
-  const current = await baseCurrentAccess(tx, a, 'Anwesenheitsrecht entzogen.');
+  const current = await baseCurrentAccess(tx, a, 'attendance:write');
   if (!can(current.role, 'attendance:write'))
     throw new HttpError(403, 'FORBIDDEN', 'Anwesenheitsrecht entzogen.');
   return current;

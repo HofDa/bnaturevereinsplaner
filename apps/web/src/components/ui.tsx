@@ -8,6 +8,7 @@ import {
   type ButtonHTMLAttributes,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { UseQueryResult } from '@tanstack/react-query';
 import { AlertCircle, ArrowLeft, ArrowRight, LoaderCircle, Search, X, Inbox } from 'lucide-react';
 import { errorMessage } from '../lib/api';
 export function Button({
@@ -64,6 +65,18 @@ export function ErrorState({ error, retry }: { error: unknown; retry?: () => voi
       )}
     </div>
   );
+}
+// Loading and error states for a query; children render only once data is available.
+export function QueryView<T>({
+  query,
+  children,
+}: {
+  query: UseQueryResult<T>;
+  children: (data: T) => ReactNode;
+}) {
+  if (query.isPending) return <Loading />;
+  if (query.isError) return <ErrorState error={query.error} retry={() => void query.refetch()} />;
+  return children(query.data);
 }
 export function Notice({ children, error = false }: { children: ReactNode; error?: boolean }) {
   return (

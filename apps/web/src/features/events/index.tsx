@@ -34,6 +34,7 @@ import {
   Pagination,
   SearchInput,
   formatDate,
+  QueryView,
 } from '../../components/ui';
 import { api, allPages, downloadPrivateFile, errorMessage, queryClient } from '../../lib/api';
 import { useSession } from '../../app/session';
@@ -589,37 +590,35 @@ function Registrations({ event }: { event: EventOccurrence }) {
           </Button>
         )}
       </div>
-      {query.isPending ? (
-        <Loading />
-      ) : query.isError ? (
-        <ErrorState error={query.error} />
-      ) : (
-        <ul className="finance-allocation-history">
-          {query.data.items.map((row) => (
-            <li key={row.id}>
-              <span>
-                <strong>{row.displayName}</strong>
-                <small className="finance-cell-note">
-                  {t(`eventRegistration_${row.status}`)}
-                  {row.waitlistPosition !== null ? ` · ${row.waitlistPosition}` : ''}
-                </small>
-              </span>
-              <div className="event-checkin-actions">
-                {row.status !== 'cancelled' && (
-                  <Button variant="secondary" onClick={() => void change(row, 'cancelled')}>
-                    {t('eventUnregister')}
-                  </Button>
-                )}
-                {event.canManage && row.status === 'waitlisted' && (
-                  <Button variant="secondary" onClick={() => void change(row, 'registered')}>
-                    {t('eventPromote')}
-                  </Button>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      <QueryView query={query}>
+        {(data) => (
+          <ul className="finance-allocation-history">
+            {data.items.map((row) => (
+              <li key={row.id}>
+                <span>
+                  <strong>{row.displayName}</strong>
+                  <small className="finance-cell-note">
+                    {t(`eventRegistration_${row.status}`)}
+                    {row.waitlistPosition !== null ? ` · ${row.waitlistPosition}` : ''}
+                  </small>
+                </span>
+                <div className="event-checkin-actions">
+                  {row.status !== 'cancelled' && (
+                    <Button variant="secondary" onClick={() => void change(row, 'cancelled')}>
+                      {t('eventUnregister')}
+                    </Button>
+                  )}
+                  {event.canManage && row.status === 'waitlisted' && (
+                    <Button variant="secondary" onClick={() => void change(row, 'registered')}>
+                      {t('eventPromote')}
+                    </Button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </QueryView>
       {adding && (
         <Modal title={t('eventAddParticipant')} onClose={() => setAdding(false)}>
           <form
@@ -782,46 +781,46 @@ function EventAttendance({ event }: { event: EventOccurrence }) {
       </div>
       {error && <Notice error>{error}</Notice>}
       <SearchInput value={search} onChange={setSearch} placeholder={t('eventSearchParticipants')} />
-      {query.isPending ? (
-        <Loading />
-      ) : query.isError ? (
-        <ErrorState error={query.error} />
-      ) : (
-        <ul className="event-checkin-list">
-          {query.data.items
-            .filter((p) => p.displayName.toLocaleLowerCase().includes(search.toLocaleLowerCase()))
-            .map((row) => (
-              <li key={row.registrationId}>
-                <div>
-                  <strong>{row.displayName}</strong>
-                  <span className="badge">{t(`eventAttendance_${row.status}`)}</span>
-                  <small>
-                    {row.checkedInAt ? new Date(row.checkedInAt).toLocaleString(i18n.language) : ''}{' '}
-                    {row.recordedByName ?? ''}
-                  </small>
-                </div>
-                <div className="event-checkin-actions">
-                  {(['present', 'absent', 'excused', 'unrecorded'] as const).map((status) => (
-                    <Button
-                      key={status}
-                      variant="secondary"
-                      disabled={
-                        row.registrationStatus !== 'registered' || event.status === 'cancelled'
-                      }
-                      aria-pressed={row.status === status}
-                      onClick={() => void mark(row, status)}
-                    >
-                      {t(`eventAttendance_${status}`)}
+      <QueryView query={query}>
+        {(data) => (
+          <ul className="event-checkin-list">
+            {data.items
+              .filter((p) => p.displayName.toLocaleLowerCase().includes(search.toLocaleLowerCase()))
+              .map((row) => (
+                <li key={row.registrationId}>
+                  <div>
+                    <strong>{row.displayName}</strong>
+                    <span className="badge">{t(`eventAttendance_${row.status}`)}</span>
+                    <small>
+                      {row.checkedInAt
+                        ? new Date(row.checkedInAt).toLocaleString(i18n.language)
+                        : ''}{' '}
+                      {row.recordedByName ?? ''}
+                    </small>
+                  </div>
+                  <div className="event-checkin-actions">
+                    {(['present', 'absent', 'excused', 'unrecorded'] as const).map((status) => (
+                      <Button
+                        key={status}
+                        variant="secondary"
+                        disabled={
+                          row.registrationStatus !== 'registered' || event.status === 'cancelled'
+                        }
+                        aria-pressed={row.status === status}
+                        onClick={() => void mark(row, status)}
+                      >
+                        {t(`eventAttendance_${status}`)}
+                      </Button>
+                    ))}
+                    <Button variant="ghost" onClick={() => setHistory(row.registrationId)}>
+                      {t('eventHistory')}
                     </Button>
-                  ))}
-                  <Button variant="ghost" onClick={() => setHistory(row.registrationId)}>
-                    {t('eventHistory')}
-                  </Button>
-                </div>
-              </li>
-            ))}
-        </ul>
-      )}
+                  </div>
+                </li>
+              ))}
+          </ul>
+        )}
+      </QueryView>
       {history && (
         <Modal title={t('eventHistory')} onClose={() => setHistory(null)}>
           <AttendanceHistory eventId={event.id} registrationId={history} />
@@ -903,27 +902,25 @@ export function EventCategories() {
       <EventNavigation />
       {error && <Notice error>{error}</Notice>}
       <section className="panel event-section">
-        {categories.isPending ? (
-          <Loading />
-        ) : categories.isError ? (
-          <ErrorState error={categories.error} />
-        ) : (
-          <ul className="finance-allocation-history">
-            {categories.data.items.map((c) => (
-              <li key={c.id}>
-                <span>
-                  {c.nameI18n[i18n.language === 'it' ? 'it' : 'de']} ·{' '}
-                  {t(c.active ? 'active' : 'inactive')}
-                </span>
-                {me.permissions.includes('events:categories') && (
-                  <Button variant="secondary" onClick={() => setEditor(c)}>
-                    {t('edit')}
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+        <QueryView query={categories}>
+          {(data) => (
+            <ul className="finance-allocation-history">
+              {data.items.map((c) => (
+                <li key={c.id}>
+                  <span>
+                    {c.nameI18n[i18n.language === 'it' ? 'it' : 'de']} ·{' '}
+                    {t(c.active ? 'active' : 'inactive')}
+                  </span>
+                  {me.permissions.includes('events:categories') && (
+                    <Button variant="secondary" onClick={() => setEditor(c)}>
+                      {t('edit')}
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </QueryView>
       </section>
       {editor !== false && (
         <Modal title={t('eventAddCategory')} onClose={() => setEditor(false)}>
@@ -982,27 +979,25 @@ export function EventAttendanceIndex() {
       <PageHeading title={t('eventAttendanceNav')} description={t('eventSelectForAttendance')} />
       <EventNavigation />
       <section className="panel event-section">
-        {query.isPending ? (
-          <Loading />
-        ) : query.isError ? (
-          <ErrorState error={query.error} />
-        ) : (
-          <ul className="finance-allocation-history">
-            {query.data
-              .filter((e) => e.canManage)
-              .map((e) => (
-                <li key={e.id}>
-                  <span>
-                    {e.titleI18n[i18n.language === 'it' ? 'it' : 'de']} ·{' '}
-                    {formatDate(e.startAt, i18n.language)}
-                  </span>
-                  <Link className="button button-secondary" to={`/events/${e.id}?tab=attendance`}>
-                    {t('eventTab_attendance')}
-                  </Link>
-                </li>
-              ))}
-          </ul>
-        )}
+        <QueryView query={query}>
+          {(data) => (
+            <ul className="finance-allocation-history">
+              {data
+                .filter((e) => e.canManage)
+                .map((e) => (
+                  <li key={e.id}>
+                    <span>
+                      {e.titleI18n[i18n.language === 'it' ? 'it' : 'de']} ·{' '}
+                      {formatDate(e.startAt, i18n.language)}
+                    </span>
+                    <Link className="button button-secondary" to={`/events/${e.id}?tab=attendance`}>
+                      {t('eventTab_attendance')}
+                    </Link>
+                  </li>
+                ))}
+            </ul>
+          )}
+        </QueryView>
       </section>
     </>
   );

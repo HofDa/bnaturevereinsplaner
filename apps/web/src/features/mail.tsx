@@ -1,3 +1,4 @@
+import { QueryView } from '../components/ui';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -221,11 +222,7 @@ export function MailPage() {
             <p>{t('mailOutboxHint')}</p>
           </div>
         </div>
-        {messages.isPending ? (
-          <Loading />
-        ) : messages.isError ? (
-          <ErrorState error={messages.error} />
-        ) : !messages.data.items.length ? (
+        {<QueryView query={messages}>{(queryData) => (!queryData.items.length ? (
           <Empty title={t('mailEmpty')} />
         ) : (
           <>
@@ -241,7 +238,7 @@ export function MailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {messages.data.items.map((message) => (
+                  {queryData.items.map((message) => (
                     <tr key={message.id}>
                       <td>{message.recipient}</td>
                       <td>
@@ -266,9 +263,9 @@ export function MailPage() {
                 </tbody>
               </table>
             </div>
-            <Pagination page={page} pageSize={20} total={messages.data.total} onChange={setPage} />
+            <Pagination page={page} pageSize={20} total={queryData.total} onChange={setPage} />
           </>
-        )}
+        ))}</QueryView>}
       </section>
       {preview && (
         <Modal
@@ -369,12 +366,8 @@ export function MailPage() {
       {configure && (
         <Modal title={t('mailAutomation')} onClose={() => setConfigure(false)}>
           <p>{t('mailAutomationHint')}</p>
-          {settings.isPending ? (
-            <Loading />
-          ) : settings.isError ? (
-            <ErrorState error={settings.error} />
-          ) : (
-            settings.data && (
+          {<QueryView query={settings}>{(queryData) => ((
+            queryData && (
               <DataForm
                 schema={mailSettingsInputSchema.extend({
                   reminderIntervalDays: z.coerce.number().int().min(7).max(90),
@@ -394,7 +387,7 @@ export function MailPage() {
                   },
                   { name: 'automaticLoanReminders', label: 'mailAutoLoans', type: 'checkbox' },
                 ]}
-                defaults={settings.data}
+                defaults={queryData}
                 onCancel={() => setConfigure(false)}
                 onSubmit={async (data) => {
                   const saved = await write<MailSettings>('/mail/settings', data, 'PUT');
@@ -404,7 +397,7 @@ export function MailPage() {
                 }}
               />
             )
-          )}
+          ))}</QueryView>}
         </Modal>
       )}
     </>

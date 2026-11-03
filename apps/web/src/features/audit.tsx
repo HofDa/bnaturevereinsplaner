@@ -5,7 +5,7 @@ import type { AuditLog, Page } from '@bnature/contracts';
 import { api } from '../lib/api';
 import { useSession } from '../app/session';
 import { useDebounced } from '../hooks/use-debounced';
-import { Empty, ErrorState, Loading, PageHeading, Pagination, SearchInput } from '../components/ui';
+import { Empty, PageHeading, Pagination, SearchInput, QueryView } from '../components/ui';
 export function Audit() {
   const { t, i18n } = useTranslation(),
     { me } = useSession();
@@ -32,56 +32,54 @@ export function Audit() {
             }}
           />
         </div>
-        {query.isPending ? (
-          <Loading />
-        ) : query.isError ? (
-          <ErrorState error={query.error} />
-        ) : (
-          <>
-            {query.data.items.length ? (
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>{t('timestamp')}</th>
-                      <th>{t('action')}</th>
-                      <th>{t('entity')}</th>
-                      <th>{t('changedFields')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {query.data.items.map((log) => (
-                      <tr key={log.id}>
-                        <td className="nowrap">
-                          {new Intl.DateTimeFormat(i18n.language === 'it' ? 'it-IT' : 'de-IT', {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                            timeZone: 'Europe/Rome',
-                          }).format(new Date(log.timestamp))}
-                        </td>
-                        <td>{t(log.action)}</td>
-                        <td>{t(log.entityType)}</td>
-                        <td className="audit-fields">
-                          {log.changeMetadata.fields
-                            .map((field) => t(field, { defaultValue: field }))
-                            .join(', ')}
-                        </td>
+        <QueryView query={query}>
+          {(data) => (
+            <>
+              {data.items.length ? (
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>{t('timestamp')}</th>
+                        <th>{t('action')}</th>
+                        <th>{t('entity')}</th>
+                        <th>{t('changedFields')}</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <Empty />
-            )}
-            <Pagination
-              page={page}
-              pageSize={query.data.pageSize}
-              total={query.data.total}
-              onChange={setPage}
-            />
-          </>
-        )}
+                    </thead>
+                    <tbody>
+                      {data.items.map((log) => (
+                        <tr key={log.id}>
+                          <td className="nowrap">
+                            {new Intl.DateTimeFormat(i18n.language === 'it' ? 'it-IT' : 'de-IT', {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                              timeZone: 'Europe/Rome',
+                            }).format(new Date(log.timestamp))}
+                          </td>
+                          <td>{t(log.action)}</td>
+                          <td>{t(log.entityType)}</td>
+                          <td className="audit-fields">
+                            {log.changeMetadata.fields
+                              .map((field) => t(field, { defaultValue: field }))
+                              .join(', ')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <Empty />
+              )}
+              <Pagination
+                page={page}
+                pageSize={data.pageSize}
+                total={data.total}
+                onChange={setPage}
+              />
+            </>
+          )}
+        </QueryView>
       </section>
     </>
   );

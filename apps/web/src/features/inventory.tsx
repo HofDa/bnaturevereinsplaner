@@ -1,3 +1,4 @@
+import { QueryView } from '../components/ui';
 import { useState } from 'react';
 import { NavLink } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -309,11 +310,7 @@ function ItemDetail({ item, onClose }: { item: InventoryItem; onClose: () => voi
       </dl>
       {item.description && <p>{item.description}</p>}
       <h3>{t('invHistory')}</h3>
-      {history.isPending ? (
-        <Loading />
-      ) : history.isError ? (
-        <ErrorState error={history.error} />
-      ) : history.data.items.length ? (
+      {<QueryView query={history}>{(queryData) => (queryData.items.length ? (
         <div className="table-scroll" role="region" aria-label={t('invHistory')} tabIndex={0}>
           <table>
             <thead>
@@ -326,7 +323,7 @@ function ItemDetail({ item, onClose }: { item: InventoryItem; onClose: () => voi
               </tr>
             </thead>
             <tbody>
-              {history.data.items.map((l) => (
+              {queryData.items.map((l) => (
                 <tr key={l.id}>
                   <td>{l.borrowerName}</td>
                   <td>{l.quantity}</td>
@@ -348,7 +345,7 @@ function ItemDetail({ item, onClose }: { item: InventoryItem; onClose: () => voi
         </div>
       ) : (
         <Empty title={t('invNoHistory')} />
-      )}
+      ))}</QueryView>}
       {history.data && (
         <Pagination page={page} pageSize={pageSize} total={history.data.total} onChange={setPage} />
       )}
@@ -476,11 +473,7 @@ export function InventoryItems() {
             ['all', t('all')],
           ])}
         </div>
-        {query.isPending ? (
-          <Loading />
-        ) : query.isError ? (
-          <ErrorState error={query.error} retry={() => void query.refetch()} />
-        ) : query.data.items.length ? (
+        {<QueryView query={query}>{(queryData) => (queryData.items.length ? (
           <>
             <div className="table-scroll">
               <table>
@@ -495,7 +488,7 @@ export function InventoryItems() {
                   </tr>
                 </thead>
                 <tbody>
-                  {query.data.items.map((item) => (
+                  {queryData.items.map((item) => (
                     <tr key={item.id}>
                       <td>
                         <strong>{item.name}</strong>
@@ -567,14 +560,14 @@ export function InventoryItems() {
             </div>
             <Pagination
               page={page}
-              pageSize={query.data.pageSize}
-              total={query.data.total}
+              pageSize={queryData.pageSize}
+              total={queryData.total}
               onChange={setPage}
             />
           </>
         ) : (
           <Empty title={t('invEmpty')} />
-        )}
+        ))}</QueryView>}
       </section>
       {creating && (
         <FormModal
@@ -746,14 +739,10 @@ export function InventoryLoans() {
             </select>
           </Field>
         </div>
-        {query.isPending ? (
-          <Loading />
-        ) : query.isError ? (
-          <ErrorState error={query.error} retry={() => void query.refetch()} />
-        ) : query.data.items.length ? (
+        {<QueryView query={query}>{(queryData) => (queryData.items.length ? (
           <>
             <LoanTable
-              loans={query.data.items}
+              loans={queryData.items}
               actions={
                 can('inventory:lend')
                   ? (l) =>
@@ -780,14 +769,14 @@ export function InventoryLoans() {
             />
             <Pagination
               page={page}
-              pageSize={query.data.pageSize}
-              total={query.data.total}
+              pageSize={queryData.pageSize}
+              total={queryData.total}
               onChange={setPage}
             />
           </>
         ) : (
           <Empty title={t('invNoLoans')} />
-        )}
+        ))}</QueryView>}
       </section>
       {returning && (
         <FormModal

@@ -1,3 +1,4 @@
+import { QueryView } from '../../components/ui';
 import { LedgerSetup } from './ledger-setup';
 import { Reports } from './ledger-reports';
 import { Amount } from './amount';
@@ -273,11 +274,7 @@ function Cashbook() {
       </div>
       {notice && <Notice>{notice}</Notice>}
       {error && <Notice error>{error}</Notice>}
-      {entries.isPending ? (
-        <Loading />
-      ) : entries.isError ? (
-        <ErrorState error={entries.error} retry={() => void entries.refetch()} />
-      ) : entries.data.items.length ? (
+      {<QueryView query={entries}>{(queryData) => (queryData.items.length ? (
         <>
           <div className="table-scroll" tabIndex={0} role="region" aria-label={t('ledgerCashbook')}>
             <table>
@@ -293,7 +290,7 @@ function Cashbook() {
                 </tr>
               </thead>
               <tbody>
-                {entries.data.items.map((entry) => (
+                {queryData.items.map((entry) => (
                   <tr key={entry.id}>
                     <td>
                       <strong>
@@ -364,8 +361,8 @@ function Cashbook() {
           </div>
           <Pagination
             page={page}
-            pageSize={entries.data.pageSize}
-            total={entries.data.total}
+            pageSize={queryData.pageSize}
+            total={queryData.total}
             onChange={setPage}
           />
         </>
@@ -375,7 +372,7 @@ function Cashbook() {
             debounced || account || category || direction ? 'noResults' : 'ledgerEmpty',
           )}
         />
-      )}
+      ))}</QueryView>}
       <p className="finance-footnote">{t('ledgerImmutableHint')}</p>
       {editor && (
         <Modal
