@@ -48,4 +48,13 @@ export default {
   guardianNone: 'Nessuna voce.',
   guardianMissing:
     'Minorenne: inserire almeno una persona esercente la responsabilità genitoriale.',
+  csvConsentData: 'Consenso trattamento dati',
+  csvConsentPhotos: 'Consenso foto',
+  consentFilterPhotos: 'Foto',
+  consentFilterData: 'Trattamento dati',
+  consentShortData: 'Dati',
+  consentShortPhotos: 'Foto',
+  memberFieldInvalid: 'valore non valido per questo campo aggiuntivo',
+  importFieldsHint:
+    'I campi aggiuntivi vengono ripresi dalle colonne con la loro denominazione (DE o IT). I consensi non vengono importati, ma registrati presso il socio con la data.',
 };

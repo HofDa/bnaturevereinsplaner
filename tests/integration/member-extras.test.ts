@@ -267,3 +267,46 @@ describe('consents and guardians', () => {
     expect((await extras(child)).guardians).toEqual([]);
   });
 });
+describe('member list with consents and custom fields', () => {
+  type Listed = {
+    items: (Member & {
+      photoConsent: string | null;
+      dataConsent: string | null;
+      customFields: Record<string, unknown>;
+    })[];
+  };
+  const list = async (query = '', cookie = admin) =>
+    (
+      await call('GET', `/members?pageSize=100${query}`, cookie).then((r) => {
+        expect(r.statusCode, r.body).toBe(200);
+        return r.json<Listed>();
+      })
+    ).items;
+  it('returns the latest consent per kind and filters by it', async () => {
+    const all = await list();
+    const childRow = all.find((m) => m.id === child.id)!;
+    expect(childRow.photoConsent).toBe('refused');
+    expect(childRow.dataConsent).toBe('granted');
+    expect(all.find((m) => m.id === adult.id)!.photoConsent).toBeNull();
+    const ids = async (q: string) => (await list(q)).map((m) => m.id);
+    expect(await ids('&photoConsent=refused')).toEqual([child.id]);
+    expect(await ids('&photoConsent=granted')).toEqual([]);
+    expect(await ids('&photoConsent=missing')).toEqual([adult.id]);
+    expect(await ids('&dataConsent=granted&photoConsent=refused')).toEqual([child.id]);
+    expect((await call('GET', '/members?photoConsent=maybe')).statusCode).toBe(422);
+    // Another club's consents never leak into this list.
+    expect((await list('', foreignAdmin)).map((m) => m.id)).toEqual([foreignMember.id]);
+  });
+  it('includes custom field values in list and detail', async () => {
+    const [field] = (
+      await call('GET', '/member-fields').then((r) => r.json<{ items: MemberField[] }>())
+    ).items.filter((f) => f.type === 'boolean');
+    await call('PUT', `/members/${child.id}/fields`, admin, { values: { [field!.id]: true } });
+    const row = (await list()).find((m) => m.id === child.id)!;
+    expect(row.customFields[field!.id]).toBe(true);
+    const detail = await call('GET', `/members/${child.id}`).then((r) =>
+      r.json<Listed['items'][number]>(),
+    );
+    expect(detail.customFields[field!.id]).toBe(true);
+  });
+});

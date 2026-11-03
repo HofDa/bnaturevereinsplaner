@@ -3,9 +3,10 @@ import { Link, useParams, useSearchParams, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Plus, Download, Upload, ArrowUpRight, ArrowLeft, Pencil } from 'lucide-react';
-import type { Member, Page } from '@bnature/contracts';
+import type { ConsentState, Member, MemberField, Page } from '@bnature/contracts';
 import { api, allPages, errorMessage } from '../lib/api';
-import { downloadCsv, encodeCsv } from '../lib/csv';
+import { csvColumns, downloadCsv, encodeCsv } from '../lib/csv';
+import { fieldLabel, formatFieldValue } from '../lib/member-fields';
 import { useDebounced } from '../hooks/use-debounced';
 import { useSession } from '../app/session';
 import {
@@ -32,6 +33,8 @@ export function Members() {
     navigate = useNavigate();
   const [search, setSearch] = useState(''),
     [status, setStatus] = useState(''),
+    [photoConsent, setPhotoConsent] = useState(''),
+    [dataConsent, setDataConsent] = useState(''),
     [sort, setSort] = useState('name'),
     [page, setPage] = useState(1),
     [importOpen, setImportOpen] = useState(false),
@@ -43,9 +46,36 @@ export function Members() {
   const queryString = new URLSearchParams({
     search: debounced,
     ...(status ? { status } : {}),
+    ...(photoConsent ? { photoConsent } : {}),
+    ...(dataConsent ? { dataConsent } : {}),
     sort: sort === 'newest' ? 'createdAt' : sort,
     direction: sort === 'newest' ? 'desc' : 'asc',
   }).toString();
+  const fieldsQuery = useQuery({
+    queryKey: ['member-fields', me.activeOrganizationId],
+    queryFn: () => api<{ items: MemberField[] }>('/member-fields'),
+  });
+  const fields = (fieldsQuery.data?.items ?? []).filter((f) => f.active);
+  const yesNo: [string, string] = [t('memberFieldYes'), t('memberFieldNo')];
+  const consentText = (state: ConsentState | undefined) =>
+    state === 'granted' ? t('consentGranted') : state === 'refused' ? t('consentRefused') : '';
+  // CSV: the standard columns, then one column per custom field and the consent states.
+  function exportRows(members: Member[]) {
+    const fieldHeaders = fields.map((f) => fieldLabel(f, i18n.language));
+    const consentHeaders = [t('csvConsentData'), t('csvConsentPhotos')];
+    const rows = members.map((m) => ({
+      ...m,
+      ...Object.fromEntries(
+        fields.map((f, i) => [
+          fieldHeaders[i],
+          formatFieldValue(f, m.customFields?.[f.id], yesNo, i18n.language),
+        ]),
+      ),
+      [consentHeaders[0]!]: consentText(m.dataConsent),
+      [consentHeaders[1]!]: consentText(m.photoConsent),
+    }));
+    return encodeCsv(rows, [...csvColumns, ...fieldHeaders, ...consentHeaders]);
+  }
   const query = useQuery({
     queryKey: ['members', me.activeOrganizationId, queryString, page],
     queryFn: () => api<Page<Member>>(`/members?${queryString}&page=${page}`),
@@ -66,7 +96,7 @@ export function Members() {
                 try {
                   downloadCsv(
                     'bnature-mitglieder.csv',
-                    encodeCsv(await allPages<Member>(`/members?${queryString}`)),
+                    exportRows(await allPages<Member>(`/members?${queryString}`)),
                   );
                 } catch (error) {
                   setError(errorMessage(error));
@@ -121,6 +151,29 @@ export function Members() {
               ))}
             </select>
           </label>
+          {(
+            [
+              ['photoConsent', photoConsent, setPhotoConsent, 'consentFilterPhotos'],
+              ['dataConsent', dataConsent, setDataConsent, 'consentFilterData'],
+            ] as const
+          ).map(([name, value, set, label]) => (
+            <label key={name}>
+              <span className="sr-only">{t(label)}</span>
+              <select
+                aria-label={t(label)}
+                value={value}
+                onChange={(event) => {
+                  set(event.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">{t(label)}</option>
+                <option value="granted">{`${t(label)}: ${t('consentGranted')}`}</option>
+                <option value="refused">{`${t(label)}: ${t('consentRefused')}`}</option>
+                <option value="missing">{`${t(label)}: ${t('consentNone')}`}</option>
+              </select>
+            </label>
+          ))}
           <label>
             <span className="sr-only">{t('sort')}</span>
             <select
@@ -154,6 +207,8 @@ export function Members() {
                       <th>{t('membershipType')}</th>
                       <th>{t('status')}</th>
                       <th>{t('joined')}</th>
+                      <th>{t('consentsTitle')}</th>
+                      {fields.length > 0 && <th>{t('memberFieldsTitle')}</th>}
                       <th>
                         <span className="sr-only">{t('actions')}</span>
                       </th>
@@ -180,6 +235,47 @@ export function Members() {
                         </td>
                         <td>{formatDate(member.joinedAt, i18n.language)}</td>
                         <td>
+                          <span className="consent-pills">
+                            {(
+                              [
+                                ['dataConsent', 'consentShortData'],
+                                ['photoConsent', 'consentShortPhotos'],
+                              ] as const
+                            ).map(([key, label]) => {
+                              const state = member[key];
+                              return (
+                                <span
+                                  key={key}
+                                  className={`consent-pill consent-${state === 'granted' ? 'yes' : state === 'refused' ? 'no' : 'none'}`}
+                                >
+                                  {t(label)}{' '}
+                                  {state === 'granted' ? '✓' : state === 'refused' ? '✗' : '–'}
+                                  <span className="sr-only">
+                                    : {consentText(state) || t('consentNone')}
+                                  </span>
+                                </span>
+                              );
+                            })}
+                          </span>
+                        </td>
+                        {fields.length > 0 && (
+                          <td className="member-field-cell">
+                            {fields
+                              .filter((f) => member.customFields?.[f.id] !== undefined)
+                              .map((f) => (
+                                <small key={f.id}>
+                                  {fieldLabel(f, i18n.language)}:{' '}
+                                  {formatFieldValue(
+                                    f,
+                                    member.customFields?.[f.id],
+                                    yesNo,
+                                    i18n.language,
+                                  )}
+                                </small>
+                              ))}
+                          </td>
+                        )}
+                        <td>
                           <Link
                             to={`/members/${member.id}`}
                             className="icon-button"
@@ -195,8 +291,12 @@ export function Members() {
               </div>
             ) : (
               <Empty
-                title={debounced || status ? t('noResults') : undefined}
-                description={debounced || status ? undefined : t('emptyMembers')}
+                title={
+                  debounced || status || photoConsent || dataConsent ? t('noResults') : undefined
+                }
+                description={
+                  debounced || status || photoConsent || dataConsent ? undefined : t('emptyMembers')
+                }
               />
             )}
             <Pagination
@@ -280,7 +380,7 @@ export function MemberDetail() {
                     ? formatDate(member.dateOfBirth, i18n.language)
                     : key === 'preferredLanguage'
                       ? t(member.preferredLanguage)
-                      : member[key as keyof Member] || '—'}
+                      : String(member[key as keyof Member] ?? '') || '—'}
                 </dd>
               </div>
             ))}
