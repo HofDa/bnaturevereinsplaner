@@ -6,6 +6,8 @@ import volunteers from './volunteers-it';
 import mail from './mail-it';
 import inventory from './inventory-it';
 import community from './community-it';
+import memberExtras from './member-extras-it';
+import reports from './reports-it';
 import type de from './de';
 const it: Record<keyof typeof de, string> = {
   ...events,
@@ -16,6 +18,8 @@ const it: Record<keyof typeof de, string> = {
   ...mail,
   ...inventory,
   ...community,
+  ...memberExtras,
+  ...reports,
   membershipNumber: 'Numero socio',
   joinedAt: 'Data di adesione',
   preferredLanguage: 'Lingua preferita',

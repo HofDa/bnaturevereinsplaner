@@ -19,6 +19,11 @@ import { Link } from 'react-router';
 import { Empty, ErrorState, Loading } from '../components/ui';
 import { shellDatabase } from '../lib/offline';
 
+const ScheduleDetailPage = lazy(() =>
+  import('../features/community-schedules').then((module) => ({
+    default: module.ScheduleDetailPage,
+  })),
+);
 const Members = lazy(() =>
   import('../features/members').then((module) => ({ default: module.Members })),
 );
@@ -210,6 +215,14 @@ function App() {
             }
           />
           <Route
+            path="community/schedules/:id"
+            element={
+              <Guard permission="community:read">
+                <ScheduleDetailPage />
+              </Guard>
+            }
+          />
+          <Route
             path="community/:id"
             element={
               <Guard permission="community:read">
@@ -372,6 +385,14 @@ function App() {
           <Route path="groups" element={<Groups />} />
           <Route path="board" element={<Board />} />
           <Route path="organization" element={<OrganizationPage />} />
+          <Route
+            path="reports"
+            element={
+              <Guard permission="members:read">
+                <Reports />
+              </Guard>
+            }
+          />
           <Route path="settings" element={<Settings />} />
           <Route path="profile" element={<Profile />} />
           <Route

@@ -6,7 +6,12 @@ import { createApp } from '../../apps/api/src/app';
 import { createAuth } from '../../apps/api/src/auth';
 import { bootstrap } from '../../apps/api/src/services/bootstrap';
 import { readConfig } from '../../apps/api/src/plugins/config';
-import type { CommunityPost } from '../../packages/contracts/src';
+import type { CommunityPost, Unread } from '../../packages/contracts/src';
+import {
+  enqueueCommunityDigests,
+  revalidateDigest,
+  digestDue,
+} from '../../apps/api/src/modules/community-notify';
 const config = { ...readConfig(), EMAIL_MODE: 'disabled' as const };
 if (config.NODE_ENV !== 'test' || new URL(config.DATABASE_URL).pathname !== '/bnature_test')
   throw new Error('Dedicated test database required');
@@ -227,6 +232,90 @@ describe('news and polls', () => {
       201,
     );
     await ok(await write('POST', `/community/chat/${own.id}/remove`, { version: 1 }, 'member'));
+  });
+  it('stores one reaction per account and emoji, scoped to the channel and the live message', async () => {
+    const msg = await ok<{ id: string }>(
+      await write('POST', '/community/chat', { body: 'Wer kommt mit? 🌲' }, 'member'),
+      201,
+    );
+    const react = (emoji: string, active: boolean, role = 'member', key?: string) =>
+      write('PUT', `/community/chat/${msg.id}/reactions`, { emoji, active }, role, key);
+    const key = crypto.randomUUID();
+    const replies = await Promise.all([
+      react('👍', true, 'member', key),
+      react('👍', true, 'member', key),
+    ]);
+    replies.forEach((r) => expect(r.statusCode, r.body).toBe(200));
+    await ok(await react('👍', true));
+    await ok(await react('👍', true, 'board'));
+    await ok(await react('🎉', true, 'board'));
+    type Listed = {
+      items: {
+        id: string;
+        reactions: { emoji: string; count: number; mine: boolean; names: string[] }[];
+      }[];
+    };
+    const reactionsOf = async (role: string) =>
+      (await ok<Listed>(await get('/community/chat', role))).items.find((m) => m.id === msg.id)!
+        .reactions;
+    expect(await reactionsOf('member')).toEqual([
+      { emoji: '👍', count: 2, mine: true, names: expect.any(Array) },
+      { emoji: '🎉', count: 1, mine: false, names: expect.any(Array) },
+    ]);
+    expect((await reactionsOf('board'))[1]!.mine).toBe(true);
+    await ok(await react('👍', false));
+    await ok(await react('👍', false));
+    expect(await reactionsOf('member')).toMatchObject([
+      { emoji: '👍', count: 1, mine: false },
+      { emoji: '🎉', count: 1 },
+    ]);
+    expect((await react('🍕', true)).statusCode).toBe(422);
+    await expect(
+      db.insert(s.communityChatReactions).values({
+        organizationId: org,
+        messageId: msg.id,
+        userId: users.member!.id,
+        emoji: '🍕',
+      }),
+    ).rejects.toThrow();
+    const group = await ok<{ id: string }>(
+      await write('POST', '/community/chat', { body: 'Nur Gruppe', groupId }, 'member'),
+      201,
+    );
+    expect(
+      (
+        await write(
+          'PUT',
+          `/community/chat/${group.id}/reactions`,
+          { emoji: '👍', active: true },
+          'other',
+        )
+      ).statusCode,
+    ).toBe(404);
+    const foreign = await app.inject({
+      method: 'PUT',
+      url: `/api/v1/community/chat/${msg.id}/reactions`,
+      headers: headers('foreign', crypto.randomUUID(), foreignOrg),
+      payload: { emoji: '👍', active: true },
+    });
+    expect(foreign.statusCode).toBe(404);
+    await ok(await write('POST', `/community/chat/${msg.id}/remove`, { version: 1 }, 'member'));
+    expect(await reactionsOf('member')).toEqual([]);
+    expect(
+      await db
+        .select()
+        .from(s.communityChatReactions)
+        .where(eq(s.communityChatReactions.messageId, msg.id)),
+    ).toHaveLength(0);
+    expect((await react('👍', true)).statusCode).toBe(409);
+    await expect(
+      db.insert(s.communityChatReactions).values({
+        organizationId: org,
+        messageId: msg.id,
+        userId: users.member!.id,
+        emoji: '👍',
+      }),
+    ).rejects.toThrow();
   });
   it('paginates chat history without duplicates and rejects cursors from another channel', async () => {
     await db.insert(s.communityChatMessages).values(
@@ -469,5 +558,531 @@ describe('news and polls', () => {
         optionId: post.options[0]!.id,
       }),
     ).rejects.toThrow();
+  });
+});
+
+describe('unread markers and digests', () => {
+  const unread = async (role: string) => ok<Unread>(await get('/community/unread', role));
+  const markRead = (role: string, body: Record<string, unknown>) =>
+    app.inject({
+      method: 'PUT',
+      url: '/api/v1/community/read',
+      headers: headers(role),
+      payload: body,
+    });
+  it('counts new content by others per channel and respects group membership', async () => {
+    expect(await unread('member')).toEqual({ news: 0, polls: 0, chat: [], total: 0 });
+    await action(await create(news()), 'publish');
+    await action(await create(news({ groupId })), 'publish');
+    await action(await create(poll()), 'publish');
+    await create(news()); // draft: never unread
+    await ok(await write('POST', '/community/chat', { body: 'Hallo alle' }, 'board'), 201);
+    await ok(await write('POST', '/community/chat', { body: 'Hallo Wald', groupId }, 'board'), 201);
+    await ok(await write('POST', '/community/chat', { body: 'Meine eigene' }, 'member'), 201);
+    const removed = await ok<{ id: string }>(
+      await write('POST', '/community/chat', { body: 'Gleich weg' }, 'board'),
+      201,
+    );
+    await ok(await write('POST', `/community/chat/${removed.id}/remove`, { version: 1 }, 'board'));
+    expect(await unread('member')).toEqual({
+      news: 2,
+      polls: 1,
+      chat: [
+        { groupId: null, count: 1 },
+        { groupId, count: 1 },
+      ],
+      total: 5,
+    });
+    // Not in the group: neither group news nor group chat count; the member's club message does.
+    expect(await unread('other')).toEqual({
+      news: 1,
+      polls: 1,
+      chat: [{ groupId: null, count: 2 }],
+      total: 4,
+    });
+    // The author's own posts and messages never count for them.
+    expect((await unread('admin')).news).toBe(0);
+  });
+  it('moves read markers forward only and validates their scope', async () => {
+    await ok(await write('POST', '/community/chat', { body: 'Eins' }, 'board'), 201);
+    const now = new Date().toISOString();
+    expect((await markRead('member', { channel: 'chat', until: now })).statusCode).toBe(204);
+    expect((await unread('member')).chat).toEqual([]);
+    expect(
+      (await markRead('member', { channel: 'chat', until: '2020-01-01T00:00:00Z' })).statusCode,
+    ).toBe(204);
+    expect((await unread('member')).chat).toEqual([]);
+    await ok(await write('POST', '/community/chat', { body: 'Zwei' }, 'board'), 201);
+    expect((await unread('member')).chat).toEqual([{ groupId: null, count: 1 }]);
+    // Marking up to the newest item exactly as the API returned it (millisecond precision).
+    const listed = await ok<{ items: { createdAt: string }[] }>(
+      await get('/community/chat', 'member'),
+    );
+    await markRead('member', { channel: 'chat', until: listed.items.at(-1)!.createdAt });
+    expect((await unread('member')).chat).toEqual([]);
+    await action(await create(news()), 'publish');
+    await markRead('member', { channel: 'news', until: new Date().toISOString() });
+    expect((await unread('member')).news).toBe(0);
+    // A future `until` is clamped to the server clock, so later news still counts.
+    await markRead('member', { channel: 'news', until: '2999-01-01T00:00:00Z' });
+    await action(await create(news()), 'publish');
+    expect((await unread('member')).news).toBe(1);
+    expect((await markRead('member', { channel: 'news', groupId, until: now })).statusCode).toBe(
+      422,
+    );
+    expect((await markRead('other', { channel: 'chat', groupId, until: now })).statusCode).toBe(
+      404,
+    );
+    const foreign = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/community/read',
+      headers: headers('foreign', undefined, foreignOrg),
+      payload: { channel: 'chat', groupId, until: now },
+    });
+    expect(foreign.statusCode).toBe(404);
+  });
+  it('stores the digest preference per account and organization', async () => {
+    const initial = await ok<{ digest: string; email: string; emailEnabled: boolean }>(
+      await get('/community/notifications', 'member'),
+    );
+    expect(initial).toEqual({
+      digest: 'off',
+      email: 'community-member@example.test',
+      emailEnabled: false,
+    });
+    const put = (digest: string) =>
+      app.inject({
+        method: 'PUT',
+        url: '/api/v1/community/notifications',
+        headers: headers('member'),
+        payload: { digest },
+      });
+    expect((await ok<{ digest: string }>(await put('weekly'))).digest).toBe('weekly');
+    expect((await put('hourly')).statusCode).toBe(422);
+    expect(
+      (await ok<{ digest: string }>(await get('/community/notifications', 'member'))).digest,
+    ).toBe('weekly');
+    expect(
+      (await ok<{ digest: string }>(await get('/community/notifications', 'other'))).digest,
+    ).toBe('off');
+  });
+  it('queues one digest per due day with unread titles and revalidates before sending', async () => {
+    const mailConfig = { ...config, EMAIL_MODE: 'local' as const };
+    await db.insert(s.communityNotificationSettings).values([
+      {
+        organizationId: org,
+        userId: users.member!.id,
+        digest: 'daily',
+        lastDigestAt: new Date(Date.now() - 60_000),
+        lastDigestOn: '2020-01-01',
+      },
+      {
+        organizationId: org,
+        userId: users.other!.id,
+        digest: 'daily',
+        lastDigestAt: new Date(Date.now() - 60_000),
+        lastDigestOn: '2020-01-01',
+      },
+    ]);
+    await action(await create(news({ groupId })), 'publish');
+    await ok(await write('POST', '/community/chat', { body: 'Hallo Wald', groupId }, 'board'), 201);
+    // 09:00 in Europe/Rome, safely after DIGEST_HOUR.
+    const morning = new Date();
+    morning.setUTCHours(8, 0, 0, 0);
+    if (morning.getTime() < Date.now()) morning.setUTCDate(morning.getUTCDate() + 1);
+    await enqueueCommunityDigests(db, mailConfig, morning);
+    await enqueueCommunityDigests(db, mailConfig, morning);
+    const mails = await db
+      .select()
+      .from(s.mailMessages)
+      .where(
+        and(eq(s.mailMessages.organizationId, org), eq(s.mailMessages.kind, 'community_digest')),
+      );
+    // `other` is not in the group, so nothing is new for them: no empty digest.
+    expect(mails).toHaveLength(1);
+    const [mail] = mails;
+    expect(mail!.userId).toBe(users.member!.id);
+    expect(mail!.recipient).toBe('community-member@example.test');
+    expect(mail!.body).toContain('Neuigkeiten aus dem Verein');
+    expect(mail!.body).toContain('Waldgruppe: 1');
+    expect(mail!.body).not.toContain('Hallo Wald');
+    const settings = await db
+      .select()
+      .from(s.communityNotificationSettings)
+      .where(eq(s.communityNotificationSettings.organizationId, org));
+    expect(settings.every((row) => row.lastDigestOn !== '2020-01-01')).toBe(true);
+    expect(await revalidateDigest(db, mail!)).toBe(true);
+    await db
+      .update(s.communityNotificationSettings)
+      .set({ digest: 'off' })
+      .where(eq(s.communityNotificationSettings.userId, users.member!.id));
+    expect(await revalidateDigest(db, mail!)).toBe(false);
+  });
+  it('schedules daily and weekly digests after the morning hour', () => {
+    expect(digestDue('off', null, '2026-11-03', 9)).toBe(false);
+    expect(digestDue('daily', '2026-11-02', '2026-11-03', 6)).toBe(false);
+    expect(digestDue('daily', '2026-11-02', '2026-11-03', 7)).toBe(true);
+    expect(digestDue('daily', '2026-11-03', '2026-11-03', 20)).toBe(false);
+    expect(digestDue('weekly', '2026-10-28', '2026-11-03', 9)).toBe(false);
+    expect(digestDue('weekly', '2026-10-27', '2026-11-03', 9)).toBe(true);
+  });
+});
+describe('chat replies, mentions and shared cards', () => {
+  type Msg = {
+    id: string;
+    body: string;
+    replyTo: { id: string; authorName: string; excerpt: string; removed: boolean } | null;
+    mentionsMe: boolean;
+    attachment: {
+      kind: string;
+      available: boolean;
+      title: { de: string } | null;
+      closed: boolean;
+    } | null;
+  };
+  const list = async (role: string, group?: string) =>
+    (
+      await ok<{ items: Msg[] }>(
+        await get(`/community/chat${group ? `?groupId=${group}` : ''}`, role),
+      )
+    ).items;
+  const send = (payload: Record<string, unknown>, role = 'member') =>
+    write('POST', '/community/chat', payload, role);
+  it('links replies within the same channel and shows a preview', async () => {
+    const first = await ok<{ id: string }>(
+      await send({ body: 'Wer bringt Handschuhe?' }, 'board'),
+      201,
+    );
+    await ok(await send({ body: 'Ich!', replyToId: first.id }), 201);
+    const reply = (await list('other')).find((x) => x.body === 'Ich!')!;
+    expect(reply.replyTo).toEqual({
+      id: first.id,
+      authorName: 'board',
+      excerpt: 'Wer bringt Handschuhe?',
+      removed: false,
+    });
+    const inGroup = await ok<{ id: string }>(await send({ body: 'Nur Gruppe', groupId }), 201);
+    expect((await send({ body: 'Quer', replyToId: inGroup.id })).statusCode).toBe(404);
+    await ok(await write('POST', `/community/chat/${first.id}/remove`, { version: 1 }, 'board'));
+    expect((await list('member')).find((x) => x.body === 'Ich!')!.replyTo).toMatchObject({
+      excerpt: '',
+      removed: true,
+    });
+  });
+  it('mentions only accounts with access to the channel and flags them', async () => {
+    const members = async (group?: string, role = 'member') =>
+      (
+        await ok<{ items: { userId: string; name: string }[] }>(
+          await get(`/community/chat/members${group ? `?groupId=${group}` : ''}`, role),
+        )
+      ).items.map((u) => u.name);
+    expect(await members()).toEqual(
+      expect.arrayContaining(['member', 'other', 'board', 'treasurer']),
+    );
+    const groupMembers = await members(groupId);
+    expect(groupMembers).toEqual(expect.arrayContaining(['member', 'board']));
+    expect(groupMembers).not.toContain('other');
+    expect((await get(`/community/chat/members?groupId=${groupId}`, 'other')).statusCode).toBe(404);
+    await ok(await send({ body: '@other kommst du?', mentionUserIds: [users.other!.id] }), 201);
+    expect((await list('other')).find((x) => x.body.startsWith('@other'))!.mentionsMe).toBe(true);
+    expect((await list('board')).find((x) => x.body.startsWith('@other'))!.mentionsMe).toBe(false);
+    expect(
+      (await send({ body: '@other', groupId, mentionUserIds: [users.other!.id] })).json().error
+        .code,
+    ).toBe('MENTION_NOT_ALLOWED');
+    await ok(await send({ body: '@board', groupId, mentionUserIds: [users.board!.id] }), 201);
+  });
+  it('shares polls and events as cards that respect each viewer’s access', async () => {
+    const club = await action(await create(poll()), 'publish');
+    const grouped = await action(await create(poll({ groupId })), 'publish');
+    const draft = await create(poll());
+    await ok(
+      await send({ body: 'Abstimmen!', attachment: { kind: 'poll', id: club.id } }, 'admin'),
+      201,
+    );
+    for (const bad of [grouped.id, draft.id, crypto.randomUUID()])
+      expect(
+        (await send({ body: 'x', attachment: { kind: 'poll', id: bad } }, 'admin')).statusCode,
+      ).toBe(404);
+    await ok(
+      await send({
+        body: 'Gruppe stimmt ab',
+        groupId,
+        attachment: { kind: 'poll', id: grouped.id },
+      }),
+      201,
+    );
+    const card = (await list('other')).find((x) => x.body === 'Abstimmen!')!.attachment!;
+    expect(card).toMatchObject({ kind: 'poll', available: true, closed: false });
+    expect(card.title?.de).toBe('Wann treffen wir uns?');
+    await action(club, 'close');
+    expect((await list('other')).find((x) => x.body === 'Abstimmen!')!.attachment!.closed).toBe(
+      true,
+    );
+    const category = await ok<{ id: string }>(
+      await write('POST', '/event-categories', { nameI18n: { de: 'Natur', it: 'Natura' } }),
+      201,
+    );
+    const day = new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10);
+    const event = await ok<{ id: string }>(
+      await write('POST', '/events', {
+        titleI18n: { de: 'Krötenwanderung', it: 'Migrazione dei rospi' },
+        descriptionI18n: { de: '', it: '' },
+        categoryId: category.id,
+        startLocal: `${day}T18:00`,
+        endLocal: `${day}T20:00`,
+        organizerId: users.admin!.id,
+        status: 'published',
+        visibility: 'members',
+        location: 'Seeufer',
+      }),
+      201,
+    );
+    const shared = await ok<{ id: string }>(
+      await send({ body: 'Kommt mit!', attachment: { kind: 'event', id: event.id } }),
+      201,
+    );
+    expect((await list('other')).find((x) => x.id === shared.id)!.attachment).toMatchObject({
+      kind: 'event',
+      available: true,
+      location: 'Seeufer',
+      closed: false,
+      title: { de: 'Krötenwanderung' },
+    });
+    await ok(await write('POST', `/community/chat/${shared.id}/remove`, { version: 1 }, 'member'));
+    expect((await list('other')).find((x) => x.id === shared.id)!.attachment).toBeNull();
+  });
+});
+describe('scheduling polls', () => {
+  const at = (days: number, hour: number) => {
+    const d = new Date(Date.now() + days * 86_400_000);
+    d.setUTCHours(hour, 0, 0, 0);
+    return d.toISOString();
+  };
+  const input = (patch: Record<string, unknown> = {}) => ({
+    titleI18n: { de: 'Wann pflegen wir die Hecke?', it: 'Quando curiamo la siepe?' },
+    location: 'Biotop',
+    slots: [
+      { startAt: at(10, 8), endAt: at(10, 11) },
+      { startAt: at(11, 8), endAt: at(11, 11) },
+      { startAt: at(12, 14), endAt: at(12, 17) },
+    ],
+    ...patch,
+  });
+  type Detail = {
+    id: string;
+    version: number;
+    isOpen: boolean;
+    slots: { id: string; yes: number; maybe: number; no: number; mine: string | null }[];
+    bestSlotIds: string[];
+    participants: { name: string; answers: Record<string, string> }[];
+    canManage: boolean;
+    finalSlot: { startAt: string } | null;
+    eventId: string | null;
+  };
+  const detail = async (id: string, role = 'member') =>
+    ok<Detail>(await get(`/community/schedules/${id}`, role));
+  const answer = (id: string, answers: unknown, role = 'member', key?: string) =>
+    write('PUT', `/community/schedules/${id}/answers`, { answers }, role, key);
+  it('collects yes/maybe/no per slot, lets answers change and highlights the best slot', async () => {
+    const created = await ok<{ id: string }>(
+      await write('POST', '/community/schedules', input(), 'lead'),
+      201,
+    );
+    expect((await write('POST', '/community/schedules', input(), 'member')).statusCode).toBe(403);
+    expect(
+      (
+        await write('POST', '/community/schedules', {
+          ...input(),
+          slots: [
+            { startAt: at(1, 9), endAt: at(1, 8) },
+            { startAt: at(2, 9), endAt: at(2, 10) },
+          ],
+        })
+      ).statusCode,
+    ).toBe(422);
+    const view = await detail(created.id);
+    expect(view.slots).toHaveLength(3);
+    expect(view.canManage).toBe(false);
+    const [a, b, c] = view.slots.map((x) => x.id) as [string, string, string];
+    const key = crypto.randomUUID();
+    const twice = await Promise.all([
+      answer(
+        created.id,
+        [
+          { slotId: a, answer: 'yes' },
+          { slotId: b, answer: 'maybe' },
+        ],
+        'member',
+        key,
+      ),
+      answer(
+        created.id,
+        [
+          { slotId: a, answer: 'yes' },
+          { slotId: b, answer: 'maybe' },
+        ],
+        'member',
+        key,
+      ),
+    ]);
+    twice.forEach((r) => expect(r.statusCode, r.body).toBe(200));
+    await ok(
+      await answer(
+        created.id,
+        [
+          { slotId: b, answer: 'yes' },
+          { slotId: c, answer: 'no' },
+        ],
+        'other',
+      ),
+    );
+    await ok(await answer(created.id, [{ slotId: b, answer: 'yes' }], 'board'));
+    // Changing an answer replaces it.
+    await ok(await answer(created.id, [{ slotId: b, answer: 'yes' }], 'member'));
+    const after = await detail(created.id);
+    expect(after.slots.map((x) => [x.yes, x.maybe, x.no])).toEqual([
+      [1, 0, 0],
+      [3, 0, 0],
+      [0, 0, 1],
+    ]);
+    expect(after.slots.map((x) => x.mine)).toEqual(['yes', 'yes', null]);
+    expect(after.bestSlotIds).toEqual([b]);
+    expect(after.participants.map((p) => p.name)).toEqual(['board', 'member', 'other']);
+    expect(
+      (await answer(created.id, [{ slotId: crypto.randomUUID(), answer: 'yes' }])).statusCode,
+    ).toBe(404);
+    // Only the organizer (or a moderator) closes it, with a final slot.
+    expect(
+      (
+        await write('POST', `/community/schedules/${created.id}/close`, {
+          version: after.version,
+          finalSlotId: b,
+        })
+      ).statusCode,
+    ).toBe(200);
+    const closed = await detail(created.id);
+    expect(closed.isOpen).toBe(false);
+    expect(closed.finalSlot?.startAt).toBe(after.slots[1] ? at(11, 8) : '');
+    expect((await answer(created.id, [{ slotId: a, answer: 'no' }])).json().error.code).toBe(
+      'SCHEDULE_CLOSED',
+    );
+    await expect(
+      db.insert(s.communityScheduleAnswers).values({
+        organizationId: org,
+        scheduleId: created.id,
+        slotId: c,
+        userId: users.member!.id,
+        answer: 'yes',
+      }),
+    ).rejects.toThrow();
+    const open = await ok<{ items: { id: string }[] }>(await get('/community/schedules', 'member'));
+    expect(open.items.map((x) => x.id)).not.toContain(created.id);
+    const done = await ok<{ items: { id: string; finalSlot: unknown }[] }>(
+      await get('/community/schedules?state=closed', 'member'),
+    );
+    expect(done.items.find((x) => x.id === created.id)?.finalSlot).not.toBeNull();
+  });
+  it('turns the fixed slot into exactly one event in club time', async () => {
+    const created = await ok<{ id: string }>(
+      await write('POST', '/community/schedules', input(), 'lead'),
+      201,
+    );
+    const category = await ok<{ id: string }>(
+      await write('POST', '/event-categories', { nameI18n: { de: 'Pflege', it: 'Cura' } }),
+      201,
+    );
+    const toEvent = (role = 'lead', key?: string) =>
+      write(
+        'POST',
+        `/community/schedules/${created.id}/event`,
+        { categoryId: category.id, visibility: 'members', status: 'published' },
+        role,
+        key,
+      );
+    expect((await toEvent()).json().error.code).toBe('SCHEDULE_NOT_FIXED');
+    const view = await detail(created.id, 'lead');
+    const final = view.slots[1]!;
+    await ok(
+      await write(
+        'POST',
+        `/community/schedules/${created.id}/close`,
+        { version: view.version, finalSlotId: final.id },
+        'lead',
+      ),
+    );
+    expect((await toEvent('member')).statusCode).toBe(403);
+    const key = crypto.randomUUID();
+    const [first, replay] = await Promise.all([toEvent('lead', key), toEvent('lead', key)]);
+    expect(first.statusCode, first.body).toBe(201);
+    expect(replay.json().id).toBe(first.json().id);
+    const eventId = first.json<{ id: string }>().id;
+    const event = await ok<{
+      titleI18n: { de: string };
+      startAt: string;
+      endAt: string;
+      location: string;
+      status: string;
+    }>(await get(`/events/${eventId}`, 'admin'));
+    expect(event).toMatchObject({
+      titleI18n: { de: 'Wann pflegen wir die Hecke?' },
+      location: 'Biotop',
+      status: 'published',
+    });
+    expect(new Date(event.startAt).toISOString()).toBe(at(11, 8));
+    expect(new Date(event.endAt).toISOString()).toBe(at(11, 11));
+    expect((await detail(created.id)).eventId).toBe(eventId);
+    expect((await toEvent()).json().error.code).toBe('EVENT_EXISTS');
+  });
+  it('limits group schedules to the group and rejects foreign slots and closing by others', async () => {
+    const grouped = await ok<{ id: string }>(
+      await write('POST', '/community/schedules', input({ groupId }), 'board'),
+      201,
+    );
+    expect((await get(`/community/schedules/${grouped.id}`, 'other')).statusCode).toBe(404);
+    const view = await detail(grouped.id);
+    const other = await ok<{ id: string }>(
+      await write('POST', '/community/schedules', input()),
+      201,
+    );
+    const foreignSlot = (await detail(other.id)).slots[0]!.id;
+    expect((await answer(grouped.id, [{ slotId: foreignSlot, answer: 'yes' }])).statusCode).toBe(
+      404,
+    );
+    expect(
+      (
+        await write(
+          'POST',
+          `/community/schedules/${grouped.id}/close`,
+          { version: view.version },
+          'member',
+        )
+      ).statusCode,
+    ).toBe(403);
+    expect(
+      (
+        await app.inject({
+          url: `/api/v1/community/schedules/${grouped.id}`,
+          headers: headers('foreign', undefined, foreignOrg),
+        })
+      ).statusCode,
+    ).toBe(404);
+    const expired = await write(
+      'POST',
+      '/community/schedules',
+      input({ closesAt: '2020-01-01T00:00:00Z' }),
+    );
+    expect(expired.json().error.code).toBe('DEADLINE_PASSED');
+  });
+});
+describe('rate limits', () => {
+  it('keeps unread polling out of the general per-IP budget', async () => {
+    const remoteAddress = '203.0.113.42';
+    const call = (url: string) =>
+      app.inject({ url: `/api/v1${url}`, headers: headers('member'), remoteAddress });
+    for (let i = 0; i < 120; i++) expect((await call('/community/unread')).statusCode).toBe(200);
+    expect((await call('/community/unread')).statusCode).toBe(429);
+    // 120 polls plus 100 regular requests exceed 150, yet regular requests still pass.
+    for (let i = 0; i < 100; i++) expect((await call('/community/audiences')).statusCode).toBe(200);
   });
 });

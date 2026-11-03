@@ -1,5 +1,109 @@
 # Prüfnachweise
 
+## Terminfindung als Veranstaltung, Mitgliederliste, Newsletter – 03.11.2026
+
+Auf `feat/schedule-to-event`, `feat/member-fields-list` und `feat/newsletter`, gestapelt auf `fix/ci-health-check`:
+
+- Typecheck, ESLint, Prettier, Audit-relevante Abhängigkeiten unverändert; OpenAPI neu erzeugt; Migration `0024_schedule_event`, keine Schemaabweichung.
+- **103/103 Unit-/UI-Tests** (neu: Zusatzfelder im CSV-Import) und **202/202 PostgreSQL-Integrationstests**. Neu: Veranstaltung aus festgelegtem Termin genau einmal, in Vereinszeit, nur nach Festlegung und nur durch Organisator mit Veranstaltungsrecht; Einwilligungsfilter und Zusatzwerte in Liste und Detail; Newsletter mit Abmeldungen, Gruppenbeschränkung, einmaligem Versand, Bearbeiten/Verwerfen und Revalidierung vor dem Versand.
+- Browserabläufe Desktop und Mobil: `schedule` (inkl. Veranstaltung anlegen), `member-extras` (inkl. Filter und CSV-Export), `newsletter` (Zustellung ins lokale Testpostfach, Abgemeldete ausgelassen), `mail`, `platform`.
+- Hinweis: Während einer Phase hoher Rechnerlast (Load ~30 durch andere Prozesse) liefen Axe-Prüfungen in `platform` in Zeitüberschreitungen; bei normaler Last bestanden alle Läufe.
+- Kein Deployment; Migrationen nicht auf Produktionsdaten angewendet.
+
+## Gesamtlauf und Ratenbegrenzung – 03.11.2026
+
+Auf `feat/scheduling-polls` nach allen Erweiterungen:
+
+- Ein vollständiger Browserlauf zeigte, dass die Ledger-Suite nach den Erweiterungen die globale Grenze von 150 API-Anfragen je Minute und IP erreichte (auf `master` nicht). Ursache: Die Ungelesen-Abfrage der Navigation läuft bei jedem Seitenaufruf und alle 30 Sekunden. `GET /community/unread` hat deshalb ein eigenes Kontingent (120 je Minute) und belastet das allgemeine Kontingent für Nutzeraktionen nicht mehr; ein Integrationstest prüft die Trennung.
+- Die Browserabläufe für Vereinschat (`community-chat`) und Terminfindung (`schedule`) laufen als eigene Suiten, weil mehrere Tests einer Datei zusammen die Anmeldegrenze von 10 je Minute erreichten. Neue Abläufe warten nach dem Abmelden auf das Anmeldeformular, damit die folgende Navigation die Abmeldung nicht abbricht.
+- Vollständiger Browserlauf: alle 16 Suiten auf Desktop und die ersten sechs auf Mobil bestanden; danach brach der Lauf am Offline-Test `events` (Mobil) ab, der ohne Zeitlimit darauf wartet, dass der Service Worker die Seite übernimmt. Die Suite `events` bestand auf Mobil davor und danach dreimal einzeln. Ob das größere App-Bundle (mehr Vorab-Cache) die Übernahme verlangsamt, ist nicht geklärt; die restlichen Mobil-Suiten wurden im selben Gesamtlauf deshalb nicht erneut ausgeführt, aber zuvor einzeln bestanden.
+- Offen für den produktiven Betrieb: Die Grenzen gelten je IP. Mehrere Mitglieder hinter einer gemeinsamen Adresse (z. B. Vereinsheim-WLAN) teilen sich ein Kontingent; der Chat fragt bei geöffneter Ansicht alle 5 Sekunden ab.
+
+## Terminfindung – 03.11.2026
+
+Auf `feat/scheduling-polls`, gestapelt auf `feat/chat-extras`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt; erneute Migrationserzeugung meldet keine Schemaabweichung nach `0023_scheduling_polls`.
+- **100/100 Unit-/UI-Tests** und **196/196 PostgreSQL-Integrationstests**. Neu: Anlegen nur mit Redaktions- oder Veranstaltungsrecht, ungültige Termine abgewiesen; Ja/Wenn nötig/Nein je Termin, gleichzeitige Wiederholung mit demselben Schlüssel, Ändern ersetzt die Antwort, Zählung, beste Option, Teilnehmende; fremde Termine 404; Abschluss nur durch Organisator oder Redaktion mit festgelegtem Termin, danach keine Antworten (API und PostgreSQL); Gruppenzugang, Mandantengrenze, abgelaufene Frist.
+- **6/6 Browserabläufe** `chat-poll` und **6/6** Vereinsleben (Desktop und Mobil): Terminfindung anlegen, beantworten, zweite Person antwortet, Übersicht „Wer kann wann?“, Abschluss mit bestem Termin, Axe, keine horizontale Verschiebung. Dabei behoben: Die Reiterleiste mit vier Reitern verschob auf Mobilgeräten die Seite (jetzt eigener Scrollbereich).
+- Kein Push, PR oder Deployment; Migration nicht auf Produktionsdaten angewendet.
+
+## Chat: Antworten, Erwähnungen, Karten – 03.11.2026
+
+Auf `feat/chat-extras`, gestapelt auf `feat/volunteer-self-reports`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt; erneute Migrationserzeugung meldet keine Schemaabweichung nach `0022_chat_extras`.
+- Neue PostgreSQL-Integrationstests: Antworten nur im selben Kanal mit Vorschau, entfernte Originale; erwähnbare Konten je Kanal, Erwähnung gruppenfremder Konten abgewiesen, Hervorhebung nur für die erwähnte Person; Umfrage- und Veranstaltungskarten mit Zugangsprüfung, Gruppenumfrage nicht im Vereinskanal, Entwürfe abgewiesen, geschlossene Umfrage, Karte entfällt nach Entfernen der Nachricht.
+- **6/6 Vereinsleben-Browserabläufe** und **4/4** `chat-poll` (Desktop und Mobil): Antwort mit @-Auswahl per Tastatur, Hervorhebung beim Erwähnten, Veranstaltungskarte mit Anmeldelink, Umfrage aus dem Chat mit Bestätigung, Veröffentlichung und Karte, E-Mail-Zusammenfassung im Profil (aus dem Chatablauf verschoben), Axe.
+- Hinweis: Zwei Browsersitzungen vom selben Rechner erreichten im verlängerten Chatablauf die globale API-Grenze von 150 Anfragen je Minute und IP. Für Nutzer hinter einer gemeinsamen IP (z. B. Vereinsheim-WLAN) sollte die Grenze vor dem Rollout geprüft werden.
+- Kein Push, PR oder Deployment.
+
+## Auswertungen – 03.11.2026
+
+Auf `feat/volunteer-self-reports`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt. Keine Migration.
+- Neue PostgreSQL-Integrationstests: zwölf Monate, Eintritte stimmen mit der Datenbank überein, ungültiges Jahr 422, Mitglied 403; die Summe der Freiwilligenstunden entspricht exakt den bestätigten Minuten des Jahres.
+- **2/2 Browserabläufe** `reports` (Desktop und Mobil): Diagramme, Legende, Hover-Tooltip, Tabellenansicht, Axe in hellem und dunklem Design, keine horizontale Verschiebung; Mitglied ohne Menüpunkt und mit 403.
+- Diagrammfarben (Blau/Orange) mit dem Paletten-Validator für beide Oberflächen geprüft (Farbsehschwäche-Abstand ≥ 24, Kontrast ≥ 3:1).
+- Kein Push, PR oder Deployment.
+
+## Selbstansicht für Freiwillige – 03.11.2026
+
+Auf `feat/volunteer-self-reports`, gestapelt auf `feat/reminders`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt. Keine Migration.
+- Neuer PostgreSQL-Integrationstest: ohne verknüpfte Person leere Ansicht; nur die eigene Tätigkeit sichtbar; eigene Stunden werden als „eingereicht“ mit korrekten Minuten angelegt; Überschneidung, Zukunftszeit, fremde Tätigkeit und Konto ohne Verknüpfung abgewiesen; nach Bestätigung durch Admin steigen die bestätigten Jahresstunden.
+- **2/2 Browserabläufe** `volunteer-self` (Desktop und Mobil, eigene Suite wegen der Anmeldegrenze): Konto mit verknüpfter Person meldet Stunden im Profil, Status „Eingereicht“, Axe; Vereinsverwaltung bleibt gesperrt.
+- Kein Push, PR oder Deployment.
+
+## Automatische Frist- und Rückgabeerinnerungen – 03.11.2026
+
+Auf `feat/reminders`, gestapelt auf `feat/member-consents`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt; erneute Migrationserzeugung meldet keine Schemaabweichung nach `0021_automatic_reminders`.
+- Neue PostgreSQL-Integrationstests: Aktivierung nur durch Admin; Fristerinnerungen an zuständige Person, Rolle oder Admins in deren Sprache, nur an Erinnerungstagen und einmal je Tag, keine für erledigte Fristen; Revalidierung bei verschobener oder erledigter Frist; Rückgabeerinnerungen zwei Tage vorher und bei Überfälligkeit, keine nach Rückgabe, Abbruch beim Versand nach zwischenzeitlicher Rückgabe; Stopp, wenn das aktivierende Konto kein Admin mehr ist; Erinnerungstage.
+- **4/4 E-Mail-Browserabläufe** (Desktop und Mobil) mit den zusätzlichen Schaltern; der Test wählt das Kontrollkästchen jetzt über seine Bezeichnung.
+- Kein Push, PR oder Deployment; Migration nicht auf Produktionsdaten angewendet.
+
+## Zusatzfelder, Einwilligungen und Erziehungsberechtigte – 03.11.2026
+
+Auf `feat/member-consents`, gestapelt auf `feat/fee-batch`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt; erneute Migrationserzeugung meldet keine Schemaabweichung nach `0020_member_extras`.
+- Neue PostgreSQL-Integrationstests: Felddefinitionen mit Typ- und Optionsprüfung, Werte je Typ inklusive Leeren, deaktivierte Felder, unveränderliche Feldart; Einwilligungen als Verlauf mit aktuellem Stand, Zukunftsdatum abgewiesen, Änderungen und Löschungen in PostgreSQL blockiert; Erziehungsberechtigte anlegen, teilweise ändern (ohne Überschreiben anderer Angaben), löschen; Mandantengrenzen und Rechte (Mitglied 403, Kassier nur lesend).
+- **2/2 Browserabläufe** `member-extras` (Desktop und Mobil): Feld definieren, Minderjährigen-Hinweis, erziehungsberechtigte Person, Fotoeinwilligung mit vorbelegter erklärender Person und Widerruf mit Verlauf, Zusatzwert setzen, Axe und keine horizontale Verschiebung.
+- Build: Workbox-Grenze für vorab gespeicherte Dateien auf 3 MiB angehoben, weil das einzelne App-Bundle mit dem Entwicklungs-React der Browsertests 2,1 MB erreicht. Aufteilung in nachgeladene Teile ist als Folgeaufgabe offen.
+- Kein Push, PR oder Deployment; Migration nicht auf Produktionsdaten angewendet.
+
+## Sammelvorschreibung – 03.11.2026
+
+Auf `feat/fee-batch`, gestapelt auf `feat/unread-birthdays`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt. Keine Migration.
+- Neue PostgreSQL-Integrationstests: Vorschau mit übersprungenen bestehenden Forderungen, Fremdmandanten und Summe; gleichzeitige Bestätigung mit demselben `Idempotency-Key` erzeugt die Forderungen genau einmal; veraltete Vorschau (`PREVIEW_STALE`) legt nichts an; leere Vorschau (`NOTHING_TO_CREATE`); Tarifkategorie, deaktivierter Tarif, fremder Tarif und Rechte (Mitglied und Vorstand 403).
+- **4/4 Finanz-Browserabläufe** (Desktop und Mobil): Kassier erstellt eine Sammelvorschreibung über Vorschau und Bestätigung, erneute Vorschau meldet keine neuen Forderungen, Axe-Prüfung mit Vorschau.
+- Kein Push, PR oder Deployment.
+
+## Ungelesen, E-Mail-Zusammenfassung, Geburtstage und Jubiläen – 03.11.2026
+
+Auf `feat/unread-birthdays`, gestapelt auf `feat/chat-emoji`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt; erneute Migrationserzeugung meldet keine Schemaabweichung nach `0019_community_unread_digest`.
+- **100/100 Unit-/UI-Tests** (neu: Geburtstage im Zeitfenster, Jahreswechsel, 29. Februar, Jubiläumsstufen) und **177/177 PostgreSQL-Integrationstests** bestanden. Neu geprüft: Zählung je Kanal mit Gruppenzugehörigkeit, ohne Entwürfe, eigene und entfernte Nachrichten; Lesemarken nur vorwärts, begrenzt auf die Serverzeit und mit den millisekundengenauen API-Zeitstempeln; Mandanten- und Gruppengrenzen; Zusammenfassungseinstellung je Konto; genau eine Zusammenfassung je fälligem Tag, keine leere Zusammenfassung, Revalidierung vor dem Versand; Geburtstage nur eigener aktiver Mitglieder in Vereinszeit, Zugriff nur mit `members:read`.
+- **6/6 Vereinsleben-Browserabläufe** (Desktop und Mobil) einschließlich Ungelesen-Zahl in Navigation und Chatreiter, Rücksetzen beim Öffnen des Kanals, Zusammenfassungseinstellung im Profil mit Neuladen, Geburtstagskarte mit vorbereitetem Glückwunsch im Chat und Axe-Prüfungen. **4/4 E-Mail-Browserabläufe** nach der Workeränderung erneut bestanden. Web-Produktionsbundle gebaut.
+- Nicht geprüft: tatsächlicher Versand einer Zusammenfassung über SMTP in einer Browsersuite (die Erzeugung ist per Integrationstest abgedeckt) und das App-Symbol-Badge auf echten iOS-/Android-Geräten.
+- Kein Push, PR oder Deployment; Migration nicht auf Produktionsdaten angewendet.
+
+## Chat-Emojis und Reaktionen – 03.11.2026
+
+Auf `feat/chat-emoji`, Basis `a7cbf82`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt; erneute Migrationserzeugung meldet keine Schemaabweichung nach `0018_chat_reactions`.
+- **96/96 Unit-/UI-Tests** und **171/171 PostgreSQL-Integrationstests** bestanden. Der neue Integrationstest prüft eine Reaktion je Konto und Emoji, gleichzeitige Wiederholung mit demselben `Idempotency-Key`, Setzen/Zurücknehmen ohne Umschalten, die Emoji-Auswahl in API und Datenbank, Gruppen- und Mandantengrenzen sowie das Entfernen aller Reaktionen beim Moderieren mit Datenbanksperre für neue Reaktionen.
+- **6/6 Vereinsleben-Browserabläufe** (drei Desktop, drei Mobil) einschließlich Emoji-Auswahl, Einfügen an der Cursorposition, Escape, Reaktion setzen/zurücknehmen und Axe-Prüfung mit geöffneter Reaktion. Auf Mobil liegt die Auswahl sichtbar über der unteren Navigation. Web-Produktionsbundle gebaut. Andere Browsersuiten wurden nicht erneut ausgeführt.
+- Kein Push, PR oder Deployment; Migration nicht auf Produktionsdaten angewendet.
+
 ## Zusammenführung auf master – 31.10.2026
 
 Inventar (`d26034f`) und Vereinsleben/E-Mail (`e88ad40`) sind gemeinsam integriert. Navigation, API-Registrierung, Verträge und Rollen behalten beide Funktionsbereiche. Die kollidierenden Migrationen sind als Inventar `0013`, Mail `0014`, News/Umfragen `0015` und Chat `0016` eingeordnet. Die ursprünglichen SQL-Inhalte und Zeitstempel bleiben erhalten; `0017_merge_reconciliation` ergänzt fehlende Module bei bereits migrierten Datenbanken aus beiden Branches. Die Snapshots bilden eine gemeinsame Kette; erneute Migrationserzeugung meldet keine Schemaabweichung.

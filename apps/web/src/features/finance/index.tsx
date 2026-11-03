@@ -13,6 +13,7 @@ import {
   Clock3,
   BookCheck,
   Undo2,
+  Users,
 } from 'lucide-react';
 import {
   formatMoney,
@@ -40,7 +41,7 @@ import { api, allPages, downloadPrivateFile, errorMessage, queryClient } from '.
 import { encodeCsv, downloadCsv } from '../../lib/csv';
 import { useSession } from '../../app/session';
 import { useDebounced } from '../../hooks/use-debounced';
-import { PlanForm, AssessmentForm, PaymentForm } from './forms';
+import { PlanForm, AssessmentForm, AssessmentBatchForm, PaymentForm } from './forms';
 import { useFinancialWrite } from './client';
 import { LedgerTab, type LedgerTabName } from './ledger';
 import { BookingForm, PaymentReversalForm } from './forms';
@@ -60,6 +61,7 @@ const tabLabels: Record<Tab, string> = {
 type Editor =
   | { type: 'plan'; plan?: FeePlan }
   | { type: 'assessment' }
+  | { type: 'assessment-batch' }
   | { type: 'payment'; assessment?: FeeAssessment }
   | { type: 'assessment-detail'; id: string }
   | { type: 'payment-detail'; id: string };
@@ -290,14 +292,25 @@ export function Finance() {
                     </Button>
                   )
                 : canWrite && (
-                    <Button
-                      onClick={() =>
-                        setEditor({ type: tab === 'assessments' ? 'assessment' : 'payment' })
-                      }
-                    >
-                      <Plus size={17} />
-                      {t(tab === 'assessments' ? 'financeAddAssessment' : 'financeAddPayment')}
-                    </Button>
+                    <>
+                      {tab === 'assessments' && (
+                        <Button
+                          variant="secondary"
+                          onClick={() => setEditor({ type: 'assessment-batch' })}
+                        >
+                          <Users size={16} />
+                          {t('financeBatchTitle')}
+                        </Button>
+                      )}
+                      <Button
+                        onClick={() =>
+                          setEditor({ type: tab === 'assessments' ? 'assessment' : 'payment' })
+                        }
+                      >
+                        <Plus size={17} />
+                        {t(tab === 'assessments' ? 'financeAddAssessment' : 'financeAddPayment')}
+                      </Button>
+                    </>
                   )}
             </>
           )
@@ -721,11 +734,13 @@ export function Finance() {
                 : 'financeAddPlan'
               : editor.type === 'assessment'
                 ? 'financeAddAssessment'
-                : editor.type === 'payment'
-                  ? 'financeAddPayment'
-                  : editor.type === 'assessment-detail'
-                    ? 'financeAssessmentDetails'
-                    : 'financePaymentDetails',
+                : editor.type === 'assessment-batch'
+                  ? 'financeBatchTitle'
+                  : editor.type === 'payment'
+                    ? 'financeAddPayment'
+                    : editor.type === 'assessment-detail'
+                      ? 'financeAssessmentDetails'
+                      : 'financePaymentDetails',
           )}
           onClose={() => setEditor(null)}
         >
@@ -735,6 +750,15 @@ export function Finance() {
               plan={editor.plan}
               onCancel={() => setEditor(null)}
               onDone={() => completed('financeSavedPlan')}
+            />
+          ) : editor.type === 'assessment-batch' ? (
+            <AssessmentBatchForm
+              year={Number(year) || new Date().getFullYear()}
+              onCancel={() => setEditor(null)}
+              onDone={(created) => {
+                completed('');
+                setNotice(t('financeBatchDone', { count: created }));
+              }}
             />
           ) : editor.type === 'assessment' ? (
             <AssessmentForm

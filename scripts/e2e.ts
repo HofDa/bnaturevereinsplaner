@@ -11,6 +11,13 @@ const suites = [
   'mail',
   'inventory',
   'community',
+  'community-chat',
+  'member-extras',
+  'volunteer-self',
+  'reports',
+  'chat-poll',
+  'schedule',
+  'newsletter',
 ];
 const requested = process.argv.slice(2);
 if (requested.some((s) => !suites.includes(s))) throw new Error('Unknown E2E suite');
@@ -40,7 +47,7 @@ for (const project of ['desktop', 'mobile']) {
         env: {
           ...process.env,
           E2E_PREBUILT: 'true',
-          EMAIL_MODE: suite === 'mail' ? 'local' : 'disabled',
+          EMAIL_MODE: suite === 'mail' || suite === 'newsletter' ? 'local' : 'disabled',
         },
       },
     );

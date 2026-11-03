@@ -14,16 +14,32 @@ import {
   Archive,
   CircleStop,
   MessagesSquare,
+  CornerUpLeft,
+  Share2,
+  CalendarClock,
 } from 'lucide-react';
 import {
   communityInputSchema,
   type CommunityPost,
   type ChatMessage,
+  type ChatReactionEmoji,
   type Page,
 } from '@bnature/contracts';
 import { api, errorMessage, queryClient } from '../lib/api';
 import { useSession } from '../app/session';
 import { useFinancialWrite } from './finance/client';
+import { ChatReactions, EmojiPicker } from './community-emoji';
+import { UnreadBadge, useMarkRead, useUnread } from './community-unread';
+import { ScheduleEditor, ScheduleList, canCreateSchedules } from './community-schedules';
+import {
+  AttachmentCard,
+  ComposeBanner,
+  MentionList,
+  ReplyQuote,
+  SharePicker,
+  useChatMembers,
+  useMentions,
+} from './community-chat-extras';
 import {
   Button,
   Empty,
@@ -67,11 +83,13 @@ function CommunityEditor({
   post,
   onClose,
   onSaved,
+  defaultGroupId = null,
 }: {
   kind: Kind;
   post?: CommunityPost;
   onClose: () => void;
   onSaved: (id: string) => void;
+  defaultGroupId?: string | null;
 }) {
   const { t } = useTranslation();
   const { me } = useSession();
@@ -146,7 +164,7 @@ function CommunityEditor({
           <Field label={t('commAudience')}>
             <select
               name="groupId"
-              defaultValue={post?.groupId ?? ''}
+              defaultValue={post?.groupId ?? defaultGroupId ?? ''}
               disabled={post?.state === 'published'}
             >
               <option value="">{t('commWholeClub')}</option>
@@ -286,13 +304,24 @@ function CommunityEditor({
   );
 }
 
+const withCount = (label: string, count: number) =>
+  count ? `${label} (${count > 99 ? '99+' : count})` : label;
+
 export function CommunityIndex() {
   const { t, i18n } = useTranslation();
   const { me } = useSession();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const kind: Kind | 'chat' =
-    params.get('kind') === 'chat' ? 'chat' : params.get('kind') === 'poll' ? 'poll' : 'news';
+  const kind: Kind | 'chat' | 'schedule' =
+    params.get('kind') === 'chat'
+      ? 'chat'
+      : params.get('kind') === 'poll'
+        ? 'poll'
+        : params.get('kind') === 'schedule'
+          ? 'schedule'
+          : 'news';
+  const [creatingSchedule, setCreatingSchedule] = useState(false);
+  const scheduleState = params.get('state') === 'closed' ? 'closed' : 'open';
   const state = ['draft', 'archived'].includes(params.get('state') ?? '')
     ? params.get('state')!
     : 'published';
@@ -313,8 +342,20 @@ export function CommunityIndex() {
   const posts = useQuery({
     queryKey: ['community', 'posts', me.activeOrganizationId, query.toString()],
     queryFn: () => api<Page<CommunityPost>>(`/community/posts?${query}`),
-    enabled: kind !== 'chat',
+    enabled: kind === 'news' || kind === 'poll',
   });
+  const unread = useUnread().data;
+  const chatUnread = (id: string | null) => unread?.chat.find((c) => c.groupId === id)?.count ?? 0;
+  // The unfiltered first page shows the newest posts, so seeing it marks the tab as read.
+  const newest =
+    (kind === 'news' || kind === 'poll') && state === 'published' && page === 1 && !groupId
+      ? posts.data?.items.reduce<string | null>(
+          (max, post) =>
+            post.publishedAt && (!max || post.publishedAt > max) ? post.publishedAt : max,
+          null,
+        )
+      : null;
+  useMarkRead(kind === 'poll' ? 'poll' : 'news', null, newest);
   function filter(key: string, value: string) {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
@@ -328,17 +369,24 @@ export function CommunityIndex() {
         title={t('commTitle')}
         description={t('commIntro')}
         actions={
-          canManage &&
-          kind !== 'chat' && (
-            <Button onClick={() => setCreating(true)}>
-              <Plus size={17} />
-              {t(kind === 'news' ? 'commCreateNews' : 'commCreatePoll')}
-            </Button>
-          )
+          kind === 'schedule'
+            ? canCreateSchedules(me.permissions) && (
+                <Button onClick={() => setCreatingSchedule(true)}>
+                  <Plus size={17} />
+                  {t('schedCreate')}
+                </Button>
+              )
+            : canManage &&
+              kind !== 'chat' && (
+                <Button onClick={() => setCreating(true)}>
+                  <Plus size={17} />
+                  {t(kind === 'news' ? 'commCreateNews' : 'commCreatePoll')}
+                </Button>
+              )
         }
       />
       <div className="community-tabs" role="tablist" aria-label={t('commTitle')}>
-        {(['news', 'poll', 'chat'] as const).map((value) => (
+        {(['news', 'poll', 'schedule', 'chat'] as const).map((value) => (
           <button
             key={value}
             role="tab"
@@ -349,43 +397,84 @@ export function CommunityIndex() {
             onKeyDown={(event) => {
               if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
               event.preventDefault();
-              const tabs = ['news', 'poll', 'chat'] as const;
+              const tabs = ['news', 'poll', 'schedule', 'chat'] as const;
               const index = tabs.indexOf(value);
               const next =
                 event.key === 'Home'
                   ? 'news'
                   : event.key === 'End'
                     ? 'chat'
-                    : tabs[(index + (event.key === 'ArrowRight' ? 1 : 2)) % 3]!;
+                    : tabs[
+                        (index + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length
+                      ]!;
               filter('kind', next);
               document.getElementById(`community-tab-${next}`)?.focus();
             }}
             className={kind === value ? 'active' : ''}
-            onClick={() => filter('kind', value)}
+            onClick={() => {
+              const next = new URLSearchParams(params);
+              next.set('kind', value);
+              next.delete('page');
+              next.delete('state');
+              setParams(next);
+            }}
           >
             {value === 'news' ? (
               <Newspaper size={18} />
             ) : value === 'poll' ? (
               <ChartColumn size={18} />
+            ) : value === 'schedule' ? (
+              <CalendarClock size={18} />
             ) : (
               <MessagesSquare size={18} />
             )}
-            {t(value === 'news' ? 'commNews' : value === 'poll' ? 'commPolls' : 'commChat')}
+            {t(
+              value === 'news'
+                ? 'commNews'
+                : value === 'poll'
+                  ? 'commPolls'
+                  : value === 'schedule'
+                    ? 'schedTab'
+                    : 'commChat',
+            )}
+            <UnreadBadge
+              count={
+                value === 'news'
+                  ? unread?.news
+                  : value === 'poll'
+                    ? unread?.polls
+                    : value === 'chat'
+                      ? unread?.chat.reduce((n, c) => n + c.count, 0)
+                      : 0
+              }
+            />
           </button>
         ))}
       </div>
       <div className="community-filters">
         <Field label={t('commFilterAudience')}>
           <select value={groupId} onChange={(e) => filter('groupId', e.target.value)}>
-            <option value="">{t(kind === 'chat' ? 'commWholeClub' : 'commAllAudiences')}</option>
+            <option value="">
+              {kind === 'chat'
+                ? withCount(t('commWholeClub'), chatUnread(null))
+                : t('commAllAudiences')}
+            </option>
             {audiences.data?.groups.map((group) => (
               <option key={group.id} value={group.id}>
-                {group.name}
+                {kind === 'chat' ? withCount(group.name, chatUnread(group.id)) : group.name}
               </option>
             ))}
           </select>
         </Field>
-        {canManage && kind !== 'chat' && (
+        {kind === 'schedule' && (
+          <Field label={t('status')}>
+            <select value={scheduleState} onChange={(e) => filter('state', e.target.value)}>
+              <option value="open">{t('commOpen')}</option>
+              <option value="closed">{t('commClosed')}</option>
+            </select>
+          </Field>
+        )}
+        {canManage && (kind === 'news' || kind === 'poll') && (
           <Field label={t('status')}>
             <select value={state} onChange={(e) => filter('state', e.target.value)}>
               <option value="published">{t('commState_published')}</option>
@@ -398,6 +487,8 @@ export function CommunityIndex() {
       <section id="community-panel" role="tabpanel" aria-labelledby={`community-tab-${kind}`}>
         {kind === 'chat' ? (
           <CommunityChat key={`${me.activeOrganizationId}:${groupId}`} groupId={groupId || null} />
+        ) : kind === 'schedule' ? (
+          <ScheduleList state={scheduleState} groupId={groupId} />
         ) : posts.isPending ? (
           <Loading />
         ) : posts.isError ? (
@@ -465,7 +556,17 @@ export function CommunityIndex() {
           </>
         )}
       </section>
-      {creating && kind !== 'chat' && (
+      {creatingSchedule && (
+        <ScheduleEditor
+          defaultGroupId={groupId || null}
+          onClose={() => setCreatingSchedule(false)}
+          onSaved={(id) => {
+            setCreatingSchedule(false);
+            navigate(`/community/schedules/${id}`);
+          }}
+        />
+      )}
+      {creating && (kind === 'news' || kind === 'poll') && (
         <CommunityEditor
           key={kind}
           kind={kind}
@@ -485,13 +586,36 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
   const { me } = useSession();
   const write = useFinancialWrite();
   const [before, setBefore] = useState<string | null>(null);
-  const [text, setText] = useState('');
+  const [params, setParams] = useSearchParams();
+  // A congratulation link from the dashboard pre-fills (never sends) a message.
+  const [text, setText] = useState(() => params.get('draft')?.slice(0, 2000) ?? '');
+  useEffect(() => {
+    if (!params.has('draft')) return;
+    const next = new URLSearchParams(params);
+    next.delete('draft');
+    setParams(next, { replace: true });
+  }, [params, setParams]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [removing, setRemoving] = useState<ChatMessage | null>(null);
   const attempt = useRef<{ text: string; key: string } | null>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
   const log = useRef<HTMLDivElement>(null);
   const follow = useRef(true);
+  const [reacting, setReacting] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [attachment, setAttachment] = useState<{
+    kind: 'event' | 'poll';
+    id: string;
+    title: string;
+  } | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [creatingPoll, setCreatingPoll] = useState(false);
+  const [publishing, setPublishing] = useState<string | null>(null);
+  const members = useChatMembers(groupId);
+  const mentions = useMentions(input, text, setText, members.data?.items ?? []);
+  const listboxId = `mentions-${groupId ?? 'club'}`;
+  const canManage = me.permissions.includes('community:manage');
   const q = new URLSearchParams({ ...(groupId ? { groupId } : {}), ...(before ? { before } : {}) });
   const query = useQuery({
     queryKey: ['community', 'chat', me.activeOrganizationId, groupId, before],
@@ -499,6 +623,7 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
     refetchInterval: before ? false : 5000,
   });
   const lastId = query.data?.items.at(-1)?.id;
+  useMarkRead('chat', groupId, before ? null : query.data?.items.at(-1)?.createdAt);
   useEffect(() => {
     if (!before && follow.current && log.current) log.current.scrollTop = log.current.scrollHeight;
   }, [lastId, before]);
@@ -507,19 +632,60 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
     if (busy || !text.trim()) return;
     setBusy(true);
     setError(null);
-    const body = text.trim();
-    if (attempt.current?.text !== body) attempt.current = { text: body, key: crypto.randomUUID() };
+    const payload = JSON.stringify({
+      groupId,
+      body: text.trim(),
+      replyToId: replyTo?.id ?? null,
+      mentionUserIds: mentions.mentionIds(),
+      attachment: attachment ? { kind: attachment.kind, id: attachment.id } : null,
+    });
+    // The same pending message keeps its key, so a retry after a network error is not doubled.
+    if (attempt.current?.text !== payload)
+      attempt.current = { text: payload, key: crypto.randomUUID() };
     try {
       await api('/community/chat', {
         method: 'POST',
-        body: JSON.stringify({ groupId, body }),
+        body: payload,
         headers: { 'Idempotency-Key': attempt.current.key },
       });
       attempt.current = null;
       setText('');
+      setReplyTo(null);
+      setAttachment(null);
+      mentions.reset();
       setBefore(null);
       follow.current = true;
       await queryClient.invalidateQueries({ queryKey: ['community', 'chat'] });
+    } catch (error) {
+      setError(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function react(message: ChatMessage, emoji: ChatReactionEmoji, active: boolean) {
+    setReacting(message.id);
+    setError(null);
+    try {
+      await write(`/community/chat/${message.id}/reactions`, { emoji, active }, 'PUT');
+      await queryClient.invalidateQueries({ queryKey: ['community', 'chat'] });
+    } catch (error) {
+      setError(error);
+    } finally {
+      setReacting(null);
+    }
+  }
+  async function publishAndShare() {
+    if (!publishing) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const post = await api<CommunityPost>(`/community/posts/${publishing}`);
+      await write(`/community/posts/${post.id}/publish`, { version: post.version });
+      setAttachment({ kind: 'poll', id: post.id, title: post.titleI18n[lang(i18n.language)] });
+      if (!text.trim()) setText(post.titleI18n[lang(i18n.language)]);
+      setPublishing(null);
+      await queryClient.invalidateQueries({ queryKey: ['community'] });
+      input.current?.focus();
     } catch (error) {
       setError(error);
     } finally {
@@ -587,7 +753,8 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
             query.data.items.map((message) => (
               <article
                 key={message.id}
-                className={`community-chat-message ${message.isOwn ? 'community-chat-own' : ''}`}
+                id={`msg-${message.id}`}
+                className={`community-chat-message ${message.isOwn ? 'community-chat-own' : ''} ${message.mentionsMe ? 'community-chat-mention' : ''}`}
                 aria-label={`${message.authorName}: ${new Date(message.createdAt).toLocaleString(i18n.language)}`}
               >
                 <header>
@@ -595,10 +762,35 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
                   <time dateTime={message.createdAt}>
                     {new Date(message.createdAt).toLocaleString(i18n.language)}
                   </time>
+                  {message.mentionsMe && (
+                    <span className="mention-badge">{t('commMentionedYou')}</span>
+                  )}
                 </header>
+                {message.replyTo && <ReplyQuote reply={message.replyTo} />}
                 <p className={message.removedAt ? 'community-chat-removed' : ''}>
                   {message.removedAt ? t('commChatRemoved') : message.body}
                 </p>
+                {message.attachment && <AttachmentCard attachment={message.attachment} />}
+                {!message.removedAt && (
+                  <ChatReactions
+                    message={message}
+                    disabled={reacting === message.id}
+                    onReact={(emoji, active) => void react(message, emoji, active)}
+                  />
+                )}
+                {!message.removedAt && (
+                  <Button
+                    variant="ghost"
+                    aria-label={`${t('commReply')}: ${message.authorName}`}
+                    onClick={() => {
+                      setReplyTo(message);
+                      input.current?.focus();
+                    }}
+                  >
+                    <CornerUpLeft size={14} />
+                    {t('commReply')}
+                  </Button>
+                )}
                 {message.canRemove && (
                   <Button
                     variant="ghost"
@@ -615,15 +807,48 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
       )}
       {error != null && !removing && <Notice error>{errorMessage(error)}</Notice>}
       <form className="community-chat-compose" onSubmit={(event) => void send(event)}>
-        <Field label={t('commChatMessage')} hint={t('commChatKeyboard')}>
+        {replyTo && (
+          <ComposeBanner
+            icon="reply"
+            label={t('commReplyTo', { name: replyTo.authorName })}
+            text={replyTo.body.slice(0, 80)}
+            onClear={() => setReplyTo(null)}
+          />
+        )}
+        {attachment && (
+          <ComposeBanner
+            icon={attachment.kind}
+            label={t(attachment.kind === 'event' ? 'commShareEvent' : 'commSharePoll')}
+            text={attachment.title}
+            onClear={() => setAttachment(null)}
+          />
+        )}
+        <Field label={t('commChatMessage')} hint={t('commChatKeyboardMentions')}>
           <textarea
+            ref={input}
             rows={3}
             maxLength={2000}
             value={text}
             required
             disabled={busy || query.isError}
-            onChange={(event) => setText(event.target.value)}
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={mentions.suggestions.length > 0}
+            aria-controls={listboxId}
+            aria-activedescendant={
+              mentions.suggestions.length ? `${listboxId}-${mentions.active}` : undefined
+            }
+            onChange={(event) => {
+              setText(event.target.value);
+              requestAnimationFrame(mentions.track);
+            }}
+            onClick={mentions.track}
+            onKeyUp={(event) => {
+              if (!['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(event.key))
+                mentions.track();
+            }}
             onKeyDown={(event) => {
+              if (mentions.onKeyDown(event)) return;
               if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
                 event.preventDefault();
                 event.currentTarget.form?.requestSubmit();
@@ -631,7 +856,25 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
             }}
           />
         </Field>
+        <MentionList id={listboxId} mentions={mentions} />
         <div className="form-actions">
+          <button
+            type="button"
+            className="button button-ghost emoji-trigger"
+            aria-label={t('commShareTitle')}
+            title={t('commShareTitle')}
+            disabled={busy || query.isError}
+            onClick={() => setSharing(true)}
+          >
+            <Share2 size={18} />
+          </button>
+          <EmojiPicker
+            target={input}
+            value={text}
+            maxLength={2000}
+            disabled={busy || query.isError}
+            onChange={setText}
+          />
           <small>{text.length}/2000</small>
           <Button disabled={busy || !text.trim() || query.isError}>
             <Send size={16} />
@@ -639,6 +882,51 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
           </Button>
         </div>
       </form>
+      {sharing && (
+        <SharePicker
+          groupId={groupId}
+          onClose={() => setSharing(false)}
+          onPick={(picked) => {
+            setAttachment(picked);
+            if (!text.trim()) setText(picked.title);
+            setSharing(false);
+            input.current?.focus();
+          }}
+          onCreatePoll={
+            canManage
+              ? () => {
+                  setSharing(false);
+                  setCreatingPoll(true);
+                }
+              : undefined
+          }
+        />
+      )}
+      {creatingPoll && (
+        <CommunityEditor
+          kind="poll"
+          defaultGroupId={groupId}
+          onClose={() => setCreatingPoll(false)}
+          onSaved={(id) => {
+            setCreatingPoll(false);
+            setPublishing(id);
+          }}
+        />
+      )}
+      {publishing && (
+        <Modal title={t('commPublishShareTitle')} onClose={() => !busy && setPublishing(null)}>
+          <p>{t('commPublishShareConfirm')}</p>
+          {error != null && <Notice error>{errorMessage(error)}</Notice>}
+          <div className="form-actions">
+            <Button variant="secondary" disabled={busy} onClick={() => setPublishing(null)}>
+              {t('commPublishLater')}
+            </Button>
+            <Button disabled={busy} onClick={() => void publishAndShare()}>
+              {t('commPublishShare')}
+            </Button>
+          </div>
+        </Modal>
+      )}
       {removing && (
         <Modal
           title={t('commChatRemove')}

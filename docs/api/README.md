@@ -11,10 +11,17 @@ Alle Pfade unter `/api/v1/community`, mit Session und Organisationskontext:
 - `PUT /posts/:id/vote` (`{version,optionId}`): eigene Stimme abgeben oder ersetzen. Vor Freigabe der Ergebnisse sind Gesamtzahl und Optionszahlen `null`; die eigene Antwort ist nur im eigenen Kontext enthalten.
 - `GET /chat?groupId=...&before=...`: Nachrichten des Vereins- oder Gruppenkanals, höchstens 50 je Abschnitt, älteste zuerst. `nextBefore` ruft den vorangehenden Abschnitt auf. Cursor müssen aus demselben Kanal stammen.
 - `POST /chat` (`{body,groupId?}`), `POST /chat/:id/remove` (`{version}`): Nachricht bis 2000 Zeichen senden beziehungsweise eigene Nachricht oder als Redaktion moderieren. Entfernte Texte werden nicht zurückgegeben.
+- `PUT /chat/:id/reactions` (`{emoji,active}`): eigene Reaktion setzen (`active: true`) oder zurücknehmen (`false`). Erlaubt sind 👍 ❤️ 😂 😮 🎉 🙏. Der Aufruf setzt einen Zustand und schaltet nicht um; Wiederholungen ändern daher nichts. Nachrichten im Listenaufruf enthalten `reactions` mit Anzahl, eigener Auswahl und Namen der Reagierenden.
 
 Alle Schreiboperationen benötigen `Origin` und UUID-`Idempotency-Key`. Gruppenzugang und Ergebnisfreigabe werden auch bei direktem Detailzugriff serverseitig geprüft. [Nutzung und Grenzen](../community.md).
 
 Die versionierte [OpenAPI-Spezifikation](openapi.json) wird mit `bun run openapi` aus Fastify-/Zod-Verträgen generiert. Entwicklungs-Swagger-UI: `/api/docs`; Produktion deaktiviert. Authentifizierung liegt separat unter `/api/auth` und wird von Better Auth verwaltet.
+
+- `POST /chat` akzeptiert zusätzlich `replyToId`, `mentionUserIds` (höchstens 10, nur Personen mit Kanalzugang) und `attachment` (`{kind:'event'|'poll',id}`). `GET /chat/members?groupId=` liefert die erwähnbaren Konten.
+- `GET /schedules?state=open|closed`, `GET /schedules/:id`, `POST /schedules` (`{titleI18n,descriptionI18n,location,groupId,closesAt,slots:[{startAt,endAt}]}`), `PUT /schedules/:id/answers` (`{answers:[{slotId,answer:yes|maybe|no}]}`), `POST /schedules/:id/close` (`{version,finalSlotId}`), `POST /schedules/:id/event` (`{categoryId,visibility,status}`, Recht `events:write`, einmalig): Terminfindung; Schreibaufrufe mit `Idempotency-Key`.
+- `GET /unread`: ungelesene News, Umfragen und Chatnachrichten anderer Personen (`{news,polls,chat:[{groupId,count}],total}`). Berücksichtigt den Vereinskanal und aktive Gruppen, denen das Konto über die verknüpfte Person angehört.
+- `PUT /read` (`{channel,groupId?,until}`, 204): Lesemarke für `news`, `poll` oder einen Chatkanal bis zum angegebenen Zeitpunkt setzen. Die Marke wandert nur vorwärts und nie über die Serverzeit hinaus; daher ohne `Idempotency-Key`.
+- `GET|PUT /notifications` (`{digest: off|daily|weekly}`): eigene Einstellung für die Zusammenfassung per E-Mail.
 
 ## Konventionen
 
@@ -36,23 +43,34 @@ PATCH akzeptiert ausschließlich gelieferte bekannte Felder ohne create-Defaults
 
 ### Bisherige Endpunkte
 
-| Methode / Pfad               | Zweck                                                                        |
-| ---------------------------- | ---------------------------------------------------------------------------- |
-| GET /health                  | Status einschließlich DB-Verbindung                                          |
-| GET /me                      | Konto, Organisationen, aktuelle Rolle und Berechtigungen                     |
-| GET/PATCH /organizations/:id | Eigenes Vereinsprofil                                                        |
-| GET/POST /members            | Mitgliederliste / Person und Mitgliedschaft transaktional anlegen            |
-| GET/PATCH /members/:id       | Mitgliedschafts-ID mit Personendaten; Änderungen transaktional               |
-| GET/POST /groups             | Gruppenliste / Anlage                                                        |
-| GET/PATCH /groups/:id        | Gruppe / Metadatenänderung                                                   |
-| PUT /groups/:id/members      | Gesamte Zuordnung durch `{ personIds: UUID[] }` ersetzen; max. 500           |
-| GET/POST /board-mandates     | Amtszeiten / Anlage                                                          |
-| PATCH /board-mandates/:id    | Funktion oder Zeitraum ändern                                                |
-| GET /audit-logs              | Organisationsbezogenes Audit-Protokoll                                       |
-| GET /dashboard               | Echte Aggregate, neue Mitglieder im laufenden UTC-Monat und aktuelle Mandate |
-| GET/PATCH /profile           | Ausschließlich eigenes verknüpftes Personenprofil                            |
-| GET/POST /users              | Berechtigte Konten anzeigen / geschlossen bereitstellen                      |
-| PATCH /users/:id/role        | Organisationsrolle ändern; letzten Admin erhalten                            |
+| Methode / Pfad                                                                               | Zweck                                                                                                                                                 |
+| -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET /health                                                                                  | Status einschließlich DB-Verbindung                                                                                                                   |
+| GET /me                                                                                      | Konto, Organisationen, aktuelle Rolle und Berechtigungen                                                                                              |
+| GET/PATCH /organizations/:id                                                                 | Eigenes Vereinsprofil                                                                                                                                 |
+| GET/POST /members                                                                            | Mitgliederliste / Person und Mitgliedschaft transaktional anlegen                                                                                     |
+| GET/PATCH /members/:id                                                                       | Mitgliedschafts-ID mit Personendaten; Änderungen transaktional                                                                                        |
+| GET/POST /groups                                                                             | Gruppenliste / Anlage                                                                                                                                 |
+| GET/PATCH /groups/:id                                                                        | Gruppe / Metadatenänderung                                                                                                                            |
+| PUT /groups/:id/members                                                                      | Gesamte Zuordnung durch `{ personIds: UUID[] }` ersetzen; max. 500                                                                                    |
+| GET/POST /board-mandates                                                                     | Amtszeiten / Anlage                                                                                                                                   |
+| PATCH /board-mandates/:id                                                                    | Funktion oder Zeitraum ändern                                                                                                                         |
+| GET /audit-logs                                                                              | Organisationsbezogenes Audit-Protokoll                                                                                                                |
+| GET /dashboard                                                                               | Echte Aggregate, neue Mitglieder im laufenden UTC-Monat und aktuelle Mandate                                                                          |
+| GET /dashboard/occasions                                                                     | Geburtstage und Mitgliedsjubiläen aktiver Mitglieder, `days` 1–90 (Standard 30)                                                                       |
+| GET /reports/annual-overview?year=                                                           | Jahresüberblick je Monat (Mitglieder, Veranstaltungen, bestätigte Stunden); Abschnitte ohne Leserecht sind `null`                                     |
+| GET/POST /mail/newsletters · PUT /mail/newsletters/:id · POST /mail/newsletters/:id/withdraw | Newsletter-Entwürfe (`mail:invite`); Versand über `/mail/preview` und `/mail/send` mit `{kind:'newsletter',newsletterId}`                             |
+| GET/PUT /profile/newsletter · PUT /members/:id/newsletter                                    | Newsletter abbestellen (eigenes Profil bzw. `members:write`)                                                                                          |
+| GET /me/volunteering · POST /me/volunteering/time-entries                                    | Eigene Tätigkeiten, Einsätze und Stunden; eigene Stunden nachträglich als `submitted` melden (`Idempotency-Key`)                                      |
+| GET /member-fields · POST /member-fields · PATCH /member-fields/:id                          | Zusatzfelder lesen (`members:read`) / anlegen und ändern (`organization:write`); Art unveränderlich, höchstens 50                                     |
+| GET /members?photoConsent=&dataConsent=                                                      | Filter nach aktuellem Einwilligungsstand (`granted`, `refused`, `missing`); Listeneinträge enthalten `photoConsent`, `dataConsent` und `customFields` |
+| GET /members/:id/extras                                                                      | Zusatzwerte, aktuelle Einwilligungen mit Verlauf, Erziehungsberechtigte und `isMinor`                                                                 |
+| PUT /members/:id/fields                                                                      | Zusatzwerte `{values:{feldId:wert\|null}}` typgeprüft setzen oder leeren                                                                              |
+| POST /members/:id/consents                                                                   | Einwilligungserklärung anhängen; Datensätze sind auch in PostgreSQL unveränderlich                                                                    |
+| POST · PATCH · DELETE /members/:id/guardians[/:guardianId]                                   | Erziehungsberechtigte verwalten (höchstens fünf)                                                                                                      |
+| GET/PATCH /profile                                                                           | Ausschließlich eigenes verknüpftes Personenprofil                                                                                                     |
+| GET/POST /users                                                                              | Berechtigte Konten anzeigen / geschlossen bereitstellen                                                                                               |
+| PATCH /users/:id/role                                                                        | Organisationsrolle ändern; letzten Admin erhalten                                                                                                     |
 
 `members.id` ist die Mitgliedschafts-ID, `personId` die getrennte Personen-ID. Gruppen und Mandate referenzieren `personId`. Normale Benutzerkonten werden nicht automatisch Vereinsmitglieder. Die Benutzeranlage kann optional eine bereits zur eigenen Organisation gehörende Person verknüpfen. Das Initialkonto wird ausschließlich über `bun run bootstrap` angelegt.
 
@@ -62,18 +80,20 @@ CSV-Vorschau/-Parsing findet im Browser statt. Der Export lädt die gefilterte L
 
 Alle folgenden Ressourcen verwenden die bestehende Cookie-Session und den geprüften Organisationskontext. Admin und Kassier haben Finanz-Lese-/Schreibrechte; ausschließlich Admin verwaltet Tarife. Vorstand, Projektleitung und Mitglieder erhalten keinen Zugriff, auch nicht auf PDFs.
 
-| Methode / Pfad                         | Zweck                                                                     |
-| -------------------------------------- | ------------------------------------------------------------------------- |
-| GET/POST /fee-plans                    | Tarife auflisten / anlegen                                                |
-| GET/PATCH /fee-plans/:id               | Tarif lesen / mit `version` ändern                                        |
-| GET/POST /fee-assessments              | Forderungen auflisten / aus Tarif und Mitgliedschaft festsetzen           |
-| GET /fee-assessments/:id               | Forderung einschließlich berechnetem Saldo und Zahlungshistorie           |
-| GET /finance/summary                   | Exakte Cent-Summen, offene/bezahlte/befreite Forderungen                  |
-| GET/POST /payments                     | Zahlungsereignisse auflisten / vollständig zugeordnet erfassen            |
-| GET /payments/:id                      | Unveränderliche Zahlung und alle Zuordnungen                              |
-| GET /payments/:id/receipt?language=de  | Autorisierte PDF-Zahlungsbestätigung, alternativ `it`                     |
-| POST /fee-assessments/:id/reminders    | Überfälligen offenen Betrag als Erinnerungsentwurf vorbereiten; Body `{}` |
-| GET /fee-reminders/:id/pdf?language=de | Autorisierter Erinnerungsentwurf; kein automatischer Versand              |
+| Methode / Pfad                         | Zweck                                                                                                           |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| GET/POST /fee-plans                    | Tarife auflisten / anlegen                                                                                      |
+| GET/PATCH /fee-plans/:id               | Tarif lesen / mit `version` ändern                                                                              |
+| GET/POST /fee-assessments              | Forderungen auflisten / aus Tarif und Mitgliedschaft festsetzen                                                 |
+| POST /fee-assessments/batch/preview    | Sammelvorschreibung: Empfänger, Summe und übersprungene Mitglieder mit `previewHash`                            |
+| POST /fee-assessments/batch            | Bestätigte Sammelvorschreibung mit `previewHash` und `Idempotency-Key`; 409 `PREVIEW_STALE` bei geänderter Lage |
+| GET /fee-assessments/:id               | Forderung einschließlich berechnetem Saldo und Zahlungshistorie                                                 |
+| GET /finance/summary                   | Exakte Cent-Summen, offene/bezahlte/befreite Forderungen                                                        |
+| GET/POST /payments                     | Zahlungsereignisse auflisten / vollständig zugeordnet erfassen                                                  |
+| GET /payments/:id                      | Unveränderliche Zahlung und alle Zuordnungen                                                                    |
+| GET /payments/:id/receipt?language=de  | Autorisierte PDF-Zahlungsbestätigung, alternativ `it`                                                           |
+| POST /fee-assessments/:id/reminders    | Überfälligen offenen Betrag als Erinnerungsentwurf vorbereiten; Body `{}`                                       |
+| GET /fee-reminders/:id/pdf?language=de | Autorisierter Erinnerungsentwurf; kein automatischer Versand                                                    |
 
 Jede Finanzmutation benötigt den Header `Idempotency-Key` mit UUID. Erfolgreiche Wiederholung liefert denselben Status und dieselbe ursprüngliche Antwort ohne neue Daten; Header `Idempotency-Replayed` zeigt `true`/`false`. Der Schlüssel gilt organisationsweit und ist an Operation und normalisierten Inhalt gebunden. Geänderte Daten mit demselben Schlüssel ergeben 409 `IDEMPOTENCY_MISMATCH`. Der JSON-Body darf keinen Organisations-/Akteurkontext einschleusen.
 

@@ -18,6 +18,7 @@ import {
   type FeeAssessment,
   type Payment,
   type Member,
+  type AssessmentBatchPreview,
 } from '@bnature/contracts';
 import { DataForm, type FormField } from '../../components/data-form';
 import {
@@ -29,7 +30,7 @@ import {
   Loading,
   ErrorState,
 } from '../../components/ui';
-import { allPages, errorMessage, queryClient } from '../../lib/api';
+import { allPages, api, errorMessage, queryClient } from '../../lib/api';
 import { useSession } from '../../app/session';
 import { useFinancialWrite } from './client';
 import { useLedgerBasics } from './queries';
@@ -210,6 +211,189 @@ export function AssessmentForm({
         onSubmit={async (value) => onDone(await write<FeeAssessment>('/fee-assessments', value))}
       />
     </>
+  );
+}
+/**
+ * Batch claims: pick plan, year and due date, review exactly who is billed, then confirm.
+ * The server rejects the confirmation if anything changed since this preview.
+ */
+export function AssessmentBatchForm({
+  year,
+  onDone,
+  onCancel,
+}: {
+  year: number;
+  onDone: (created: number) => void;
+  onCancel: () => void;
+}) {
+  const { t, i18n } = useTranslation(),
+    { me } = useSession(),
+    write = useFinancialWrite();
+  const plans = useQuery({
+    queryKey: ['finance-batch-plans', me.activeOrganizationId],
+    queryFn: () => allPages<FeePlan>('/fee-plans?active=true&sort=name&direction=asc'),
+  });
+  const [planId, setPlanId] = useState('');
+  const [fiscalYear, setFiscalYear] = useState(String(year));
+  const [dueDate, setDueDate] = useState(`${year}-03-31`);
+  const [preview, setPreview] = useState<AssessmentBatchPreview | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const request = { planId, fiscalYear: Number(fiscalYear), dueDate };
+  const reset = () => {
+    setPreview(null);
+    setError('');
+  };
+  async function load(event?: FormEvent) {
+    event?.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      setPreview(
+        await api<AssessmentBatchPreview>('/fee-assessments/batch/preview', {
+          method: 'POST',
+          body: JSON.stringify(request),
+        }),
+      );
+    } catch (e) {
+      setPreview(null);
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function confirm() {
+    if (!preview) return;
+    setBusy(true);
+    setError('');
+    try {
+      const result = await write<{ created: number }>('/fee-assessments/batch', {
+        ...request,
+        previewHash: preview.previewHash,
+      });
+      void queryClient.invalidateQueries();
+      onDone(result.created);
+    } catch (e) {
+      setError(errorMessage(e));
+      // A stale preview is refreshed so the treasurer sees the current state right away.
+      await load().catch(() => {});
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (plans.isPending) return <Loading />;
+  if (plans.isError) return <ErrorState error={plans.error} retry={() => void plans.refetch()} />;
+  if (!plans.data.length) return <Empty description={t('financeNoPlans')} />;
+  return (
+    <form className="batch-form" onSubmit={(event) => void load(event)}>
+      <p className="form-help finance-form-help">{t('financeBatchHelp')}</p>
+      <div className="form-grid">
+        <Field label={t('financePlan')}>
+          <select
+            required
+            value={planId}
+            onChange={(e) => {
+              setPlanId(e.target.value);
+              reset();
+            }}
+          >
+            <option value="">{t('financeChoosePlan')}</option>
+            {plans.data.map((p) => (
+              <option key={p.id} value={p.id}>
+                {`${p.name} · ${formatMoney(p.amountCents)}${p.membershipType ? ` · ${t(p.membershipType)}` : ''}`}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label={t('financeYear')}>
+          <input
+            required
+            inputMode="numeric"
+            pattern="[0-9]{4}"
+            value={fiscalYear}
+            onChange={(e) => {
+              setFiscalYear(e.target.value);
+              reset();
+            }}
+          />
+        </Field>
+        <Field label={t('financeDueDate')}>
+          <input
+            required
+            type="date"
+            value={dueDate}
+            onChange={(e) => {
+              setDueDate(e.target.value);
+              reset();
+            }}
+          />
+        </Field>
+      </div>
+      {error && <Notice error>{error}</Notice>}
+      {preview && (
+        <section className="batch-preview" aria-live="polite" aria-label={t('financeBatchPreview')}>
+          <p className="batch-summary">
+            <strong>
+              {t('financeBatchSummary', {
+                count: preview.items.length,
+                total: formatMoney(preview.totalCents),
+              })}
+            </strong>
+            {preview.skippedExisting > 0 && (
+              <span>{t('financeBatchSkippedExisting', { count: preview.skippedExisting })}</span>
+            )}
+            {preview.skippedCategory > 0 && (
+              <span>{t('financeBatchSkippedCategory', { count: preview.skippedCategory })}</span>
+            )}
+          </p>
+          {preview.items.length ? (
+            <div className="table-scroll batch-table" tabIndex={0}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>{t('name')}</th>
+                    <th>{t('memberNumber')}</th>
+                    <th className="align-right">{t('financeAmount')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.items.map((item) => (
+                    <tr key={item.membershipId}>
+                      <td>{item.memberName}</td>
+                      <td className="mono">{item.membershipNumber}</td>
+                      <td className="align-right">{formatMoney(item.amountCents)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <Empty description={t('financeBatchNothing')} />
+          )}
+          <p className="form-help">
+            {t('financeBatchDue', {
+              date: new Date(`${dueDate}T12:00:00Z`).toLocaleDateString(i18n.language, {
+                timeZone: 'UTC',
+              }),
+            })}
+          </p>
+        </section>
+      )}
+      <footer className="form-actions">
+        <Button type="button" variant="secondary" onClick={onCancel}>
+          {t('cancel')}
+        </Button>
+        {preview && preview.items.length > 0 ? (
+          <Button type="button" disabled={busy} onClick={() => void confirm()}>
+            {t(busy ? 'saving' : 'financeBatchConfirm', { count: preview.items.length })}
+          </Button>
+        ) : (
+          <Button type="submit" disabled={busy || !planId}>
+            {t(busy ? 'saving' : 'financeBatchLoad')}
+          </Button>
+        )}
+      </footer>
+    </form>
   );
 }
 type DraftAllocation = { key: string; assessmentId: string; amount: string };

@@ -9,6 +9,7 @@ export default {
   mailKind: 'Nachrichtenart',
   mailKind_fee_reminder: 'Beitragserinnerungen',
   mailKind_event_invitation: 'Termineinladungen',
+  mailKind_community_digest: 'Vereinsleben-Zusammenfassungen',
   mailEvent: 'Veranstaltung',
   mailChooseEvent: 'Veranstaltung auswählen',
   mailPreview: 'Versandvorschau',
@@ -56,6 +57,11 @@ export default {
   mailAutomationHint:
     'Nach dem Aktivieren werden überfällige Beiträge täglich geprüft. Pro Forderung wird frühestens nach dem eingestellten Abstand erneut erinnert. Ein gültiger Adminzugang ist Voraussetzung.',
   mailAutoEnabled: 'Beitragserinnerungen automatisch versenden',
+  mailAutoDeadlines: 'Fristen automatisch erinnern (an zuständige Person bzw. Rolle, sonst Admins)',
+  mailAutoLoans:
+    'Ausleihen automatisch erinnern (2 Tage vor Rückgabe, dann bei Überfälligkeit wöchentlich)',
+  mailKind_deadline_reminder: 'Fristerinnerungen',
+  mailKind_loan_reminder: 'Rückgabeerinnerungen',
   mailInterval: 'Mindestabstand in Tagen (7–90)',
   mailSettingsSaved: 'Einstellungen für Erinnerungen gespeichert.',
   mailDisabled: 'Bitte zuerst den E-Mail-Versand einrichten.',
@@ -65,4 +71,28 @@ export default {
     'Bitte eine kommende, veröffentlichte Veranstaltung mit offener Anmeldefrist auswählen.',
   mailTooMany:
     'Diese Vorschau enthält mehr als 250 Nachrichten. Bitte wenden Sie sich an die Administration.',
+  mailKind_newsletter: 'Newsletter',
+  mailNewsletterDraft: 'Newsletter-Entwurf',
+  mailNewsletterChoose: 'Entwurf auswählen',
+  mailNewsletterNew: 'Neuer Newsletter',
+  mailNewsletterEdit: 'Newsletter bearbeiten',
+  mailNewsletterWithdraw: 'Entwurf verwerfen',
+  mailNewsletterHelp:
+    'Text als Klartext auf Deutsch und Italienisch; jedes Mitglied erhält die eigene Sprache mit persönlicher Anrede und einem Hinweis zum Abbestellen. Nach dem Versand ist der Newsletter fest.',
+  mailNewsletterSubjectDe: 'Betreff (DE)',
+  mailNewsletterSubjectIt: 'Betreff (IT)',
+  mailNewsletterBodyDe: 'Text (DE)',
+  mailNewsletterBodyIt: 'Text (IT)',
+  mailNewsletterAudience: 'Empfänger',
+  mailNewsletterAudienceHint:
+    'Ohne Auswahl erhalten ihn alle aktiven Mitglieder; sonst nur Mitglieder der gewählten Gruppen.',
+  mailNewsletterSave: 'Entwurf speichern',
+  mailNewsletterHint:
+    'Aktive Mitglieder mit gültiger E-Mail-Adresse, die den Newsletter nicht abbestellt haben. Jeder Entwurf wird genau einmal versendet.',
+  mailNewsletterProfileTitle: 'Vereins-Newsletter',
+  mailNewsletterReceive: 'Newsletter per E-Mail erhalten',
+  mailNewsletterProfileHint:
+    'Betrifft nur den Newsletter. Erinnerungen und Einladungen werden weiterhin zugestellt.',
+  mailSkippedOptOut_one: '{{count}} Mitglied hat den Newsletter abbestellt.',
+  mailSkippedOptOut_other: '{{count}} Mitglieder haben den Newsletter abbestellt.',
 };

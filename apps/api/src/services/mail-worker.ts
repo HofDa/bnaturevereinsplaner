@@ -4,6 +4,12 @@ import type { Config } from '../plugins/config';
 import { audit } from './audit';
 import { createMailSender, MailDeliveryError, type MailSender } from './mail';
 import { enqueueAutomaticMail, revalidateMail, isSupportedMailKind } from '../modules/mail';
+import { enqueueCommunityDigests, revalidateDigest } from '../modules/community-notify';
+import {
+  enqueueDeadlineReminders,
+  enqueueLoanReminders,
+  revalidateReminder,
+} from '../modules/automatic-reminders';
 
 export async function deliverMail(db: Database, config: Config, sender: MailSender, limit = 10) {
   if (config.EMAIL_MODE === 'disabled') return;
@@ -46,7 +52,9 @@ export async function deliverMail(db: Database, config: Config, sender: MailSend
         .from(s.organizations)
         .where(eq(s.organizations.id, row.organizationId))
         .for('no key update');
-      if (!isSupportedMailKind(row.kind)) {
+      const digest = row.kind === 'community_digest';
+      const reminder = row.kind === 'deadline_reminder' || row.kind === 'loan_reminder';
+      if (!digest && !reminder && !isSupportedMailKind(row.kind)) {
         await tx
           .update(s.mailMessages)
           .set({ state: 'failed', errorCode: 'MAIL_KIND_UNAVAILABLE' })
@@ -61,7 +69,12 @@ export async function deliverMail(db: Database, config: Config, sender: MailSend
         );
         return;
       }
-      if (!(await revalidateMail(tx, row, config))) {
+      const valid = digest
+        ? await revalidateDigest(tx, row)
+        : reminder
+          ? await revalidateReminder(tx, row)
+          : await revalidateMail(tx, row, config);
+      if (!valid) {
         await tx
           .update(s.mailMessages)
           .set({ state: 'cancelled', errorCode: 'SOURCE_CHANGED' })
@@ -118,6 +131,16 @@ export function startMailWorker(db: Database, config: Config, onError: () => voi
       } catch {
         onError();
       }
+      for (const enqueue of [
+        enqueueCommunityDigests,
+        enqueueDeadlineReminders,
+        enqueueLoanReminders,
+      ])
+        try {
+          await enqueue(db, config);
+        } catch {
+          onError();
+        }
       try {
         await deliverMail(db, config, sender);
       } catch {

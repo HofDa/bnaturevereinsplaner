@@ -88,13 +88,48 @@ export function pollResultsVisible(
   return closed || (policy === 'after_vote' && voted);
 }
 
-export const chatInputSchema = z
-  .object({ groupId: z.uuid().nullable().default(null), body: z.string().trim().min(1).max(2000) })
+export const chatAttachmentInputSchema = z
+  .object({ kind: z.enum(['event', 'poll']), id: z.uuid() })
   .strict();
+export const chatInputSchema = z
+  .object({
+    groupId: z.uuid().nullable().default(null),
+    body: z.string().trim().min(1).max(2000),
+    replyToId: z.uuid().nullable().default(null),
+    mentionUserIds: z.array(z.uuid()).max(10).default([]),
+    attachment: chatAttachmentInputSchema.nullable().default(null),
+  })
+  .strict();
+export const chatAttachmentSchema = z.object({
+  kind: z.enum(['event', 'poll']),
+  id: z.uuid(),
+  /** False when the viewer may not see it (anymore); title and details are then omitted. */
+  available: z.boolean(),
+  title: z.object({ de: z.string(), it: z.string() }).nullable(),
+  startAt: z.string().nullable(),
+  location: z.string().nullable(),
+  closed: z.boolean(),
+});
+export type ChatAttachment = z.infer<typeof chatAttachmentSchema>;
+export const chatMemberSchema = z.object({ userId: z.uuid(), name: z.string() });
+export type ChatMember = z.infer<typeof chatMemberSchema>;
 export const chatQuerySchema = z.object({
   groupId: z.uuid().optional(),
   before: z.uuid().optional(),
 });
+/** Fixed reaction set; mirrored by the `community_chat_reaction_emoji` check constraint. */
+export const chatReactionEmojis = ['👍', '❤️', '😂', '😮', '🎉', '🙏'] as const;
+export type ChatReactionEmoji = (typeof chatReactionEmojis)[number];
+export const chatReactionInputSchema = z
+  .object({ emoji: z.enum(chatReactionEmojis), active: z.boolean() })
+  .strict();
+export const chatReactionSchema = z.object({
+  emoji: z.enum(chatReactionEmojis),
+  count: z.number().int(),
+  mine: z.boolean(),
+  names: z.array(z.string()),
+});
+export type ChatReaction = z.infer<typeof chatReactionSchema>;
 export const chatMessageSchema = z.object({
   id: z.uuid(),
   authorName: z.string(),
@@ -104,9 +139,47 @@ export const chatMessageSchema = z.object({
   version: z.number().int(),
   isOwn: z.boolean(),
   canRemove: z.boolean(),
+  reactions: z.array(chatReactionSchema),
+  replyTo: z
+    .object({
+      id: z.uuid(),
+      authorName: z.string(),
+      excerpt: z.string(),
+      removed: z.boolean(),
+    })
+    .nullable(),
+  mentionsMe: z.boolean(),
+  attachment: chatAttachmentSchema.nullable(),
 });
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
 export const chatPageSchema = z.object({
   items: z.array(chatMessageSchema),
   nextBefore: z.uuid().nullable(),
 });
+
+export const unreadSchema = z.object({
+  news: z.number().int(),
+  polls: z.number().int(),
+  chat: z.array(z.object({ groupId: z.uuid().nullable(), count: z.number().int() })),
+  total: z.number().int(),
+});
+export type Unread = z.infer<typeof unreadSchema>;
+export const markReadSchema = z
+  .object({
+    channel: z.enum(['news', 'poll', 'chat']),
+    groupId: z.uuid().nullable().default(null),
+    until: z.iso.datetime({ offset: true }),
+  })
+  .strict()
+  .refine((v) => v.channel === 'chat' || v.groupId === null, {
+    message: 'Only chat markers belong to a group.',
+    path: ['groupId'],
+  });
+export const digestModeSchema = z.enum(['off', 'daily', 'weekly']);
+export const notificationSettingsSchema = z.object({
+  digest: digestModeSchema,
+  email: z.string(),
+  emailEnabled: z.boolean(),
+});
+export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
+export const notificationSettingsInputSchema = z.object({ digest: digestModeSchema }).strict();

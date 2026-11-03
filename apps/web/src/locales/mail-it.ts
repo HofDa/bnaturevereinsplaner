@@ -10,6 +10,7 @@ const it: Record<keyof typeof de, string> = {
   mailKind: 'Tipo di messaggio',
   mailKind_fee_reminder: 'Promemoria quote associative',
   mailKind_event_invitation: 'Inviti agli eventi',
+  mailKind_community_digest: 'Riepiloghi vita associativa',
   mailEvent: 'Evento',
   mailChooseEvent: 'Seleziona evento',
   mailPreview: 'Anteprima invio',
@@ -56,6 +57,12 @@ const it: Record<keyof typeof de, string> = {
   mailAutomationHint:
     'Dopo l’attivazione le quote scadute vengono controllate ogni giorno. Un nuovo promemoria rispetta l’intervallo impostato. È necessario un account amministratore valido.',
   mailAutoEnabled: 'Inviare automaticamente i promemoria delle quote',
+  mailAutoDeadlines:
+    'Promemoria automatici per le scadenze (alla persona o al ruolo responsabile, altrimenti agli admin)',
+  mailAutoLoans:
+    'Promemoria automatici per i prestiti (2 giorni prima della restituzione, poi settimanali se scaduti)',
+  mailKind_deadline_reminder: 'Promemoria scadenze',
+  mailKind_loan_reminder: 'Promemoria restituzioni',
   mailInterval: 'Intervallo minimo in giorni (7–90)',
   mailSettingsSaved: 'Impostazioni dei promemoria salvate.',
   mailDisabled: 'Configurare prima l’invio e-mail.',
@@ -63,5 +70,29 @@ const it: Record<keyof typeof de, string> = {
     'Destinatari o contenuto sono cambiati. Chiudere l’anteprima e generarne una nuova.',
   mailEventUnavailable: 'Selezionare un evento futuro e pubblicato con iscrizioni ancora aperte.',
   mailTooMany: 'Questa anteprima supera i 250 messaggi. Contattare l’amministrazione.',
+  mailKind_newsletter: 'Newsletter',
+  mailNewsletterDraft: 'Bozza newsletter',
+  mailNewsletterChoose: 'Scegli bozza',
+  mailNewsletterNew: 'Nuova newsletter',
+  mailNewsletterEdit: 'Modifica newsletter',
+  mailNewsletterWithdraw: 'Scarta bozza',
+  mailNewsletterHelp:
+    'Testo semplice in tedesco e italiano; ogni socio riceve la propria lingua con saluto personale e un’indicazione per disdire. Dopo l’invio la newsletter non è più modificabile.',
+  mailNewsletterSubjectDe: 'Oggetto (DE)',
+  mailNewsletterSubjectIt: 'Oggetto (IT)',
+  mailNewsletterBodyDe: 'Testo (DE)',
+  mailNewsletterBodyIt: 'Testo (IT)',
+  mailNewsletterAudience: 'Destinatari',
+  mailNewsletterAudienceHint:
+    'Senza selezione la ricevono tutti i soci attivi; altrimenti solo i soci dei gruppi scelti.',
+  mailNewsletterSave: 'Salva bozza',
+  mailNewsletterHint:
+    'Soci attivi con indirizzo e-mail valido che non hanno disdetto la newsletter. Ogni bozza viene inviata una sola volta.',
+  mailNewsletterProfileTitle: 'Newsletter dell’associazione',
+  mailNewsletterReceive: 'Ricevere la newsletter via e-mail',
+  mailNewsletterProfileHint:
+    'Riguarda solo la newsletter. Promemoria e inviti continuano a essere inviati.',
+  mailSkippedOptOut_one: '{{count}} socio ha disdetto la newsletter.',
+  mailSkippedOptOut_other: '{{count}} soci hanno disdetto la newsletter.',
 };
 export default it;

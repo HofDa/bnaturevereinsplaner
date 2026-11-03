@@ -19,6 +19,9 @@ export const memberResponse = memberInputSchema.safeExtend({
   personId: idSchema,
   createdAt: z.string(),
   updatedAt: z.string(),
+  photoConsent: z.enum(['granted', 'refused']).nullable().optional(),
+  dataConsent: z.enum(['granted', 'refused']).nullable().optional(),
+  customFields: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
 });
 export const pageOf = (item: z.ZodType) =>
   z.object({ items: z.array(item), total: z.number(), page: z.number(), pageSize: z.number() });

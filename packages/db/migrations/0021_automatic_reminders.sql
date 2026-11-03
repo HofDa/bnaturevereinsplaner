@@ -1,0 +1,15 @@
+ALTER TABLE "mail_messages" DROP CONSTRAINT "mail_message_kind";--> statement-breakpoint
+ALTER TABLE "mail_messages" DROP CONSTRAINT "mail_message_source";--> statement-breakpoint
+ALTER TABLE "mail_messages" ADD COLUMN "loan_id" uuid;--> statement-breakpoint
+ALTER TABLE "mail_settings" ADD COLUMN "automatic_loan_reminders" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "mail_settings" ADD COLUMN "loan_last_run_on" date;--> statement-breakpoint
+ALTER TABLE "mail_messages" ADD CONSTRAINT "mail_messages_organization_id_loan_id_inventory_loans_organization_id_id_fk" FOREIGN KEY ("organization_id","loan_id") REFERENCES "public"."inventory_loans"("organization_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "mail_messages" ADD CONSTRAINT "mail_message_kind" CHECK ("mail_messages"."kind" in ('fee_reminder','event_invitation','deadline_reminder','newsletter','account_invitation','password_reset','test','community_digest','loan_reminder'));--> statement-breakpoint
+ALTER TABLE "mail_messages" ADD CONSTRAINT "mail_message_source" CHECK (case "mail_messages"."kind"
+        when 'fee_reminder' then "mail_messages"."person_id" is not null and "mail_messages"."assessment_id" is not null and num_nonnulls("mail_messages"."user_id", "mail_messages"."event_id", "mail_messages"."deadline_id", "mail_messages"."newsletter_id", "mail_messages"."loan_id") = 0
+        when 'event_invitation' then "mail_messages"."person_id" is not null and "mail_messages"."event_id" is not null and num_nonnulls("mail_messages"."user_id", "mail_messages"."assessment_id", "mail_messages"."deadline_id", "mail_messages"."newsletter_id", "mail_messages"."loan_id") = 0
+        when 'deadline_reminder' then "mail_messages"."user_id" is not null and "mail_messages"."deadline_id" is not null and num_nonnulls("mail_messages"."person_id", "mail_messages"."assessment_id", "mail_messages"."event_id", "mail_messages"."newsletter_id", "mail_messages"."loan_id") = 0
+        when 'newsletter' then "mail_messages"."person_id" is not null and "mail_messages"."newsletter_id" is not null and num_nonnulls("mail_messages"."user_id", "mail_messages"."assessment_id", "mail_messages"."event_id", "mail_messages"."deadline_id", "mail_messages"."loan_id") = 0
+        when 'loan_reminder' then "mail_messages"."person_id" is not null and "mail_messages"."loan_id" is not null and num_nonnulls("mail_messages"."user_id", "mail_messages"."assessment_id", "mail_messages"."event_id", "mail_messages"."deadline_id", "mail_messages"."newsletter_id") = 0
+        else "mail_messages"."user_id" is not null and num_nonnulls("mail_messages"."person_id", "mail_messages"."assessment_id", "mail_messages"."event_id", "mail_messages"."deadline_id", "mail_messages"."newsletter_id", "mail_messages"."loan_id") = 0
+      end);

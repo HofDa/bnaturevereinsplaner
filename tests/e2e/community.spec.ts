@@ -18,10 +18,6 @@ async function post<T>(
   expect(r.ok(), await r.text()).toBe(true);
   return r.json();
 }
-async function publish(page: Page, id: string) {
-  const data = await (await page.request.get(`/api/v1/community/posts/${id}`)).json();
-  await post(page, `/community/posts/${id}/publish`, { version: data.version });
-}
 async function a11y(page: Page) {
   expect(
     (
@@ -57,6 +53,32 @@ test('publishes bilingual news as a separate step and displays plain text to mem
     .getByRole('button', { name: 'Bestätigen', exact: true })
     .click();
   await expect(page.getByText('Entwurf', { exact: true })).not.toBeVisible();
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(new Date());
+  const bdaySuffix = `${info.project.name}-${Date.now()}`;
+  await post(page, '/members', {
+    firstName: 'Greta',
+    lastName: `Geburtstag ${bdaySuffix}`,
+    membershipNumber: `BDAY-${bdaySuffix}`,
+    joinedAt: '2020-01-01',
+    dateOfBirth: `1996${today.slice(4)}`,
+  });
+  await page.goto('/');
+  const card = page.locator('.occasions-panel');
+  await expect(card.getByRole('heading', { name: 'Geburtstage und Jubiläen' })).toBeVisible();
+  const row = card.getByRole('listitem').filter({ hasText: `Geburtstag ${bdaySuffix}` });
+  await expect(row).toContainText('wird 30 Jahre alt');
+  await expect(row).toContainText('heute');
+  await a11y(page);
+  await card.screenshot({ path: `test-results/dashboard-occasions-${info.project.name}.png` });
+  await row.getByRole('link', { name: /Im Vereinschat gratulieren/ }).click();
+  await expect(page.getByRole('tab', { name: /Vereinschat/ })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.getByLabel('Deine Nachricht', { exact: true })).toHaveValue(
+    'Alles Gute zum Geburtstag, Greta! 🎉',
+  );
+  await expect(page).not.toHaveURL(/draft=/);
   await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
   await login(page, 'e2e-member@example.test');
   await page.goto(url);
@@ -137,80 +159,4 @@ test('lets members vote, change their answer and see the final results after clo
     path: `test-results/community-poll-${info.project.name}.png`,
     fullPage: true,
   });
-});
-test('shows group news and chat only to assigned users and supports live moderation', async ({
-  page,
-  browser,
-}, info) => {
-  await login(page);
-  const suffix = `${info.project.name}-${Date.now()}`;
-  const email = `community-${suffix}@example.test`;
-  const member = await post<{ personId: string }>(page, '/members', {
-    firstName: 'Lena',
-    lastName: 'Chat-Test',
-    email,
-    membershipNumber: `CHAT-${suffix}`,
-    joinedAt: '2020-01-01',
-  });
-  await post(page, '/users', {
-    name: 'Lena Chat-Test',
-    email,
-    password,
-    role: 'member',
-    personId: member.personId,
-  });
-  const group = await post<{ id: string }>(page, '/groups', { name: `Waldgruppe ${suffix}` });
-  await post(page, `/groups/${group.id}/members`, { personIds: [member.personId] }, 'PUT');
-  const news = await post<{ id: string }>(page, '/community/posts', {
-    kind: 'news',
-    groupId: group.id,
-    titleI18n: { de: 'Waldgruppen-News', it: 'Notizie del gruppo bosco' },
-    bodyI18n: { de: 'Nur für unsere Waldgruppe.', it: 'Solo per il nostro gruppo.' },
-  });
-  await publish(page, news.id);
-  await post(page, '/community/chat', { groupId: group.id, body: 'Willkommen im Gruppenchat!' });
-  await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
-  await login(page, email);
-  await page.goto(`/community?groupId=${group.id}`);
-  await expect(page.getByRole('link', { name: 'Waldgruppen-News', exact: true })).toBeVisible();
-  await page.getByRole('tab', { name: 'Vereinschat', exact: true }).click();
-  await expect(page.getByText('Willkommen im Gruppenchat!', { exact: true })).toBeVisible();
-  await page.getByLabel('Deine Nachricht', { exact: true }).fill('Hallo aus dem Browser!');
-  await page.getByRole('button', { name: 'Senden', exact: true }).click();
-  await expect(page.getByText('Hallo aus dem Browser!', { exact: true })).toHaveCount(1);
-  await page.getByLabel('Deine Nachricht', { exact: true }).fill('Hallo aus dem Browser!');
-  await page.getByLabel('Deine Nachricht', { exact: true }).press('Control+Enter');
-  await expect(page.getByText('Hallo aus dem Browser!', { exact: true })).toHaveCount(2);
-  await a11y(page);
-  const moderatorContext = await browser.newContext({ baseURL: appOrigin });
-  try {
-    const moderator = await moderatorContext.newPage();
-    await login(moderator);
-    await moderator.goto(`/community?kind=chat&groupId=${group.id}`);
-    const message = moderator
-      .locator('.community-chat-message')
-      .filter({ hasText: 'Hallo aus dem Browser!' })
-      .first();
-    await message.getByRole('button', { name: /Nachricht entfernen/ }).click();
-    await moderator
-      .getByRole('dialog')
-      .getByRole('button', { name: 'Bestätigen', exact: true })
-      .click();
-    await expect(moderator.getByRole('dialog')).not.toBeVisible();
-  } finally {
-    await moderatorContext.close();
-  }
-  await expect(page.getByText('Nachricht entfernt', { exact: true })).toBeVisible({
-    timeout: 15000,
-  });
-  await page.screenshot({
-    path: `test-results/community-chat-${info.project.name}.png`,
-    fullPage: true,
-  });
-  await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
-  await login(page, 'e2e-member@example.test');
-  expect((await page.request.get(`/api/v1/community/chat?groupId=${group.id}`)).status()).toBe(404);
-  expect((await page.request.get(`/api/v1/community/posts/${news.id}`)).status()).toBe(404);
-  await page.goto('/community?kind=chat');
-  await expect(page.getByText('Willkommen im Gruppenchat!', { exact: true })).not.toBeVisible();
 });

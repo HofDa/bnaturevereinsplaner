@@ -6,6 +6,7 @@ import { api, queryClient } from '../lib/api';
 import { useSession } from '../app/session';
 import { ErrorState, Loading, Notice, PageHeading } from '../components/ui';
 import { DataForm, type FormField } from '../components/data-form';
+import { MemberFieldSettings } from './member-extras';
 export function OrganizationPage() {
   const { t } = useTranslation(),
     { me } = useSession(),
@@ -77,6 +78,7 @@ export function OrganizationPage() {
           )}
         </section>
       )}
+      <MemberFieldSettings />
     </>
   );
 }

@@ -7,6 +7,7 @@ import {
   boolean,
   integer,
   timestamp,
+  date,
   unique,
   primaryKey,
   index,
@@ -15,6 +16,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { organizations, groups, organizationUserRoles } from './core';
 import { user } from './auth';
+import { eventOccurrences } from './events';
 type Text = { de: string; it: string };
 export const communityPosts = pgTable(
   'community_posts',
@@ -136,6 +138,10 @@ export const communityChatMessages = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     removedAt: timestamp('removed_at', { withTimezone: true }),
     removedBy: uuid('removed_by').references(() => user.id),
+    replyToId: uuid('reply_to_id'),
+    // A shared event or poll, shown as a card; access is re-checked per viewer.
+    attachmentKind: text('attachment_kind').$type<'event' | 'poll'>(),
+    attachmentId: uuid('attachment_id'),
   },
   (t) => [
     foreignKey({
@@ -146,11 +152,220 @@ export const communityChatMessages = pgTable(
       columns: [t.organizationId, t.createdBy],
       foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
     }),
+    foreignKey({
+      name: 'community_chat_reply_fk',
+      columns: [t.organizationId, t.replyToId],
+      foreignColumns: [t.organizationId, t.id],
+    }),
+    check(
+      'community_chat_attachment',
+      sql`(${t.attachmentKind} is null) = (${t.attachmentId} is null) and (${t.attachmentKind} is null or ${t.attachmentKind} in ('event','poll'))`,
+    ),
     index('community_chat_channel').on(t.organizationId, t.groupId, t.createdAt, t.id),
+    unique('community_chat_messages_tenant').on(t.organizationId, t.id),
     check(
       'community_chat_body',
       sql`(${t.removedAt} is null and ${t.removedBy} is null and length(trim(${t.body})) between 1 and 2000) or (${t.removedAt} is not null and ${t.removedBy} is not null and ${t.body}='')`,
     ),
     check('community_chat_version', sql`${t.version}>0`),
+  ],
+);
+
+// Keep the emoji list in sync with `chatReactionEmojis` in @bnature/contracts.
+export const communityChatReactions = pgTable(
+  'community_chat_reactions',
+  {
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    messageId: uuid('message_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    emoji: text('emoji').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.messageId, t.userId, t.emoji] }),
+    foreignKey({
+      columns: [t.organizationId, t.messageId],
+      foreignColumns: [communityChatMessages.organizationId, communityChatMessages.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.organizationId, t.userId],
+      foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
+    }),
+    check('community_chat_reaction_emoji', sql`${t.emoji} in ('👍', '❤️', '😂', '😮', '🎉', '🙏')`),
+  ],
+);
+
+// Per user and channel: everything up to `readAt` counts as read. Chat markers are per channel
+// (club or group); news and poll markers are club-wide (`groupId` null).
+export const communityReadMarkers = pgTable(
+  'community_read_markers',
+  {
+    organizationId: uuid('organization_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    channel: text('channel').$type<'news' | 'poll' | 'chat'>().notNull(),
+    groupId: uuid('group_id'),
+    readAt: timestamp('read_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    unique('community_read_markers_scope')
+      .on(t.organizationId, t.userId, t.channel, t.groupId)
+      .nullsNotDistinct(),
+    foreignKey({
+      columns: [t.organizationId, t.userId],
+      foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.organizationId, t.groupId],
+      foreignColumns: [groups.organizationId, groups.id],
+    }),
+    check('community_read_channel', sql`${t.channel} in ('news','poll','chat')`),
+    check('community_read_group', sql`${t.channel}='chat' or ${t.groupId} is null`),
+  ],
+);
+
+// Opt-in e-mail digest. `lastDigestAt` bounds the next digest window; `lastDigestOn` is the
+// club-local date of the last scheduler run for this user.
+export const communityNotificationSettings = pgTable(
+  'community_notification_settings',
+  {
+    organizationId: uuid('organization_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    digest: text('digest').$type<'off' | 'daily' | 'weekly'>().notNull().default('off'),
+    lastDigestAt: timestamp('last_digest_at', { withTimezone: true }).notNull().defaultNow(),
+    lastDigestOn: date('last_digest_on'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.userId] }),
+    foreignKey({
+      columns: [t.organizationId, t.userId],
+      foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
+    }).onDelete('cascade'),
+    check('community_digest_mode', sql`${t.digest} in ('off','daily','weekly')`),
+  ],
+);
+
+export const communityChatMentions = pgTable(
+  'community_chat_mentions',
+  {
+    organizationId: uuid('organization_id').notNull(),
+    messageId: uuid('message_id').notNull(),
+    userId: uuid('user_id').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.messageId, t.userId] }),
+    foreignKey({
+      name: 'community_chat_mentions_message_fk',
+      columns: [t.organizationId, t.messageId],
+      foreignColumns: [communityChatMessages.organizationId, communityChatMessages.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'community_chat_mentions_user_fk',
+      columns: [t.organizationId, t.userId],
+      foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
+    }).onDelete('cascade'),
+    index('community_chat_mentions_user').on(t.organizationId, t.userId),
+  ],
+);
+
+// Doodle-style scheduling: participants answer every proposed slot with yes / maybe / no.
+export const communitySchedules = pgTable(
+  'community_schedules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    groupId: uuid('group_id'),
+    titleI18n: jsonb('title_i18n').$type<Text>().notNull(),
+    descriptionI18n: jsonb('description_i18n').$type<Text>().notNull(),
+    location: text('location').notNull().default(''),
+    state: text('state').$type<'open' | 'closed' | 'archived'>().notNull().default('open'),
+    closesAt: timestamp('closes_at', { withTimezone: true }),
+    finalSlotId: uuid('final_slot_id'),
+    // Event created from the fixed slot; at most one per scheduling poll.
+    eventId: uuid('event_id'),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    version: integer('version').notNull().default(1),
+    createdBy: uuid('created_by').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('community_schedules_org_id').on(t.organizationId, t.id),
+    foreignKey({
+      columns: [t.organizationId, t.groupId],
+      foreignColumns: [groups.organizationId, groups.id],
+    }),
+    foreignKey({
+      columns: [t.organizationId, t.createdBy],
+      foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
+    }),
+    index('community_schedules_org_state').on(t.organizationId, t.state, t.createdAt),
+    foreignKey({
+      name: 'community_schedules_event_fk',
+      columns: [t.organizationId, t.eventId],
+      foreignColumns: [eventOccurrences.organizationId, eventOccurrences.id],
+    }),
+    check('community_schedule_event', sql`${t.eventId} is null or ${t.finalSlotId} is not null`),
+    check('community_schedule_state', sql`${t.state} in ('open','closed','archived')`),
+    check(
+      'community_schedule_closed',
+      sql`(${t.state}='open') = (${t.closedAt} is null) and (${t.finalSlotId} is null or ${t.state}<>'open')`,
+    ),
+    check('community_schedule_version', sql`${t.version}>0`),
+  ],
+);
+
+export const communityScheduleSlots = pgTable(
+  'community_schedule_slots',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id').notNull(),
+    scheduleId: uuid('schedule_id').notNull(),
+    startAt: timestamp('start_at', { withTimezone: true }).notNull(),
+    endAt: timestamp('end_at', { withTimezone: true }).notNull(),
+    position: integer('position').notNull(),
+  },
+  (t) => [
+    unique('community_schedule_slots_scope').on(t.organizationId, t.scheduleId, t.id),
+    unique('community_schedule_slots_position').on(t.scheduleId, t.position),
+    foreignKey({
+      columns: [t.organizationId, t.scheduleId],
+      foreignColumns: [communitySchedules.organizationId, communitySchedules.id],
+    }).onDelete('cascade'),
+    check('community_schedule_slot_time', sql`${t.endAt}>${t.startAt}`),
+  ],
+);
+
+export const communityScheduleAnswers = pgTable(
+  'community_schedule_answers',
+  {
+    organizationId: uuid('organization_id').notNull(),
+    scheduleId: uuid('schedule_id').notNull(),
+    slotId: uuid('slot_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    answer: text('answer').$type<'yes' | 'maybe' | 'no'>().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.slotId, t.userId] }),
+    // The slot must belong to the same schedule and organization.
+    foreignKey({
+      columns: [t.organizationId, t.scheduleId, t.slotId],
+      foreignColumns: [
+        communityScheduleSlots.organizationId,
+        communityScheduleSlots.scheduleId,
+        communityScheduleSlots.id,
+      ],
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.organizationId, t.userId],
+      foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
+    }).onDelete('cascade'),
+    index('community_schedule_answers_schedule').on(t.organizationId, t.scheduleId),
+    check('community_schedule_answer', sql`${t.answer} in ('yes','maybe','no')`),
   ],
 );

@@ -3,6 +3,21 @@ import { schema as s, type Database, type Executor } from '@bnature/db';
 import { memberInputSchema, type MemberInput, type ListQuery } from '@bnature/contracts';
 import { HttpError, lockAccess, type Access } from '../middleware/access';
 import { audit } from '../services/audit';
+// The latest recorded decision counts, as on the member page.
+function consentOf(kind: 'photos' | 'data_processing') {
+  return sql<
+    'granted' | 'refused' | null
+  >`(select case when c.granted then 'granted' else 'refused' end from person_consents c where c.organization_id=${s.persons.organizationId} and c.person_id=${s.persons.id} and c.kind=${kind} order by c.recorded_at desc, c.id desc limit 1)`;
+}
+const consentFilter = (
+  kind: 'photos' | 'data_processing',
+  value?: 'granted' | 'refused' | 'missing',
+) =>
+  !value
+    ? undefined
+    : value === 'missing'
+      ? sql`${consentOf(kind)} is null`
+      : sql`${consentOf(kind)} = ${value}`;
 const selection = {
   id: s.memberships.id,
   personId: s.persons.id,
@@ -24,6 +39,11 @@ const selection = {
   endedAt: s.memberships.endedAt,
   createdAt: s.memberships.createdAt,
   updatedAt: s.memberships.updatedAt,
+  photoConsent: consentOf('photos'),
+  dataConsent: consentOf('data_processing'),
+  customFields: sql<
+    Record<string, string | number | boolean>
+  >`(select coalesce(jsonb_object_agg(v.field_id, v.value), '{}'::jsonb) from person_field_values v where v.organization_id=${s.persons.organizationId} and v.person_id=${s.persons.id})`,
 };
 const join = and(
   eq(s.persons.id, s.memberships.personId),
@@ -48,6 +68,8 @@ export async function listMembers(db: Database, organizationId: string, q: ListQ
   const where = and(
     eq(s.memberships.organizationId, organizationId),
     q.status ? eq(s.memberships.status, q.status) : undefined,
+    consentFilter('photos', q.photoConsent),
+    consentFilter('data_processing', q.dataConsent),
     q.search
       ? or(
           ilike(sql`${s.persons.firstName} || ' ' || ${s.persons.lastName}`, search),
