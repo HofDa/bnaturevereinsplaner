@@ -10,6 +10,7 @@ import { HttpError, type Access } from '../middleware/access';
 import { audit } from '../services/audit';
 import { financialOperation, readSnapshot } from './finance/operations';
 import { currentAccess, groupAccess } from './community';
+import { decorateMessages, validateChatExtras } from './community-chat-extras';
 const m = s.communityChatMessages;
 const r = s.communityChatReactions;
 const channel = (a: Access, groupId: string | null) =>
@@ -50,6 +51,11 @@ export function listCommunityChat(
       a,
       selected.map(({ message }) => message.id),
     );
+    const extras = await decorateMessages(
+      tx,
+      a,
+      selected.map(({ message }) => message),
+    );
     return {
       items: selected.reverse().map(({ message: r, authorName }) => ({
         id: r.id,
@@ -61,6 +67,7 @@ export function listCommunityChat(
         isOwn: r.createdBy === a.userId,
         canRemove: !r.removedAt && (r.createdBy === a.userId || can(a.role, 'community:manage')),
         reactions: r.removedAt ? [] : (reactions.get(r.id) ?? []),
+        ...extras.get(r.id)!,
       })),
       nextBefore: rows.length > 50 ? selected[0]!.message.id : null,
     };
@@ -95,7 +102,13 @@ export function sendCommunityChat(
   db: Database,
   access: Access,
   key: string,
-  input: { groupId: string | null; body: string },
+  input: {
+    groupId: string | null;
+    body: string;
+    replyToId: string | null;
+    mentionUserIds: string[];
+    attachment: { kind: 'event' | 'poll'; id: string } | null;
+  },
 ) {
   return financialOperation(
     db,
@@ -114,6 +127,7 @@ export function sendCommunityChat(
           .for('share');
         await groupAccess(tx, a, input.groupId);
       }
+      const mentions = await validateChatExtras(tx, a, input);
       const [row] = await tx
         .insert(m)
         .values({
@@ -121,8 +135,19 @@ export function sendCommunityChat(
           groupId: input.groupId,
           body: input.body,
           createdBy: a.userId,
+          replyToId: input.replyToId,
+          attachmentKind: input.attachment?.kind ?? null,
+          attachmentId: input.attachment?.id ?? null,
         })
         .returning();
+      if (mentions.length)
+        await tx.insert(s.communityChatMentions).values(
+          mentions.map((userId) => ({
+            organizationId: a.organizationId,
+            messageId: row!.id,
+            userId,
+          })),
+        );
       await audit(tx, a, 'send', 'community_chat_message', row!.id, ['message']);
       return { id: row!.id };
     },

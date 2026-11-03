@@ -17,6 +17,7 @@ Alle Schreiboperationen benötigen `Origin` und UUID-`Idempotency-Key`. Gruppenz
 
 Die versionierte [OpenAPI-Spezifikation](openapi.json) wird mit `bun run openapi` aus Fastify-/Zod-Verträgen generiert. Entwicklungs-Swagger-UI: `/api/docs`; Produktion deaktiviert. Authentifizierung liegt separat unter `/api/auth` und wird von Better Auth verwaltet.
 
+- `POST /chat` akzeptiert zusätzlich `replyToId`, `mentionUserIds` (höchstens 10, nur Personen mit Kanalzugang) und `attachment` (`{kind:'event'|'poll',id}`). `GET /chat/members?groupId=` liefert die erwähnbaren Konten.
 - `GET /unread`: ungelesene News, Umfragen und Chatnachrichten anderer Personen (`{news,polls,chat:[{groupId,count}],total}`). Berücksichtigt den Vereinskanal und aktive Gruppen, denen das Konto über die verknüpfte Person angehört.
 - `PUT /read` (`{channel,groupId?,until}`, 204): Lesemarke für `news`, `poll` oder einen Chatkanal bis zum angegebenen Zeitpunkt setzen. Die Marke wandert nur vorwärts und nie über die Serverzeit hinaus; daher ohne `Idempotency-Key`.
 - `GET|PUT /notifications` (`{digest: off|daily|weekly}`): eigene Einstellung für die Zusammenfassung per E-Mail.

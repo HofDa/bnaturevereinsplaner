@@ -1,5 +1,15 @@
 # Prüfnachweise
 
+## Chat: Antworten, Erwähnungen, Karten – 03.11.2026
+
+Auf `feat/chat-extras`, gestapelt auf `feat/volunteer-self-reports`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt; erneute Migrationserzeugung meldet keine Schemaabweichung nach `0022_chat_extras`.
+- Neue PostgreSQL-Integrationstests: Antworten nur im selben Kanal mit Vorschau, entfernte Originale; erwähnbare Konten je Kanal, Erwähnung gruppenfremder Konten abgewiesen, Hervorhebung nur für die erwähnte Person; Umfrage- und Veranstaltungskarten mit Zugangsprüfung, Gruppenumfrage nicht im Vereinskanal, Entwürfe abgewiesen, geschlossene Umfrage, Karte entfällt nach Entfernen der Nachricht.
+- **6/6 Vereinsleben-Browserabläufe** und **4/4** `chat-poll` (Desktop und Mobil): Antwort mit @-Auswahl per Tastatur, Hervorhebung beim Erwähnten, Veranstaltungskarte mit Anmeldelink, Umfrage aus dem Chat mit Bestätigung, Veröffentlichung und Karte, E-Mail-Zusammenfassung im Profil (aus dem Chatablauf verschoben), Axe.
+- Hinweis: Zwei Browsersitzungen vom selben Rechner erreichten im verlängerten Chatablauf die globale API-Grenze von 150 Anfragen je Minute und IP. Für Nutzer hinter einer gemeinsamen IP (z. B. Vereinsheim-WLAN) sollte die Grenze vor dem Rollout geprüft werden.
+- Kein Push, PR oder Deployment.
+
 ## Auswertungen – 03.11.2026
 
 Auf `feat/volunteer-self-reports`:

@@ -13,6 +13,7 @@ import {
   chatInputSchema,
   chatQuerySchema,
   chatPageSchema,
+  chatMemberSchema,
   chatReactionInputSchema,
   unreadSchema,
   markReadSchema,
@@ -29,6 +30,8 @@ import {
   editCommunityPost,
   transitionCommunityPost,
   voteCommunityPoll,
+  currentAccess,
+  groupAccess,
 } from './community';
 import {
   listCommunityChat,
@@ -36,6 +39,8 @@ import {
   removeCommunityChat,
   reactCommunityChat,
 } from './community-chat';
+import { chatMembers } from './community-chat-extras';
+import { readSnapshot } from './finance/operations';
 import {
   communityUnread,
   markCommunityRead,
@@ -56,6 +61,24 @@ export function registerCommunityRoutes({ server, db, access, config }: ModuleCo
         req.query.groupId ?? null,
         req.query.before,
       ),
+  );
+  app.get(
+    '/api/v1/community/chat/members',
+    {
+      schema: {
+        tags,
+        querystring: z.object({ groupId: z.uuid().optional() }),
+        response: { 200: z.object({ items: z.array(chatMemberSchema) }) },
+      },
+    },
+    async (req) => {
+      const access0 = await access(req, 'community:chat');
+      return readSnapshot(db, async (tx) => {
+        const a = await currentAccess(tx, access0);
+        if (req.query.groupId) await groupAccess(tx, a, req.query.groupId);
+        return { items: await chatMembers(tx, a, req.query.groupId ?? null) };
+      });
+    },
   );
   app.post(
     '/api/v1/community/chat',

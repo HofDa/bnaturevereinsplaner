@@ -14,6 +14,8 @@ import {
   Archive,
   CircleStop,
   MessagesSquare,
+  CornerUpLeft,
+  Share2,
 } from 'lucide-react';
 import {
   communityInputSchema,
@@ -27,6 +29,15 @@ import { useSession } from '../app/session';
 import { useFinancialWrite } from './finance/client';
 import { ChatReactions, EmojiPicker } from './community-emoji';
 import { UnreadBadge, useMarkRead, useUnread } from './community-unread';
+import {
+  AttachmentCard,
+  ComposeBanner,
+  MentionList,
+  ReplyQuote,
+  SharePicker,
+  useChatMembers,
+  useMentions,
+} from './community-chat-extras';
 import {
   Button,
   Empty,
@@ -70,11 +81,13 @@ function CommunityEditor({
   post,
   onClose,
   onSaved,
+  defaultGroupId = null,
 }: {
   kind: Kind;
   post?: CommunityPost;
   onClose: () => void;
   onSaved: (id: string) => void;
+  defaultGroupId?: string | null;
 }) {
   const { t } = useTranslation();
   const { me } = useSession();
@@ -149,7 +162,7 @@ function CommunityEditor({
           <Field label={t('commAudience')}>
             <select
               name="groupId"
-              defaultValue={post?.groupId ?? ''}
+              defaultValue={post?.groupId ?? defaultGroupId ?? ''}
               disabled={post?.state === 'published'}
             >
               <option value="">{t('commWholeClub')}</option>
@@ -529,10 +542,23 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
   const [error, setError] = useState<unknown>(null);
   const [removing, setRemoving] = useState<ChatMessage | null>(null);
   const attempt = useRef<{ text: string; key: string } | null>(null);
-  const log = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  const log = useRef<HTMLDivElement>(null);
   const follow = useRef(true);
   const [reacting, setReacting] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [attachment, setAttachment] = useState<{
+    kind: 'event' | 'poll';
+    id: string;
+    title: string;
+  } | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [creatingPoll, setCreatingPoll] = useState(false);
+  const [publishing, setPublishing] = useState<string | null>(null);
+  const members = useChatMembers(groupId);
+  const mentions = useMentions(input, text, setText, members.data?.items ?? []);
+  const listboxId = `mentions-${groupId ?? 'club'}`;
+  const canManage = me.permissions.includes('community:manage');
   const q = new URLSearchParams({ ...(groupId ? { groupId } : {}), ...(before ? { before } : {}) });
   const query = useQuery({
     queryKey: ['community', 'chat', me.activeOrganizationId, groupId, before],
@@ -549,16 +575,27 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
     if (busy || !text.trim()) return;
     setBusy(true);
     setError(null);
-    const body = text.trim();
-    if (attempt.current?.text !== body) attempt.current = { text: body, key: crypto.randomUUID() };
+    const payload = JSON.stringify({
+      groupId,
+      body: text.trim(),
+      replyToId: replyTo?.id ?? null,
+      mentionUserIds: mentions.mentionIds(),
+      attachment: attachment ? { kind: attachment.kind, id: attachment.id } : null,
+    });
+    // The same pending message keeps its key, so a retry after a network error is not doubled.
+    if (attempt.current?.text !== payload)
+      attempt.current = { text: payload, key: crypto.randomUUID() };
     try {
       await api('/community/chat', {
         method: 'POST',
-        body: JSON.stringify({ groupId, body }),
+        body: payload,
         headers: { 'Idempotency-Key': attempt.current.key },
       });
       attempt.current = null;
       setText('');
+      setReplyTo(null);
+      setAttachment(null);
+      mentions.reset();
       setBefore(null);
       follow.current = true;
       await queryClient.invalidateQueries({ queryKey: ['community', 'chat'] });
@@ -578,6 +615,24 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
       setError(error);
     } finally {
       setReacting(null);
+    }
+  }
+  async function publishAndShare() {
+    if (!publishing) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const post = await api<CommunityPost>(`/community/posts/${publishing}`);
+      await write(`/community/posts/${post.id}/publish`, { version: post.version });
+      setAttachment({ kind: 'poll', id: post.id, title: post.titleI18n[lang(i18n.language)] });
+      if (!text.trim()) setText(post.titleI18n[lang(i18n.language)]);
+      setPublishing(null);
+      await queryClient.invalidateQueries({ queryKey: ['community'] });
+      input.current?.focus();
+    } catch (error) {
+      setError(error);
+    } finally {
+      setBusy(false);
     }
   }
   async function remove() {
@@ -641,7 +696,8 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
             query.data.items.map((message) => (
               <article
                 key={message.id}
-                className={`community-chat-message ${message.isOwn ? 'community-chat-own' : ''}`}
+                id={`msg-${message.id}`}
+                className={`community-chat-message ${message.isOwn ? 'community-chat-own' : ''} ${message.mentionsMe ? 'community-chat-mention' : ''}`}
                 aria-label={`${message.authorName}: ${new Date(message.createdAt).toLocaleString(i18n.language)}`}
               >
                 <header>
@@ -649,16 +705,34 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
                   <time dateTime={message.createdAt}>
                     {new Date(message.createdAt).toLocaleString(i18n.language)}
                   </time>
+                  {message.mentionsMe && (
+                    <span className="mention-badge">{t('commMentionedYou')}</span>
+                  )}
                 </header>
+                {message.replyTo && <ReplyQuote reply={message.replyTo} />}
                 <p className={message.removedAt ? 'community-chat-removed' : ''}>
                   {message.removedAt ? t('commChatRemoved') : message.body}
                 </p>
+                {message.attachment && <AttachmentCard attachment={message.attachment} />}
                 {!message.removedAt && (
                   <ChatReactions
                     message={message}
                     disabled={reacting === message.id}
                     onReact={(emoji, active) => void react(message, emoji, active)}
                   />
+                )}
+                {!message.removedAt && (
+                  <Button
+                    variant="ghost"
+                    aria-label={`${t('commReply')}: ${message.authorName}`}
+                    onClick={() => {
+                      setReplyTo(message);
+                      input.current?.focus();
+                    }}
+                  >
+                    <CornerUpLeft size={14} />
+                    {t('commReply')}
+                  </Button>
                 )}
                 {message.canRemove && (
                   <Button
@@ -676,7 +750,23 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
       )}
       {error != null && !removing && <Notice error>{errorMessage(error)}</Notice>}
       <form className="community-chat-compose" onSubmit={(event) => void send(event)}>
-        <Field label={t('commChatMessage')} hint={t('commChatKeyboard')}>
+        {replyTo && (
+          <ComposeBanner
+            icon="reply"
+            label={t('commReplyTo', { name: replyTo.authorName })}
+            text={replyTo.body.slice(0, 80)}
+            onClear={() => setReplyTo(null)}
+          />
+        )}
+        {attachment && (
+          <ComposeBanner
+            icon={attachment.kind}
+            label={t(attachment.kind === 'event' ? 'commShareEvent' : 'commSharePoll')}
+            text={attachment.title}
+            onClear={() => setAttachment(null)}
+          />
+        )}
+        <Field label={t('commChatMessage')} hint={t('commChatKeyboardMentions')}>
           <textarea
             ref={input}
             rows={3}
@@ -684,8 +774,24 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
             value={text}
             required
             disabled={busy || query.isError}
-            onChange={(event) => setText(event.target.value)}
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={mentions.suggestions.length > 0}
+            aria-controls={listboxId}
+            aria-activedescendant={
+              mentions.suggestions.length ? `${listboxId}-${mentions.active}` : undefined
+            }
+            onChange={(event) => {
+              setText(event.target.value);
+              requestAnimationFrame(mentions.track);
+            }}
+            onClick={mentions.track}
+            onKeyUp={(event) => {
+              if (!['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(event.key))
+                mentions.track();
+            }}
             onKeyDown={(event) => {
+              if (mentions.onKeyDown(event)) return;
               if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
                 event.preventDefault();
                 event.currentTarget.form?.requestSubmit();
@@ -693,7 +799,18 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
             }}
           />
         </Field>
+        <MentionList id={listboxId} mentions={mentions} />
         <div className="form-actions">
+          <button
+            type="button"
+            className="button button-ghost emoji-trigger"
+            aria-label={t('commShareTitle')}
+            title={t('commShareTitle')}
+            disabled={busy || query.isError}
+            onClick={() => setSharing(true)}
+          >
+            <Share2 size={18} />
+          </button>
           <EmojiPicker
             target={input}
             value={text}
@@ -708,6 +825,51 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
           </Button>
         </div>
       </form>
+      {sharing && (
+        <SharePicker
+          groupId={groupId}
+          onClose={() => setSharing(false)}
+          onPick={(picked) => {
+            setAttachment(picked);
+            if (!text.trim()) setText(picked.title);
+            setSharing(false);
+            input.current?.focus();
+          }}
+          onCreatePoll={
+            canManage
+              ? () => {
+                  setSharing(false);
+                  setCreatingPoll(true);
+                }
+              : undefined
+          }
+        />
+      )}
+      {creatingPoll && (
+        <CommunityEditor
+          kind="poll"
+          defaultGroupId={groupId}
+          onClose={() => setCreatingPoll(false)}
+          onSaved={(id) => {
+            setCreatingPoll(false);
+            setPublishing(id);
+          }}
+        />
+      )}
+      {publishing && (
+        <Modal title={t('commPublishShareTitle')} onClose={() => !busy && setPublishing(null)}>
+          <p>{t('commPublishShareConfirm')}</p>
+          {error != null && <Notice error>{errorMessage(error)}</Notice>}
+          <div className="form-actions">
+            <Button variant="secondary" disabled={busy} onClick={() => setPublishing(null)}>
+              {t('commPublishLater')}
+            </Button>
+            <Button disabled={busy} onClick={() => void publishAndShare()}>
+              {t('commPublishShare')}
+            </Button>
+          </div>
+        </Modal>
+      )}
       {removing && (
         <Modal
           title={t('commChatRemove')}

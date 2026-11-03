@@ -201,6 +201,20 @@ test('shows group news and chat only to assigned users and supports live moderat
   });
   await publish(page, news.id);
   await post(page, '/community/chat', { groupId: group.id, body: 'Willkommen im Gruppenchat!' });
+  const category = await post<{ id: string }>(page, '/event-categories', {
+    nameI18n: { de: `Natur ${suffix}`, it: `Natura ${suffix}` },
+  });
+  const eventDay = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
+  await post(page, '/events', {
+    titleI18n: { de: `Krötenwanderung ${suffix}`, it: `Migrazione ${suffix}` },
+    descriptionI18n: { de: '', it: '' },
+    categoryId: category.id,
+    startLocal: `${eventDay}T18:00`,
+    endLocal: `${eventDay}T20:00`,
+    status: 'published',
+    visibility: 'members',
+    location: 'Seeufer',
+  });
   await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
   await login(page, email);
   await page.goto(`/community?groupId=${group.id}`);
@@ -256,6 +270,37 @@ test('shows group news and chat only to assigned users and supports live moderat
   await expect(
     welcome.getByRole('button', { name: '🎉 von Lena Chat-Test', exact: true }),
   ).toBeVisible();
+  // Reply with a mention picked from the suggestions.
+  await welcome.getByRole('button', { name: /^Antworten:/ }).click();
+  await expect(page.getByText('Antwort an E2E Administrator:')).toBeVisible();
+  await compose.fill('Danke @E2E');
+  await compose.press('End');
+  await expect(page.getByRole('option', { name: '@E2E Administrator' })).toBeVisible();
+  await compose.press('Enter');
+  await expect(compose).toHaveValue('Danke @E2E Administrator ');
+  await page.getByRole('button', { name: 'Senden', exact: true }).click();
+  const reply = page
+    .locator('.community-chat-message')
+    .filter({ hasText: 'Danke @E2E Administrator' });
+  await expect(reply.locator('.chat-quote')).toContainText('Willkommen im Gruppenchat!');
+  // Share an upcoming event as a card.
+  await page
+    .getByRole('button', { name: 'Umfrage oder Veranstaltung teilen', exact: true })
+    .click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: new RegExp(`Krötenwanderung ${suffix}`) })
+    .click();
+  await expect(page.getByLabel('Deine Nachricht', { exact: true })).toHaveValue(
+    `Krötenwanderung ${suffix}`,
+  );
+  await page.getByRole('button', { name: 'Senden', exact: true }).click();
+  const card = page.locator('.chat-card').filter({ hasText: `Krötenwanderung ${suffix}` });
+  await expect(card).toContainText('Seeufer');
+  await expect(card.getByRole('link', { name: 'Zur Anmeldung' })).toHaveAttribute(
+    'href',
+    /\/events\/[0-9a-f-]+$/,
+  );
   await a11y(page);
   const moderatorContext = await browser.newContext({ baseURL: appOrigin });
   try {
@@ -272,12 +317,17 @@ test('shows group news and chat only to assigned users and supports live moderat
       .getByRole('button', { name: 'Bestätigen', exact: true })
       .click();
     await expect(moderator.getByRole('dialog')).not.toBeVisible();
+    // The mention is highlighted for the mentioned account.
+    await expect(
+      moderator.locator('.community-chat-mention').filter({ hasText: 'Danke @E2E Administrator' }),
+    ).toBeVisible();
   } finally {
     await moderatorContext.close();
   }
   await expect(page.getByText('Nachricht entfernt', { exact: true })).toBeVisible({
     timeout: 15000,
   });
+  await a11y(page);
   await page.screenshot({
     path: `test-results/community-chat-${info.project.name}.png`,
     fullPage: true,
@@ -288,15 +338,4 @@ test('shows group news and chat only to assigned users and supports live moderat
   expect((await page.request.get(`/api/v1/community/posts/${news.id}`)).status()).toBe(404);
   await page.goto('/community?kind=chat');
   await expect(page.getByText('Willkommen im Gruppenchat!', { exact: true })).not.toBeVisible();
-  await page.goto('/profile');
-  const panel = page.locator('.digest-settings');
-  await expect(panel.getByRole('radio', { name: /^Aus/ })).toBeChecked();
-  await panel.getByRole('radio', { name: /^Wöchentlich/ }).check();
-  await expect(panel.getByText('Änderungen gespeichert.', { exact: true })).toBeVisible();
-  await a11y(page);
-  await panel.screenshot({ path: `test-results/profile-digest-${info.project.name}.png` });
-  await page.reload();
-  await expect(panel.getByRole('radio', { name: /^Wöchentlich/ })).toBeChecked();
-  await panel.getByRole('radio', { name: /^Aus/ }).check();
-  await expect(panel.getByText('Änderungen gespeichert.', { exact: true })).toBeVisible();
 });

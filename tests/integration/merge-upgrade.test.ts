@@ -68,11 +68,11 @@ it.each(['inventory', 'community'] as const)(
           titleI18n: { de: 'Historisch', it: 'Storico' },
           bodyI18n: { de: 'Nachricht', it: 'Notizia' },
         });
-        await target.db.insert(s.communityChatMessages).values({
-          organizationId: orgId,
-          createdBy: userId,
-          body: 'Historical message',
-        });
+        // Raw SQL with the historical columns: the current schema has columns added later.
+        await target.pool.query(
+          'insert into community_chat_messages (organization_id, created_by, body) values ($1, $2, $3)',
+          [orgId, userId, 'Historical message'],
+        );
         await target.db.insert(s.persons).values({
           organizationId: orgId,
           firstName: 'Existing',

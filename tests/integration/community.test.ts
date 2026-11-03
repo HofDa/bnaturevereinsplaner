@@ -727,3 +727,129 @@ describe('unread markers and digests', () => {
     expect(digestDue('weekly', '2026-10-27', '2026-11-03', 9)).toBe(true);
   });
 });
+describe('chat replies, mentions and shared cards', () => {
+  type Msg = {
+    id: string;
+    body: string;
+    replyTo: { id: string; authorName: string; excerpt: string; removed: boolean } | null;
+    mentionsMe: boolean;
+    attachment: {
+      kind: string;
+      available: boolean;
+      title: { de: string } | null;
+      closed: boolean;
+    } | null;
+  };
+  const list = async (role: string, group?: string) =>
+    (
+      await ok<{ items: Msg[] }>(
+        await get(`/community/chat${group ? `?groupId=${group}` : ''}`, role),
+      )
+    ).items;
+  const send = (payload: Record<string, unknown>, role = 'member') =>
+    write('POST', '/community/chat', payload, role);
+  it('links replies within the same channel and shows a preview', async () => {
+    const first = await ok<{ id: string }>(
+      await send({ body: 'Wer bringt Handschuhe?' }, 'board'),
+      201,
+    );
+    await ok(await send({ body: 'Ich!', replyToId: first.id }), 201);
+    const reply = (await list('other')).find((x) => x.body === 'Ich!')!;
+    expect(reply.replyTo).toEqual({
+      id: first.id,
+      authorName: 'board',
+      excerpt: 'Wer bringt Handschuhe?',
+      removed: false,
+    });
+    const inGroup = await ok<{ id: string }>(await send({ body: 'Nur Gruppe', groupId }), 201);
+    expect((await send({ body: 'Quer', replyToId: inGroup.id })).statusCode).toBe(404);
+    await ok(await write('POST', `/community/chat/${first.id}/remove`, { version: 1 }, 'board'));
+    expect((await list('member')).find((x) => x.body === 'Ich!')!.replyTo).toMatchObject({
+      excerpt: '',
+      removed: true,
+    });
+  });
+  it('mentions only accounts with access to the channel and flags them', async () => {
+    const members = async (group?: string, role = 'member') =>
+      (
+        await ok<{ items: { userId: string; name: string }[] }>(
+          await get(`/community/chat/members${group ? `?groupId=${group}` : ''}`, role),
+        )
+      ).items.map((u) => u.name);
+    expect(await members()).toEqual(
+      expect.arrayContaining(['member', 'other', 'board', 'treasurer']),
+    );
+    const groupMembers = await members(groupId);
+    expect(groupMembers).toEqual(expect.arrayContaining(['member', 'board']));
+    expect(groupMembers).not.toContain('other');
+    expect((await get(`/community/chat/members?groupId=${groupId}`, 'other')).statusCode).toBe(404);
+    await ok(await send({ body: '@other kommst du?', mentionUserIds: [users.other!.id] }), 201);
+    expect((await list('other')).find((x) => x.body.startsWith('@other'))!.mentionsMe).toBe(true);
+    expect((await list('board')).find((x) => x.body.startsWith('@other'))!.mentionsMe).toBe(false);
+    expect(
+      (await send({ body: '@other', groupId, mentionUserIds: [users.other!.id] })).json().error
+        .code,
+    ).toBe('MENTION_NOT_ALLOWED');
+    await ok(await send({ body: '@board', groupId, mentionUserIds: [users.board!.id] }), 201);
+  });
+  it('shares polls and events as cards that respect each viewer’s access', async () => {
+    const club = await action(await create(poll()), 'publish');
+    const grouped = await action(await create(poll({ groupId })), 'publish');
+    const draft = await create(poll());
+    await ok(
+      await send({ body: 'Abstimmen!', attachment: { kind: 'poll', id: club.id } }, 'admin'),
+      201,
+    );
+    for (const bad of [grouped.id, draft.id, crypto.randomUUID()])
+      expect(
+        (await send({ body: 'x', attachment: { kind: 'poll', id: bad } }, 'admin')).statusCode,
+      ).toBe(404);
+    await ok(
+      await send({
+        body: 'Gruppe stimmt ab',
+        groupId,
+        attachment: { kind: 'poll', id: grouped.id },
+      }),
+      201,
+    );
+    const card = (await list('other')).find((x) => x.body === 'Abstimmen!')!.attachment!;
+    expect(card).toMatchObject({ kind: 'poll', available: true, closed: false });
+    expect(card.title?.de).toBe('Wann treffen wir uns?');
+    await action(club, 'close');
+    expect((await list('other')).find((x) => x.body === 'Abstimmen!')!.attachment!.closed).toBe(
+      true,
+    );
+    const category = await ok<{ id: string }>(
+      await write('POST', '/event-categories', { nameI18n: { de: 'Natur', it: 'Natura' } }),
+      201,
+    );
+    const day = new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10);
+    const event = await ok<{ id: string }>(
+      await write('POST', '/events', {
+        titleI18n: { de: 'Krötenwanderung', it: 'Migrazione dei rospi' },
+        descriptionI18n: { de: '', it: '' },
+        categoryId: category.id,
+        startLocal: `${day}T18:00`,
+        endLocal: `${day}T20:00`,
+        organizerId: users.admin!.id,
+        status: 'published',
+        visibility: 'members',
+        location: 'Seeufer',
+      }),
+      201,
+    );
+    const shared = await ok<{ id: string }>(
+      await send({ body: 'Kommt mit!', attachment: { kind: 'event', id: event.id } }),
+      201,
+    );
+    expect((await list('other')).find((x) => x.id === shared.id)!.attachment).toMatchObject({
+      kind: 'event',
+      available: true,
+      location: 'Seeufer',
+      closed: false,
+      title: { de: 'Krötenwanderung' },
+    });
+    await ok(await write('POST', `/community/chat/${shared.id}/remove`, { version: 1 }, 'member'));
+    expect((await list('other')).find((x) => x.id === shared.id)!.attachment).toBeNull();
+  });
+});
