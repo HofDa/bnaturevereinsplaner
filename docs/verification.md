@@ -1,5 +1,9 @@
 # Prüfnachweise
 
+## CI-Laufzeit – 03.11.2026
+
+Die Browsertests belegten im CI rund 14 von 17 Minuten (17 Suiten auf Desktop und Mobil, je etwa 8 s Startaufwand). Seit `ci/faster-e2e` laufen Prüfungen und Browsertests als parallele Jobs, Desktop und Mobil auf getrennten Runnern. Mobil prüft bei Pushes und Pull Requests nur die layoutempfindlichen Suiten (`platform`, `community`, `community-chat`, `schedule`, `reports`, `member-extras`); der nächtliche Lauf (02:00 UTC) prüft alle Suiten auch mobil. Mobile Fehler in den übrigen Suiten fallen damit spätestens am Folgetag auf.
+
 ## Terminfindung als Veranstaltung, Mitgliederliste, Newsletter – 03.11.2026
 
 Auf `feat/schedule-to-event`, `feat/member-fields-list` und `feat/newsletter`, gestapelt auf `fix/ci-health-check`:
