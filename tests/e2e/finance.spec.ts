@@ -97,6 +97,34 @@ test('admin creates fees; treasurer allocates partial and complete payments with
   await expect(
     page.getByRole('row').filter({ hasText: tariff }).getByText('Bezahlt', { exact: true }),
   ).toBeVisible();
+  // Batch claims for every active member: preview first, then confirm once.
+  await page.getByRole('button', { name: 'Sammelvorschreibung', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: 'Sammelvorschreibung' });
+  await dialog
+    .getByLabel('Beitragstarif', { exact: true })
+    .selectOption({ label: `${tariff} · 50,00 €` });
+  await dialog.getByLabel('Beitragsjahr', { exact: true }).fill('2028');
+  await dialog.getByLabel('Fälligkeit', { exact: true }).fill('2028-03-31');
+  await dialog.getByRole('button', { name: 'Vorschau anzeigen', exact: true }).click();
+  const previewed = dialog.getByRole('region', { name: 'Vorschau der Sammelvorschreibung' });
+  await expect(previewed.getByRole('cell', { name: 'Lena Testperson', exact: true })).toBeVisible();
+  await expect(previewed).toContainText(/\d+ Forderung(en)? über insgesamt/);
+  await checkAccessibility(page);
+  await dialog.getByRole('button', { name: /^\d+ Forderung(en)? anlegen$/ }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByText(/^\d+ Forderung(en)? angelegt\.$/)).toBeVisible();
+  await page.getByRole('button', { name: 'Sammelvorschreibung', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: 'Sammelvorschreibung' });
+  await dialog
+    .getByLabel('Beitragstarif', { exact: true })
+    .selectOption({ label: `${tariff} · 50,00 €` });
+  await dialog.getByLabel('Beitragsjahr', { exact: true }).fill('2028');
+  await dialog.getByLabel('Fälligkeit', { exact: true }).fill('2028-03-31');
+  await dialog.getByRole('button', { name: 'Vorschau anzeigen', exact: true }).click();
+  await expect(
+    dialog.getByText('Für diese Auswahl sind keine neuen Forderungen anzulegen.', { exact: true }),
+  ).toBeVisible();
+  await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
   await checkAccessibility(page);
   expect(
     await page.evaluate(

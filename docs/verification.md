@@ -1,5 +1,14 @@
 # Prüfnachweise
 
+## Sammelvorschreibung – 03.11.2026
+
+Auf `feat/fee-batch`, gestapelt auf `feat/unread-birthdays`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt. Keine Migration.
+- Neue PostgreSQL-Integrationstests: Vorschau mit übersprungenen bestehenden Forderungen, Fremdmandanten und Summe; gleichzeitige Bestätigung mit demselben `Idempotency-Key` erzeugt die Forderungen genau einmal; veraltete Vorschau (`PREVIEW_STALE`) legt nichts an; leere Vorschau (`NOTHING_TO_CREATE`); Tarifkategorie, deaktivierter Tarif, fremder Tarif und Rechte (Mitglied und Vorstand 403).
+- **4/4 Finanz-Browserabläufe** (Desktop und Mobil): Kassier erstellt eine Sammelvorschreibung über Vorschau und Bestätigung, erneute Vorschau meldet keine neuen Forderungen, Axe-Prüfung mit Vorschau.
+- Kein Push, PR oder Deployment.
+
 ## Ungelesen, E-Mail-Zusammenfassung, Geburtstage und Jubiläen – 03.11.2026
 
 Auf `feat/unread-birthdays`, gestapelt auf `feat/chat-emoji`:

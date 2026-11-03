@@ -3537,3 +3537,22 @@ code {
 .dark .occasion-list li.today .occasion-icon {
   color: #17291b;
 }
+.batch-preview {
+  margin-top: 1rem;
+}
+.batch-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+.batch-summary span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.batch-table {
+  max-height: 22rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+}
