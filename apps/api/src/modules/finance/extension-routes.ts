@@ -1,7 +1,5 @@
-import { csvCell } from '@bnature/contracts';
+import { attachment, replay, sendBinary } from '../http';
 import { z } from 'zod';
-import type { FastifyReply } from 'fastify';
-const sendBinary = (reply: FastifyReply, bytes: Buffer) => reply.send(bytes);
 import { and, eq, sql, desc } from 'drizzle-orm';
 import { schema as s } from '@bnature/db';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -25,6 +23,7 @@ import {
   cashbookQuerySchema,
   financeDashboardSchema,
   formatMoney,
+  csvCell,
 } from '@bnature/contracts';
 import type { ModuleContext } from '../context';
 import {
@@ -64,7 +63,7 @@ export function registerFinanceExtensions({ server, db, access }: ModuleContext)
         req.headers['idempotency-key'],
         req.body.language,
       );
-      return reply.header('Idempotency-Replayed', String(r.replayed)).send(r.data);
+      return replay(reply, r);
     },
   );
   app.get(
@@ -116,7 +115,7 @@ export function registerFinanceExtensions({ server, db, access }: ModuleContext)
         req.headers['idempotency-key'],
         req.body,
       );
-      return reply.code(201).header('Idempotency-Replayed', String(r.replayed)).send(r.data);
+      return replay(reply, r, 201);
     },
   );
   app.post(
@@ -138,7 +137,7 @@ export function registerFinanceExtensions({ server, db, access }: ModuleContext)
         req.params.id,
         req.body,
       );
-      return reply.code(201).header('Idempotency-Replayed', String(r.replayed)).send(r.data);
+      return replay(reply, r, 201);
     },
   );
   app.post(
@@ -160,7 +159,7 @@ export function registerFinanceExtensions({ server, db, access }: ModuleContext)
         req.headers['idempotency-key'],
         req.body,
       );
-      return reply.header('Idempotency-Replayed', String(r.replayed)).send(r.data);
+      return replay(reply, r);
     },
   );
   app.get(
@@ -213,7 +212,7 @@ export function registerFinanceExtensions({ server, db, access }: ModuleContext)
         req.params.id,
         req.body,
       );
-      return reply.code(201).header('Idempotency-Replayed', String(r.replayed)).send(r.data);
+      return replay(reply, r, 201);
     },
   );
   app.get(
@@ -288,7 +287,7 @@ export function registerFinanceExtensions({ server, db, access }: ModuleContext)
         const filename = `bnature-ETS-${r.model}-${r.fiscalYear}.${format}`;
         reply
           .header('Cache-Control', 'no-store')
-          .header('Content-Disposition', `attachment; filename="${filename}"`);
+          .header('Content-Disposition', attachment(filename));
         if (format === 'pdf')
           return sendBinary(
             reply.type('application/pdf'),
@@ -379,7 +378,7 @@ export function registerFinanceExtensions({ server, db, access }: ModuleContext)
             reply
               .type('application/pdf')
               .header('Cache-Control', 'no-store')
-              .header('Content-Disposition', 'attachment; filename="bnature-cashbook.pdf"'),
+              .header('Content-Disposition', attachment('bnature-cashbook.pdf')),
             await renderPdf(
               req.query.language === 'it' ? 'Libro cassa' : 'Kassabuch',
               await organizationName(tx, org),

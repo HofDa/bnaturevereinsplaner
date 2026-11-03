@@ -17,6 +17,7 @@ import {
   type InventoryItem,
   type InventoryLoan,
   type Page,
+  localDate,
 } from '@bnature/contracts';
 import { api, downloadPrivateFile, errorMessage, queryClient } from '../lib/api';
 import { useSession } from '../app/session';
@@ -58,12 +59,8 @@ type Borrower = { id: string; name: string; isMember: boolean };
 const conditions = inventoryConditionSchema.options;
 const refresh = () => void queryClient.invalidateQueries({ queryKey: ['inventory'] });
 // Business dates are kept in the organization time zone (Europe/Rome by default).
-const localToday = () =>
-  new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(new Date());
-const inDays = (days: number) =>
-  new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(
-    new Date(Date.now() + days * 86_400_000),
-  );
+const localToday = () => localDate();
+const inDays = (days: number) => localDate(Date.now() + days * 86_400_000);
 const euros = (value: string | boolean) =>
   value === '' ? null : Math.round(Number(String(value).replace(',', '.')) * 100);
 const money = (cents: number, language: string) =>

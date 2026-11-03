@@ -10,7 +10,7 @@ import {
   type AttendanceResult,
   type AttendanceRecord,
 } from '@bnature/contracts';
-import { HttpError, type Access } from '../middleware/access';
+import { HttpError, currentAccess as baseCurrentAccess, type Access } from '../middleware/access';
 import { eventRow } from './events';
 import { eventHash } from './events-operations';
 import { audit } from '../services/audit';
@@ -135,18 +135,10 @@ async function currentAccess(tx: Transaction, a: Access) {
     .from(s.organizations)
     .where(eq(s.organizations.id, a.organizationId))
     .for('no key update');
-  const [role] = await tx
-    .select()
-    .from(s.organizationUserRoles)
-    .where(
-      and(
-        eq(s.organizationUserRoles.organizationId, a.organizationId),
-        eq(s.organizationUserRoles.userId, a.userId),
-      ),
-    );
-  if (!role || !can(role.role, 'attendance:write'))
+  const current = await baseCurrentAccess(tx, a, 'Anwesenheitsrecht entzogen.');
+  if (!can(current.role, 'attendance:write'))
     throw new HttpError(403, 'FORBIDDEN', 'Anwesenheitsrecht entzogen.');
-  return { ...a, role: role.role };
+  return current;
 }
 export async function attendanceOperation(
   db: Database,

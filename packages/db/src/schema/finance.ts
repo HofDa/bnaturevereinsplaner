@@ -17,7 +17,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { organizations, memberships, memberType } from './core';
 import { user } from './auth';
-const created = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
+import { created } from './columns';
 export const feeInterval = pgEnum('fee_interval', ['annual', 'once']);
 export const paymentMethod = pgEnum('payment_method', ['cash', 'bank_transfer', 'other']);
 export const membershipFeePlans = pgTable(

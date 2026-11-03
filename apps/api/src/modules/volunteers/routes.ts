@@ -1,6 +1,7 @@
+import { replay } from '../http';
 import { attachmentDisposition } from '../../services/http';
 import { z } from 'zod';
-import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyReply } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { and, eq, ilike, or, sql, asc } from 'drizzle-orm';
 import { schema as s } from '@bnature/db';
@@ -131,9 +132,6 @@ import {
 } from './compliance';
 import { requirePermission } from './common';
 
-const replay = (reply: FastifyReply, r: { data: unknown; replayed: boolean }, status = 200) =>
-  reply.code(status).header('Idempotency-Replayed', String(r.replayed)).send(r.data);
-const key = (req: FastifyRequest) => String(req.headers['idempotency-key']);
 const binary = z.string().meta({ format: 'binary' });
 
 const overviewSchema = z.object({
@@ -238,7 +236,12 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
     async (req, reply) =>
       replay(
         reply,
-        await createEngagement(db, await access(req, 'volunteers:write'), key(req), req.body),
+        await createEngagement(
+          db,
+          await access(req, 'volunteers:write'),
+          idempotencyKey(req),
+          req.body,
+        ),
         201,
       ),
   );
@@ -259,7 +262,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
         await updateEngagement(
           db,
           await access(req, 'volunteers:write'),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           req.body,
         ),
@@ -282,7 +285,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
         await endEngagement(
           db,
           await access(req, 'volunteers:write'),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           req.body,
         ),
@@ -308,7 +311,12 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
     async (req, reply) =>
       replay(
         reply,
-        await createAssignment(db, await access(req, 'volunteers:assign'), key(req), req.body),
+        await createAssignment(
+          db,
+          await access(req, 'volunteers:assign'),
+          idempotencyKey(req),
+          req.body,
+        ),
         201,
       ),
   );
@@ -329,7 +337,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
         await updateAssignment(
           db,
           await access(req, 'volunteers:assign'),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           req.body,
         ),
@@ -354,7 +362,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
         await draftFromAttendance(
           db,
           await access(req, 'volunteers:assign'),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
         ),
         201,
@@ -423,7 +431,12 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
     async (req, reply) =>
       replay(
         reply,
-        await createTimeEntry(db, await access(req, 'volunteers:assign'), key(req), req.body),
+        await createTimeEntry(
+          db,
+          await access(req, 'volunteers:assign'),
+          idempotencyKey(req),
+          req.body,
+        ),
         201,
       ),
   );
@@ -444,7 +457,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
         await correctTimeEntry(
           db,
           await access(req, 'volunteers:assign'),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           req.body,
         ),
@@ -470,7 +483,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
             req,
             req.body.decision === 'submit' ? 'volunteers:assign' : 'volunteer_hours:confirm',
           ),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           req.body,
         ),
@@ -500,7 +513,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
     async (req, reply) =>
       replay(
         reply,
-        await createPolicy(db, await access(req, 'insurance:write'), key(req), req.body),
+        await createPolicy(db, await access(req, 'insurance:write'), idempotencyKey(req), req.body),
         201,
       ),
   );
@@ -521,7 +534,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
         await updatePolicy(
           db,
           await access(req, 'insurance:write'),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           req.body,
         ),
@@ -551,7 +564,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
         await addCoverages(
           db,
           await access(req, 'insurance:write'),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           req.body,
         ),
@@ -575,7 +588,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
         await endCoverage(
           db,
           await access(req, 'insurance:write'),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           req.body,
         ),
@@ -646,7 +659,12 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
     async (req, reply) =>
       replay(
         reply,
-        await recordNotification(db, await access(req, 'insurance:write'), key(req), req.body),
+        await recordNotification(
+          db,
+          await access(req, 'insurance:write'),
+          idempotencyKey(req),
+          req.body,
+        ),
         201,
       ),
   );
@@ -669,7 +687,12 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
     async (req, reply) =>
       replay(
         reply,
-        await updateSettings(db, await access(req, 'register:finalize'), key(req), req.body),
+        await updateSettings(
+          db,
+          await access(req, 'register:finalize'),
+          idempotencyKey(req),
+          req.body,
+        ),
       ),
   );
   app.get(
@@ -716,7 +739,12 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
     async (req, reply) =>
       replay(
         reply,
-        await createRegisterEntry(db, await access(req, 'register:write'), key(req), req.body),
+        await createRegisterEntry(
+          db,
+          await access(req, 'register:write'),
+          idempotencyKey(req),
+          req.body,
+        ),
         201,
       ),
   );
@@ -764,7 +792,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
           db,
           storage,
           await access(req, 'register:finalize'),
-          key(req),
+          idempotencyKey(req),
           req.body.cutoffDate,
         ),
         201,
@@ -859,7 +887,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
           db,
           storage,
           a,
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           meta,
           req.body,
@@ -888,7 +916,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
         await recordVerification(
           db,
           await access(req, 'register:finalize'),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           req.body,
         ),
@@ -915,7 +943,12 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
     async (req, reply) =>
       replay(
         reply,
-        await createRuleVersion(db, await access(req, 'compliance:write'), key(req), req.body),
+        await createRuleVersion(
+          db,
+          await access(req, 'compliance:write'),
+          idempotencyKey(req),
+          req.body,
+        ),
         201,
       ),
   );
@@ -930,7 +963,10 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
       },
     },
     async (req, reply) =>
-      replay(reply, await initializeRules(db, await access(req, 'compliance:write'), key(req))),
+      replay(
+        reply,
+        await initializeRules(db, await access(req, 'compliance:write'), idempotencyKey(req)),
+      ),
   );
   app.patch(
     `${p}/compliance-rules/:id`,
@@ -951,7 +987,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
         await setRuleActive(
           db,
           await access(req, 'compliance:write'),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           req.body,
         ),
@@ -981,7 +1017,12 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
     async (req, reply) =>
       replay(
         reply,
-        await createDeadline(db, await access(req, 'compliance:write'), key(req), req.body),
+        await createDeadline(
+          db,
+          await access(req, 'compliance:write'),
+          idempotencyKey(req),
+          req.body,
+        ),
         201,
       ),
   );
@@ -1000,7 +1041,12 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
     async (req, reply) =>
       replay(
         reply,
-        await generateDeadlines(db, await access(req, 'compliance:write'), key(req), req.body),
+        await generateDeadlines(
+          db,
+          await access(req, 'compliance:write'),
+          idempotencyKey(req),
+          req.body,
+        ),
       ),
   );
   app.patch(
@@ -1020,7 +1066,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
         await updateDeadline(
           db,
           await access(req, 'compliance:write'),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           req.body,
         ),
@@ -1043,7 +1089,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
         await addEvidence(
           db,
           await access(req, 'compliance:write'),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           req.body,
         ),
@@ -1067,7 +1113,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
         await completeDeadline(
           db,
           await access(req, 'compliance:write'),
-          key(req),
+          idempotencyKey(req),
           req.params.id,
           req.body,
         ),

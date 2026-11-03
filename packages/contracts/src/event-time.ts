@@ -8,6 +8,10 @@ export function localInstant(local: string, timezone: string) {
   if (!zoned.toPlainDateTime().equals(plain)) throw new Error('eventNonexistentTime');
   return zoned.toInstant().toString();
 }
+// Calendar date (YYYY-MM-DD) in the organization time zone; UTC slicing is off around midnight.
+export function localDate(at: Date | string | number = new Date(), timeZone = 'Europe/Rome') {
+  return new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date(at));
+}
 export function eventLocal(instant: string, timezone: string) {
   return Temporal.Instant.from(instant)
     .toZonedDateTimeISO(timezone)

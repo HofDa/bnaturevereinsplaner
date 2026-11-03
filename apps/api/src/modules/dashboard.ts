@@ -15,11 +15,8 @@ export function registerDashboardRoutes({ server, db, access }: ModuleContext) {
   const p = '/api/v1';
   app.get(`${p}/dashboard`, { schema: { tags: ['Dashboard'] } }, async (req) => {
     const a = await access(req, 'members:read');
-    const now = new Date();
-    const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
-        .toISOString()
-        .slice(0, 10),
-      today = now.toISOString().slice(0, 10);
+    const today = await businessDate(db, a.organizationId),
+      since = `${today.slice(0, 8)}01`;
     const statuses = { active: 0, pending: 0, inactive: 0, resigned: 0 };
     const rows = await db
       .select({ status: s.memberships.status, n: count() })

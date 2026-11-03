@@ -21,12 +21,7 @@ import { user } from './auth';
 import { eventOccurrences } from './events';
 import { documents } from './documents';
 import type { EventI18n } from './events';
-const created = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
-const updated = () => timestamp('updated_at', { withTimezone: true }).notNull().defaultNow();
-const creator = () =>
-  uuid('created_by')
-    .notNull()
-    .references(() => user.id);
+import { created, updated, creator } from './columns';
 export const volunteerType = pgEnum('volunteer_type', ['regular', 'occasional']);
 export const engagementStatus = pgEnum('volunteer_engagement_status', [
   'active',

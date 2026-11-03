@@ -19,6 +19,7 @@ import {
   type Payment,
   type Member,
   type AssessmentBatchPreview,
+  localDate,
 } from '@bnature/contracts';
 import { DataForm, type FormField } from '../../components/data-form';
 import {
@@ -494,14 +495,7 @@ export function PaymentForm({
           />
         </Field>
         <Field label={`${t('financePaidOn')} *`}>
-          <input
-            type="date"
-            name="paidOn"
-            required
-            defaultValue={new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(
-              new Date(),
-            )}
-          />
+          <input type="date" name="paidOn" required defaultValue={localDate()} />
         </Field>
         <Field label={t('financeMethod')}>
           <select name="method">
@@ -700,9 +694,7 @@ export function PaymentReversalForm({
           { name: 'reason', label: 'ledgerReversalReason', type: 'textarea', required: true },
         ]}
         defaults={{
-          reversedOn: new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(
-            new Date(),
-          ),
+          reversedOn: localDate(),
           reason: '',
         }}
         onSubmit={async (value) => {

@@ -3,7 +3,6 @@ import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 const appOrigin = `http://localhost:${process.env.E2E_WEB_PORT ?? '5174'}`;
 test.setTimeout(120_000);
-const password = 'E2E-only-Password-2026!';
 async function post<T>(
   page: Page,
   path: string,

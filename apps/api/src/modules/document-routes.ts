@@ -1,3 +1,4 @@
+import { replay } from './http';
 import { attachmentDisposition } from '../services/http';
 import { z } from 'zod';
 import type { FastifyReply, FastifyRequest } from 'fastify';
@@ -68,10 +69,6 @@ function uploadedFile(req: FastifyRequest): UploadedFile {
     );
   return { bytes, mediaType: detected, sha256: fingerprint(bytes) };
 }
-// RFC 6266/5987: ASCII fallback plus the exact UTF-8 name.
-
-const replayed = (reply: FastifyReply, value: boolean) =>
-  reply.header('Idempotency-Replayed', String(value));
 export function registerDocumentRoutes(context: ModuleContext, prefix = '/api/v1/documents') {
   const { server, db, config } = context,
     scoped = prefix.includes(':eventId');
@@ -169,7 +166,7 @@ export function registerDocumentRoutes(context: ModuleContext, prefix = '/api/v1
         scoped ? { ...input, eventOccurrenceId: scopedId(req) } : input,
         uploadedFile(req),
       );
-      return replayed(reply.code(201), result.replayed).send(result.data);
+      return replay(reply, result, 201);
     },
   );
   app.post(
@@ -197,7 +194,7 @@ export function registerDocumentRoutes(context: ModuleContext, prefix = '/api/v1
           input.filename,
           uploadedFile(req),
         );
-      return replayed(reply.code(201), result.replayed).send(result.data);
+      return replay(reply, result, 201);
     },
   );
   app.patch(
@@ -220,7 +217,7 @@ export function registerDocumentRoutes(context: ModuleContext, prefix = '/api/v1
           req.params.id,
           req.body,
         );
-      return replayed(reply, result.replayed).send(result.data);
+      return replay(reply, result);
     },
   );
   app.get(

@@ -17,9 +17,8 @@ import {
 } from 'drizzle-orm/pg-core';
 import { organizations, persons, organizationUserRoles } from './core';
 import { user } from './auth';
+import { created, updated } from './columns';
 export type EventI18n = { de: string; it: string };
-const created = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
-const updated = () => timestamp('updated_at', { withTimezone: true }).notNull().defaultNow();
 export const eventStatus = pgEnum('event_status', ['draft', 'published', 'cancelled', 'completed']);
 export const eventVisibility = pgEnum('event_visibility', ['internal', 'members', 'public']);
 export const registrationStatus = pgEnum('registration_status', [

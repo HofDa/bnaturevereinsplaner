@@ -1,6 +1,6 @@
+import { replay, sendPdf } from '../http';
 import { registerFinanceExtensions } from './extension-routes';
 import { z } from 'zod';
-import type { FastifyReply } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   idParams,
@@ -55,14 +55,6 @@ import {
 } from './ledger';
 import { annualReportPdf } from './pdf';
 
-function sendPdf(reply: FastifyReply, pdf: Buffer, filename: string) {
-  return reply
-    .type('application/pdf')
-    .header('Content-Disposition', `attachment; filename="${filename}"`)
-    .send(pdf);
-}
-const replayed = (reply: FastifyReply, value: boolean) =>
-  reply.header('Idempotency-Replayed', String(value));
 export function registerLedgerRoutes(context: ModuleContext) {
   registerFinanceExtensions(context);
   const { server, db, access } = context;
@@ -87,7 +79,7 @@ export function registerLedgerRoutes(context: ModuleContext) {
     async (req, reply) => {
       const a = await access(req, 'finance:write'),
         result = await createAccount(db, a, req.headers['idempotency-key'], req.body);
-      return replayed(reply.code(201), result.replayed).send(result.data);
+      return replay(reply, result, 201);
     },
   );
   app.patch(
@@ -110,7 +102,7 @@ export function registerLedgerRoutes(context: ModuleContext) {
           req.params.id,
           req.body,
         );
-      return replayed(reply, result.replayed).send(result.data);
+      return replay(reply, result);
     },
   );
   app.get(
@@ -131,7 +123,7 @@ export function registerLedgerRoutes(context: ModuleContext) {
     async (req, reply) => {
       const a = await access(req, 'finance:write'),
         result = await createCategory(db, a, req.headers['idempotency-key'], req.body);
-      return replayed(reply.code(201), result.replayed).send(result.data);
+      return replay(reply, result, 201);
     },
   );
   app.patch(
@@ -154,7 +146,7 @@ export function registerLedgerRoutes(context: ModuleContext) {
           req.params.id,
           req.body,
         );
-      return replayed(reply, result.replayed).send(result.data);
+      return replay(reply, result);
     },
   );
   app.get(
@@ -177,7 +169,7 @@ export function registerLedgerRoutes(context: ModuleContext) {
     async (req, reply) => {
       const a = await access(req, 'finance:write'),
         result = await openFiscalYear(db, a, req.headers['idempotency-key'], req.body);
-      return replayed(reply.code(201), result.replayed).send(result.data);
+      return replay(reply, result, 201);
     },
   );
   app.post(
@@ -196,7 +188,7 @@ export function registerLedgerRoutes(context: ModuleContext) {
     async (req, reply) => {
       const a = await access(req, 'finance:close'),
         result = await closeFiscalYear(db, a, req.headers['idempotency-key'], req.params.year);
-      return replayed(reply, result.replayed).send(result.data);
+      return replay(reply, result);
     },
   );
   app.get(
@@ -230,7 +222,7 @@ export function registerLedgerRoutes(context: ModuleContext) {
     async (req, reply) => {
       const a = await access(req, 'finance:write'),
         result = await createEntry(db, a, req.headers['idempotency-key'], req.body);
-      return replayed(reply.code(201), result.replayed).send(result.data);
+      return replay(reply, result, 201);
     },
   );
   app.post(
@@ -247,7 +239,7 @@ export function registerLedgerRoutes(context: ModuleContext) {
     async (req, reply) => {
       const a = await access(req, 'finance:write'),
         result = await reverseEntry(db, a, req.headers['idempotency-key'], req.params.id, req.body);
-      return replayed(reply.code(201), result.replayed).send(result.data);
+      return replay(reply, result, 201);
     },
   );
   app.post(
@@ -270,7 +262,7 @@ export function registerLedgerRoutes(context: ModuleContext) {
           req.params.id,
           req.body,
         );
-      return replayed(reply, result.replayed).send(result.data);
+      return replay(reply, result);
     },
   );
   app.post(
@@ -295,7 +287,7 @@ export function registerLedgerRoutes(context: ModuleContext) {
           req.params.id,
           req.body,
         );
-      return replayed(reply, result.replayed).send(result.data);
+      return replay(reply, result);
     },
   );
   app.get(
@@ -330,7 +322,7 @@ export function registerLedgerRoutes(context: ModuleContext) {
     async (req, reply) => {
       const a = await access(req, 'finance:write'),
         result = await createTemplate(db, a, req.headers['idempotency-key'], req.body);
-      return replayed(reply.code(201), result.replayed).send(result.data);
+      return replay(reply, result, 201);
     },
   );
   app.post(
@@ -353,7 +345,7 @@ export function registerLedgerRoutes(context: ModuleContext) {
           req.params.key,
           req.body,
         );
-      return replayed(reply.code(201), result.replayed).send(result.data);
+      return replay(reply, result, 201);
     },
   );
   app.get(

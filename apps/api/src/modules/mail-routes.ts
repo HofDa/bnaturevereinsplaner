@@ -1,3 +1,4 @@
+import { replay } from './http';
 import { z } from 'zod';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
@@ -84,10 +85,7 @@ export function registerMailRoutes({ server, db, access, config }: ModuleContext
         req.body.previewHash,
         config,
       );
-      return reply
-        .code(202)
-        .header('Idempotency-Replayed', String(result.replayed))
-        .send(result.data);
+      return replay(reply, result, 202);
     },
   );
   app.get(
@@ -111,7 +109,7 @@ export function registerMailRoutes({ server, db, access, config }: ModuleContext
     async (req, reply) => {
       const a = await access(req, 'users:manage');
       const result = await updateMailSettings(db, a, req.headers['idempotency-key'], req.body);
-      return reply.header('Idempotency-Replayed', String(result.replayed)).send(result.data);
+      return replay(reply, result);
     },
   );
 }
