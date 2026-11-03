@@ -52,33 +52,37 @@ export async function getMailSettings(db: Executor, org: string): Promise<MailSe
     lastRunOn: row?.lastRunOn ?? null,
     automaticDeadlineReminders: row?.automaticDeadlineReminders ?? false,
     deadlineLastRunOn: row?.deadlineLastRunOn ?? null,
+    automaticLoanReminders: row?.automaticLoanReminders ?? false,
+    loanLastRunOn: row?.loanLastRunOn ?? null,
   };
 }
 export function updateMailSettings(
   db: Database,
   a: Access,
   key: string,
-  input: Omit<MailSettings, 'lastRunOn' | 'deadlineLastRunOn'>,
+  input: Omit<MailSettings, 'lastRunOn' | 'deadlineLastRunOn' | 'loanLastRunOn'>,
 ) {
-  if (input.automaticDeadlineReminders)
-    throw new HttpError(
-      409,
-      'MAIL_KIND_UNAVAILABLE',
-      'Automatische Fristenmails sind noch nicht eingerichtet.',
-    );
   return financialOperation(db, a, key, 'mail:settings', input, 'users:manage', async (tx) => {
     await tx
       .insert(s.mailSettings)
       .values({ organizationId: a.organizationId, ...input, enabledBy: a.userId })
       .onConflictDoUpdate({
         target: s.mailSettings.organizationId,
-        set: { ...input, enabledBy: a.userId, lastRunOn: null },
+        set: {
+          ...input,
+          enabledBy: a.userId,
+          lastRunOn: null,
+          deadlineLastRunOn: null,
+          loanLastRunOn: null,
+        },
       });
     await audit(tx, a, 'update', 'mail_settings', a.organizationId, [
       'automaticFeeReminders',
       'reminderIntervalDays',
+      'automaticDeadlineReminders',
+      'automaticLoanReminders',
     ]);
-    return { ...input, lastRunOn: null, deadlineLastRunOn: null };
+    return { ...input, lastRunOn: null, deadlineLastRunOn: null, loanLastRunOn: null };
   });
 }
 
@@ -348,6 +352,7 @@ export async function listMail(db: Database, a: Access, page: number) {
   if (can(a.role, 'finance:read')) kinds.push('fee_reminder');
   if (can(a.role, 'mail:invite')) kinds.push('event_invitation', 'newsletter');
   if (can(a.role, 'compliance:write')) kinds.push('deadline_reminder');
+  if (can(a.role, 'inventory:write')) kinds.push('loan_reminder');
   if (can(a.role, 'users:manage'))
     kinds.push('account_invitation', 'password_reset', 'test', 'community_digest');
   if (!kinds.length) throw new HttpError(403, 'FORBIDDEN', 'Keine Berechtigung.');

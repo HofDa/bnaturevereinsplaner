@@ -357,6 +357,12 @@ export function MailPage() {
                     inputMode: 'numeric',
                     required: true,
                   },
+                  {
+                    name: 'automaticDeadlineReminders',
+                    label: 'mailAutoDeadlines',
+                    type: 'checkbox',
+                  },
+                  { name: 'automaticLoanReminders', label: 'mailAutoLoans', type: 'checkbox' },
                 ]}
                 defaults={settings.data}
                 onCancel={() => setConfigure(false)}

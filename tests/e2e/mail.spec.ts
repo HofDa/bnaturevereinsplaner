@@ -169,7 +169,9 @@ test('previews and sends localized reminders into the local SMTP inbox, manages 
     .click();
   await page.getByRole('button', { name: 'Automatische Erinnerungen', exact: true }).click();
   const settings = page.getByRole('dialog', { name: 'Automatische Erinnerungen' });
-  await expect(settings.getByRole('checkbox')).not.toBeChecked();
+  await expect(
+    settings.getByRole('checkbox', { name: 'Beitragserinnerungen automatisch versenden' }),
+  ).not.toBeChecked();
   await settings.getByLabel('Mindestabstand in Tagen (7–90) *', { exact: true }).fill('21');
   await settings.getByRole('button', { name: 'Änderungen speichern' }).click();
   await expect(settings).not.toBeVisible();

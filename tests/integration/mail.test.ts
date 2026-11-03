@@ -13,6 +13,13 @@ import {
   type MailSender,
 } from '../../apps/api/src/services/mail';
 import { enqueueAutomaticMail } from '../../apps/api/src/modules/mail';
+import {
+  enqueueDeadlineReminders,
+  enqueueLoanReminders,
+  revalidateReminder,
+  deadlineReminderDue,
+  loanReminderDue,
+} from '../../apps/api/src/modules/automatic-reminders';
 import type {
   MailPreview,
   Member,
@@ -431,5 +438,185 @@ describe('organization-scoped transactional email', () => {
         dedupeKey: 'foreign',
       }),
     ).rejects.toThrow();
+  });
+});
+
+describe('automatic deadline and loan reminders', () => {
+  const localDay = (offset: number) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(
+      new Date(Date.now() + offset * 86_400_000),
+    );
+  const enable = (patch: Record<string, unknown> = {}) =>
+    db.insert(s.mailSettings).values({
+      organizationId: org,
+      automaticDeadlineReminders: true,
+      automaticLoanReminders: true,
+      enabledBy: users.admin!.id,
+      ...patch,
+    });
+  const deadline = async (patch: Record<string, unknown>) => {
+    const [row] = await db
+      .insert(s.complianceDeadlines)
+      .values({
+        organizationId: org,
+        kind: 'internal',
+        topic: 'custom',
+        titleI18n: { de: 'Jahresbericht', it: 'Relazione annuale' },
+        descriptionI18n: { de: '', it: '' },
+        dueDate: localDay(7),
+        reminderDays: [7],
+        createdBy: users.admin!.id,
+        ...patch,
+      } as typeof s.complianceDeadlines.$inferInsert)
+      .returning();
+    return row!;
+  };
+  const byKind = async (kind: 'deadline_reminder' | 'loan_reminder') =>
+    (await rows()).filter((r) => r.kind === kind);
+  it('lets admins enable both automations through the settings endpoint', async () => {
+    const saved = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/mail/settings',
+      headers: headers('admin', crypto.randomUUID()),
+      payload: {
+        automaticFeeReminders: false,
+        reminderIntervalDays: 14,
+        automaticDeadlineReminders: true,
+        automaticLoanReminders: true,
+      },
+    });
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect(saved.json()).toMatchObject({
+      automaticDeadlineReminders: true,
+      automaticLoanReminders: true,
+      loanLastRunOn: null,
+    });
+    const denied = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/mail/settings',
+      headers: headers('board', crypto.randomUUID()),
+      payload: {
+        automaticFeeReminders: false,
+        reminderIntervalDays: 14,
+        automaticDeadlineReminders: true,
+      },
+    });
+    expect(denied.statusCode).toBe(403);
+  });
+  it('reminds the responsible person or role on the configured days, once per day', async () => {
+    await enable({ automaticLoanReminders: false });
+    const byRole = await deadline({ responsibleRole: 'board' });
+    const byUser = await deadline({
+      responsibleUserId: users.treasurer!.id,
+      reminderDays: [30, 7],
+    });
+    await deadline({ dueDate: localDay(5) }); // not a reminder day
+    await deadline({ dueDate: localDay(-1), status: 'not_applicable' });
+    const overdue = await deadline({ dueDate: localDay(-1) }); // first day overdue, no owner
+    await enqueueDeadlineReminders(db, config);
+    await enqueueDeadlineReminders(db, config);
+    const queued = await byKind('deadline_reminder');
+    expect(queued.map((r) => [r.deadlineId, r.recipient]).sort()).toEqual(
+      [
+        [byRole.id, 'mail-board@example.test'],
+        [byUser.id, 'mail-treasurer@example.test'],
+        [overdue.id, 'mail-admin@example.test'],
+      ].sort(),
+    );
+    const italian = queued.find((r) => r.recipient === 'mail-board@example.test')!;
+    expect(italian.language).toBe('it');
+    expect(italian.subject).toContain('Relazione annuale');
+    expect(queued.find((r) => r.deadlineId === overdue.id)!.body).toContain('überfällig');
+    expect(await revalidateReminder(db, italian)).toBe(true);
+    await db
+      .update(s.complianceDeadlines)
+      .set({ dueDate: localDay(20), version: byRole.version + 1 })
+      .where(eq(s.complianceDeadlines.id, byRole.id));
+    expect(await revalidateReminder(db, italian)).toBe(false);
+    await db
+      .update(s.complianceDeadlines)
+      .set({ status: 'not_applicable', version: byUser.version + 1 })
+      .where(eq(s.complianceDeadlines.id, byUser.id));
+    expect(
+      await revalidateReminder(
+        db,
+        queued.find((r) => r.deadlineId === byUser.id)!,
+      ),
+    ).toBe(false);
+  });
+  it('reminds borrowers before the return date and when overdue, but not after return', async () => {
+    await enable({ automaticDeadlineReminders: false });
+    const [item] = await db
+      .insert(s.inventoryItems)
+      .values({
+        organizationId: org,
+        name: 'Fernglas',
+        quantity: 5,
+        createdBy: users.admin!.id,
+      } as typeof s.inventoryItems.$inferInsert)
+      .returning();
+    const loan = async (personId: string, dueOn: string, patch: Record<string, unknown> = {}) => {
+      const [row] = await db
+        .insert(s.inventoryLoans)
+        .values({
+          organizationId: org,
+          itemId: item!.id,
+          personId,
+          issuedOn: localDay(-30),
+          dueOn,
+          issueCondition: 'good',
+          createdBy: users.admin!.id,
+          ...patch,
+        } as typeof s.inventoryLoans.$inferInsert)
+        .returning();
+      return row!;
+    };
+    const soon = await loan(de.personId, localDay(2));
+    const late = await loan(italian.personId, localDay(-8));
+    await loan(de.personId, localDay(10));
+    await loan(de.personId, localDay(-1), {
+      returnedOn: localDay(-1),
+      returnCondition: 'good',
+      returnedBy: users.admin!.id,
+    });
+    await enqueueLoanReminders(db, config);
+    await enqueueLoanReminders(db, config);
+    const queued = await byKind('loan_reminder');
+    expect(queued.map((r) => r.loanId).sort()).toEqual([soon.id, late.id].sort());
+    const lateMail = queued.find((r) => r.loanId === late.id)!;
+    expect(lateMail.recipient).toBe('mail-it@example.test');
+    expect(lateMail.subject).toContain('Restituzione scaduta');
+    expect(await revalidateReminder(db, lateMail)).toBe(true);
+    await db
+      .update(s.inventoryLoans)
+      .set({
+        returnedOn: localDay(0),
+        returnCondition: 'good',
+        returnedBy: users.admin!.id,
+        version: late.version + 1,
+      })
+      .where(eq(s.inventoryLoans.id, late.id));
+    expect(await revalidateReminder(db, lateMail)).toBe(false);
+    await deliverMail(db, config, sender);
+    expect(sent.map((m) => m.recipient)).toEqual(['mail-de@example.test']);
+  });
+  it('stops when the enabling account is no longer an admin', async () => {
+    await enable({ enabledBy: users.board!.id });
+    await deadline({ responsibleRole: 'board' });
+    await enqueueDeadlineReminders(db, config);
+    expect(await byKind('deadline_reminder')).toEqual([]);
+  });
+  it('schedules reminder days', () => {
+    expect([7, 1, 0, -1, -8, -15].map((d) => deadlineReminderDue(d, [7, 1]))).toEqual([
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+    ]);
+    expect([6, -2, -7].some((d) => deadlineReminderDue(d, [7, 1]))).toBe(false);
+    expect([2, -1, -8].every(loanReminderDue)).toBe(true);
+    expect([3, 1, 0, -2].some(loanReminderDue)).toBe(false);
   });
 });

@@ -18,6 +18,7 @@ import { user } from './auth';
 import { membershipFeeAssessments } from './finance';
 import { eventOccurrences } from './events';
 import { complianceDeadlines } from './volunteers';
+import { inventoryLoans } from './inventory';
 
 type I18n = { de: string; it: string };
 export type MailKindValue =
@@ -28,7 +29,8 @@ export type MailKindValue =
   | 'account_invitation'
   | 'password_reset'
   | 'test'
-  | 'community_digest';
+  | 'community_digest'
+  | 'loan_reminder';
 
 export const mailSettings = pgTable(
   'mail_settings',
@@ -44,6 +46,8 @@ export const mailSettings = pgTable(
       .references(() => user.id),
     lastRunOn: date('last_run_on'),
     deadlineLastRunOn: date('deadline_last_run_on'),
+    automaticLoanReminders: boolean('automatic_loan_reminders').notNull().default(false),
+    loanLastRunOn: date('loan_last_run_on'),
   },
   (t) => [check('mail_reminder_interval', sql`${t.reminderIntervalDays} between 7 and 90`)],
 );
@@ -91,6 +95,7 @@ export const mailMessages = pgTable(
     eventId: uuid('event_id'),
     deadlineId: uuid('deadline_id'),
     newsletterId: uuid('newsletter_id'),
+    loanId: uuid('loan_id'),
     actorUserId: uuid('actor_user_id')
       .notNull()
       .references(() => user.id),
@@ -140,19 +145,24 @@ export const mailMessages = pgTable(
       columns: [t.organizationId, t.newsletterId],
       foreignColumns: [mailNewsletters.organizationId, mailNewsletters.id],
     }),
+    foreignKey({
+      columns: [t.organizationId, t.loanId],
+      foreignColumns: [inventoryLoans.organizationId, inventoryLoans.id],
+    }),
     check(
       'mail_message_kind',
-      sql`${t.kind} in ('fee_reminder','event_invitation','deadline_reminder','newsletter','account_invitation','password_reset','test','community_digest')`,
+      sql`${t.kind} in ('fee_reminder','event_invitation','deadline_reminder','newsletter','account_invitation','password_reset','test','community_digest','loan_reminder')`,
     ),
     // Exactly the source columns of each kind are set.
     check(
       'mail_message_source',
       sql`case ${t.kind}
-        when 'fee_reminder' then ${t.personId} is not null and ${t.assessmentId} is not null and num_nonnulls(${t.userId}, ${t.eventId}, ${t.deadlineId}, ${t.newsletterId}) = 0
-        when 'event_invitation' then ${t.personId} is not null and ${t.eventId} is not null and num_nonnulls(${t.userId}, ${t.assessmentId}, ${t.deadlineId}, ${t.newsletterId}) = 0
-        when 'deadline_reminder' then ${t.userId} is not null and ${t.deadlineId} is not null and num_nonnulls(${t.personId}, ${t.assessmentId}, ${t.eventId}, ${t.newsletterId}) = 0
-        when 'newsletter' then ${t.personId} is not null and ${t.newsletterId} is not null and num_nonnulls(${t.userId}, ${t.assessmentId}, ${t.eventId}, ${t.deadlineId}) = 0
-        else ${t.userId} is not null and num_nonnulls(${t.personId}, ${t.assessmentId}, ${t.eventId}, ${t.deadlineId}, ${t.newsletterId}) = 0
+        when 'fee_reminder' then ${t.personId} is not null and ${t.assessmentId} is not null and num_nonnulls(${t.userId}, ${t.eventId}, ${t.deadlineId}, ${t.newsletterId}, ${t.loanId}) = 0
+        when 'event_invitation' then ${t.personId} is not null and ${t.eventId} is not null and num_nonnulls(${t.userId}, ${t.assessmentId}, ${t.deadlineId}, ${t.newsletterId}, ${t.loanId}) = 0
+        when 'deadline_reminder' then ${t.userId} is not null and ${t.deadlineId} is not null and num_nonnulls(${t.personId}, ${t.assessmentId}, ${t.eventId}, ${t.newsletterId}, ${t.loanId}) = 0
+        when 'newsletter' then ${t.personId} is not null and ${t.newsletterId} is not null and num_nonnulls(${t.userId}, ${t.assessmentId}, ${t.eventId}, ${t.deadlineId}, ${t.loanId}) = 0
+        when 'loan_reminder' then ${t.personId} is not null and ${t.loanId} is not null and num_nonnulls(${t.userId}, ${t.assessmentId}, ${t.eventId}, ${t.deadlineId}, ${t.newsletterId}) = 0
+        else ${t.userId} is not null and num_nonnulls(${t.personId}, ${t.assessmentId}, ${t.eventId}, ${t.deadlineId}, ${t.newsletterId}, ${t.loanId}) = 0
       end`,
     ),
     check(

@@ -106123,7 +106123,8 @@
                               "account_invitation",
                               "password_reset",
                               "test",
-                              "community_digest"
+                              "community_digest",
+                              "loan_reminder"
                             ]
                           },
                           "recipient": {
@@ -107983,11 +107984,19 @@
                       "default": false,
                       "type": "boolean"
                     },
+                    "automaticLoanReminders": {
+                      "default": false,
+                      "type": "boolean"
+                    },
                     "lastRunOn": {
                       "nullable": true,
                       "type": "string"
                     },
                     "deadlineLastRunOn": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "loanLastRunOn": {
                       "nullable": true,
                       "type": "string"
                     }
@@ -107996,8 +108005,10 @@
                     "automaticFeeReminders",
                     "reminderIntervalDays",
                     "automaticDeadlineReminders",
+                    "automaticLoanReminders",
                     "lastRunOn",
-                    "deadlineLastRunOn"
+                    "deadlineLastRunOn",
+                    "loanLastRunOn"
                   ],
                   "additionalProperties": false
                 }
@@ -108468,6 +108479,10 @@
                   "automaticDeadlineReminders": {
                     "default": false,
                     "type": "boolean"
+                  },
+                  "automaticLoanReminders": {
+                    "default": false,
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -108511,11 +108526,19 @@
                       "default": false,
                       "type": "boolean"
                     },
+                    "automaticLoanReminders": {
+                      "default": false,
+                      "type": "boolean"
+                    },
                     "lastRunOn": {
                       "nullable": true,
                       "type": "string"
                     },
                     "deadlineLastRunOn": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "loanLastRunOn": {
                       "nullable": true,
                       "type": "string"
                     }
@@ -108524,8 +108547,10 @@
                     "automaticFeeReminders",
                     "reminderIntervalDays",
                     "automaticDeadlineReminders",
+                    "automaticLoanReminders",
                     "lastRunOn",
-                    "deadlineLastRunOn"
+                    "deadlineLastRunOn",
+                    "loanLastRunOn"
                   ],
                   "additionalProperties": false
                 }
