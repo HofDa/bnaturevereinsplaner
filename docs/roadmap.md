@@ -55,7 +55,7 @@ Sprint 2.3 setzt diese Strategie für Anwesenheit um. Die Phase-1-Datenbank blei
 
 ## Nächste Aufgaben nach Sprint 2.4
 
-Kommunikationserweiterung auf `feat/communication-email`: SMTP-Grundlage, lokales Mailpit-Testpostfach, Vorschau/Bestätigung, rollenabhängiger Postausgang, Beitragserinnerungen und Termineinladungen sowie explizit aktivierbare automatische Beitragserinnerungen sind implementiert. Details und Grenzen: [E-Mail](mail.md). Fristenmails und Newsletter bleiben offen. News, Umfragen und Chat sind inzwischen im [Vereinsleben](community.md) umgesetzt. Der Fristenmanager verschickt nach Aktivierung automatische Erinnerungen.
+Kommunikationserweiterung auf `feat/communication-email`: SMTP-Grundlage, lokales Mailpit-Testpostfach, Vorschau/Bestätigung, rollenabhängiger Postausgang, Beitragserinnerungen und Termineinladungen sowie explizit aktivierbare automatische Beitragserinnerungen sind implementiert. Details und Grenzen: [E-Mail](mail.md). Fristenmails, Rückgabeerinnerungen und Newsletter sind inzwischen umgesetzt ([E-Mail](mail.md)). News, Umfragen und Chat sind inzwischen im [Vereinsleben](community.md) umgesetzt. Der Fristenmanager verschickt nach Aktivierung automatische Erinnerungen.
 
 Auf `feat/unread-birthdays` ergänzt: Ungelesen-Markierungen und optionale Zusammenfassung per E-Mail im [Vereinsleben](community.md#ungelesen-und-zusammenfassung-per-e-mail) sowie Geburtstage und Mitgliedsjubiläen (1, 5, 10, … Jahre) aktiver Mitglieder der nächsten 30 Tage auf der Übersicht für Admin, Vorstand und Kassier, mit vorbereitetem Glückwunsch im Vereinschat.
 

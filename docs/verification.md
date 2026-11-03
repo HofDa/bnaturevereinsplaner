@@ -1,5 +1,15 @@
 # Prüfnachweise
 
+## Terminfindung als Veranstaltung, Mitgliederliste, Newsletter – 03.11.2026
+
+Auf `feat/schedule-to-event`, `feat/member-fields-list` und `feat/newsletter`, gestapelt auf `fix/ci-health-check`:
+
+- Typecheck, ESLint, Prettier, Audit-relevante Abhängigkeiten unverändert; OpenAPI neu erzeugt; Migration `0024_schedule_event`, keine Schemaabweichung.
+- **103/103 Unit-/UI-Tests** (neu: Zusatzfelder im CSV-Import) und **202/202 PostgreSQL-Integrationstests**. Neu: Veranstaltung aus festgelegtem Termin genau einmal, in Vereinszeit, nur nach Festlegung und nur durch Organisator mit Veranstaltungsrecht; Einwilligungsfilter und Zusatzwerte in Liste und Detail; Newsletter mit Abmeldungen, Gruppenbeschränkung, einmaligem Versand, Bearbeiten/Verwerfen und Revalidierung vor dem Versand.
+- Browserabläufe Desktop und Mobil: `schedule` (inkl. Veranstaltung anlegen), `member-extras` (inkl. Filter und CSV-Export), `newsletter` (Zustellung ins lokale Testpostfach, Abgemeldete ausgelassen), `mail`, `platform`.
+- Hinweis: Während einer Phase hoher Rechnerlast (Load ~30 durch andere Prozesse) liefen Axe-Prüfungen in `platform` in Zeitüberschreitungen; bei normaler Last bestanden alle Läufe.
+- Kein Deployment; Migrationen nicht auf Produktionsdaten angewendet.
+
 ## Gesamtlauf und Ratenbegrenzung – 03.11.2026
 
 Auf `feat/scheduling-polls` nach allen Erweiterungen:

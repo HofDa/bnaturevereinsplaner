@@ -258,6 +258,28 @@ function ConsentPanel({
             </li>
           );
         })}
+        <li>
+          <div>
+            <strong>{t('newsletterTitle')}</strong>
+            <span className={`consent-state consent-${extras.newsletterOptOut ? 'no' : 'yes'}`}>
+              {t(extras.newsletterOptOut ? 'newsletterOptedOut' : 'newsletterReceives')}
+            </span>
+          </div>
+          {canWrite && (
+            <Button
+              variant="ghost"
+              aria-label={`${t('newsletterTitle')}: ${t(extras.newsletterOptOut ? 'newsletterResubscribe' : 'newsletterUnsubscribe')}`}
+              onClick={() =>
+                void api(`/members/${id}/newsletter`, {
+                  method: 'PUT',
+                  body: JSON.stringify({ optOut: !extras.newsletterOptOut }),
+                }).then(refresh)
+              }
+            >
+              {t(extras.newsletterOptOut ? 'newsletterResubscribe' : 'newsletterUnsubscribe')}
+            </Button>
+          )}
+        </li>
       </ul>
       {extras.consentHistory.length > 0 && (
         <details className="consent-history">

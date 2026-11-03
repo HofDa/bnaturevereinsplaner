@@ -17,13 +17,14 @@ import type { Config } from '../plugins/config';
 import { audit } from '../services/audit';
 import { financialOperation, readSnapshot, canonicalJson } from './finance/operations';
 import { businessDate, getAssessment } from './finance/service';
-import { feeReminderMail, eventInvitationMail } from './mail-templates';
+import { feeReminderMail, eventInvitationMail, newsletterMail } from './mail-templates';
 
-export const isSupportedMailKind = (kind: MailKind): kind is 'fee_reminder' | 'event_invitation' =>
-  kind === 'fee_reminder' || kind === 'event_invitation';
+type PreparedKind = 'fee_reminder' | 'event_invitation' | 'newsletter';
+export const isSupportedMailKind = (kind: MailKind): kind is PreparedKind =>
+  kind === 'fee_reminder' || kind === 'event_invitation' || kind === 'newsletter';
 function supportedMailRequest(
   request: MailRequest,
-): asserts request is Extract<MailRequest, { kind: 'fee_reminder' | 'event_invitation' }> {
+): asserts request is Extract<MailRequest, { kind: PreparedKind }> {
   if (!isSupportedMailKind(request.kind))
     throw new HttpError(
       409,
@@ -141,7 +142,9 @@ async function candidates(
       dedupeKey:
         request.kind === 'fee_reminder'
           ? `fee:${sourceId}:${today}`
-          : `event:${sourceId}:${person.id}:${digest(content)}`,
+          : request.kind === 'newsletter'
+            ? `newsletter:${sourceId}:${person.id}`
+            : `event:${sourceId}:${person.id}:${digest(content)}`,
     });
   };
   if (request.kind === 'fee_reminder') {
@@ -174,6 +177,66 @@ async function candidates(
           plan: assessment.planName,
           amountCents: assessment.openCents,
           dueDate: assessment.dueDate,
+        }),
+      );
+    }
+  } else if (request.kind === 'newsletter') {
+    const [newsletter] = await db
+      .select()
+      .from(s.mailNewsletters)
+      .where(
+        and(
+          eq(s.mailNewsletters.organizationId, org),
+          eq(s.mailNewsletters.id, request.newsletterId),
+        ),
+      );
+    if (!newsletter) throw new HttpError(404, 'NOT_FOUND', 'Newsletter nicht gefunden.');
+    // Preview and sending need a draft; the worker revalidates sent newsletters.
+    if (newsletter.status !== (only ? 'sent' : 'draft'))
+      throw new HttpError(
+        409,
+        'NEWSLETTER_NOT_DRAFT',
+        'Dieser Newsletter wurde bereits versendet oder zurückgezogen.',
+      );
+    const inGroups = newsletter.groupIds.length
+      ? new Set(
+          (
+            await db
+              .select({ personId: s.groupMembers.personId })
+              .from(s.groupMembers)
+              .innerJoin(
+                s.groups,
+                and(
+                  eq(s.groups.organizationId, s.groupMembers.organizationId),
+                  eq(s.groups.id, s.groupMembers.groupId),
+                ),
+              )
+              .where(
+                and(
+                  eq(s.groupMembers.organizationId, org),
+                  inArray(s.groupMembers.groupId, newsletter.groupIds),
+                  eq(s.groups.active, true),
+                ),
+              )
+          ).map((r) => r.personId),
+        )
+      : null;
+    for (const { person } of people) {
+      if (inGroups && !inGroups.has(person.id)) continue;
+      if (person.newsletterOptOut) {
+        skipped.optedOut++;
+        continue;
+      }
+      add(
+        person,
+        newsletter.id,
+        newsletterMail({
+          language: person.preferredLanguage,
+          organization: organization.name,
+          name: `${person.firstName} ${person.lastName}`,
+          subject: newsletter.subjectI18n[person.preferredLanguage],
+          body: newsletter.bodyI18n[person.preferredLanguage],
+          appUrl: config.APP_URL,
         }),
       );
     }
@@ -258,7 +321,9 @@ async function buildPreview(
               ),
               inArray(s.mailMessages.state, ['queued', 'sending', 'uncertain']),
             )
-          : eq(s.mailMessages.eventId, request.eventId),
+          : request.kind === 'newsletter'
+            ? eq(s.mailMessages.newsletterId, request.newsletterId)
+            : eq(s.mailMessages.eventId, request.eventId),
       ),
     );
   const recentKeys = new Set(previous.map((r) => r.dedupeKey));
@@ -333,6 +398,7 @@ async function queueItems(
       personId: item.personId,
       assessmentId: request.kind === 'fee_reminder' ? item.sourceId : null,
       eventId: request.kind === 'event_invitation' ? item.sourceId : null,
+      newsletterId: request.kind === 'newsletter' ? item.sourceId : null,
       actorUserId: a.userId,
       recipient: item.recipient,
       language: item.language,
@@ -341,8 +407,35 @@ async function queueItems(
       dedupeKey:
         request.kind === 'fee_reminder'
           ? `fee:${item.sourceId}:${today}`
-          : `event:${item.sourceId}:${item.personId}:${digest({ subject: item.subject, text: item.text })}`,
+          : request.kind === 'newsletter'
+            ? `newsletter:${item.sourceId}:${item.personId}`
+            : `event:${item.sourceId}:${item.personId}:${digest({ subject: item.subject, text: item.text })}`,
     });
+  // A newsletter is sent once: the draft becomes read-only together with queueing.
+  if (request.kind === 'newsletter') {
+    const sent = await tx
+      .update(s.mailNewsletters)
+      .set({
+        status: 'sent',
+        sentAt: new Date(),
+        updatedAt: new Date(),
+        version: sql`${s.mailNewsletters.version}+1`,
+      })
+      .where(
+        and(
+          eq(s.mailNewsletters.organizationId, a.organizationId),
+          eq(s.mailNewsletters.id, request.newsletterId),
+          eq(s.mailNewsletters.status, 'draft'),
+        ),
+      )
+      .returning({ id: s.mailNewsletters.id });
+    if (!sent.length)
+      throw new HttpError(
+        409,
+        'NEWSLETTER_NOT_DRAFT',
+        'Dieser Newsletter wurde bereits versendet oder zurückgezogen.',
+      );
+  }
   const batchId = randomUUID();
   await audit(tx, a, 'queue', 'mail_batch', batchId, ['kind', 'recipients']);
   return { queued: preview.items.length, batchId };
@@ -411,9 +504,14 @@ export async function revalidateMail(
       row.organizationId,
       row.kind === 'fee_reminder'
         ? { kind: 'fee_reminder' }
-        : { kind: 'event_invitation', eventId: row.eventId! },
+        : row.kind === 'newsletter'
+          ? { kind: 'newsletter', newsletterId: row.newsletterId! }
+          : { kind: 'event_invitation', eventId: row.eventId! },
       config,
-      { sourceId: row.assessmentId ?? row.eventId!, personId: row.personId },
+      {
+        sourceId: row.assessmentId ?? row.eventId ?? row.newsletterId!,
+        personId: row.personId,
+      },
     );
     const current = result.items[0];
     return (

@@ -27,6 +27,7 @@ import {
   Pagination,
 } from '../components/ui';
 import { DataForm } from '../components/data-form';
+import { NewsletterPicker } from './mail-newsletter';
 
 export function MailPage() {
   const { t, i18n } = useTranslation();
@@ -35,7 +36,8 @@ export function MailPage() {
   const canInvite = me.permissions.includes('mail:invite');
   const canRemind = me.permissions.includes('finance:write');
   const canConfigure = me.permissions.includes('users:manage');
-  const [kind, setKind] = useState<'fee_reminder' | 'event_invitation'>(
+  const [newsletterId, setNewsletterId] = useState('');
+  const [kind, setKind] = useState<'fee_reminder' | 'event_invitation' | 'newsletter'>(
     canRemind ? 'fee_reminder' : 'event_invitation',
   );
   const [eventId, setEventId] = useState('');
@@ -75,7 +77,12 @@ export function MailPage() {
         new Date(e.startAt) > new Date() &&
         (!e.registrationDeadline || new Date(e.registrationDeadline) > new Date()),
     ) ?? [];
-  const request: MailRequest = kind === 'fee_reminder' ? { kind } : { kind, eventId };
+  const request: MailRequest =
+    kind === 'fee_reminder'
+      ? { kind }
+      : kind === 'newsletter'
+        ? { kind, newsletterId }
+        : { kind, eventId };
   async function prepare() {
     setError('');
     setNotice(null);
@@ -102,7 +109,9 @@ export function MailPage() {
       setNotice({ key: 'mailQueuedCount', count: result.queued });
       setPreview(null);
       setPage(1);
+      if (preview.request.kind === 'newsletter') setNewsletterId('');
       void queryClient.invalidateQueries({ queryKey: ['mail-messages'] });
+      void queryClient.invalidateQueries({ queryKey: ['newsletters'] });
     } catch (error) {
       setError(errorMessage(error));
     } finally {
@@ -155,7 +164,7 @@ export function MailPage() {
             <select
               value={kind}
               onChange={(e) => {
-                setKind(e.target.value as 'fee_reminder' | 'event_invitation');
+                setKind(e.target.value as 'fee_reminder' | 'event_invitation' | 'newsletter');
                 setError('');
               }}
             >
@@ -163,6 +172,7 @@ export function MailPage() {
               {canInvite && (
                 <option value="event_invitation">{t('mailKind_event_invitation')}</option>
               )}
+              {canInvite && <option value="newsletter">{t('mailKind_newsletter')}</option>}
             </select>
           </Field>
           {kind === 'event_invitation' && (
@@ -178,8 +188,15 @@ export function MailPage() {
               </select>
             </Field>
           )}
+          {kind === 'newsletter' && (
+            <NewsletterPicker value={newsletterId} onChange={setNewsletterId} />
+          )}
           <Button
-            disabled={busy || (kind === 'event_invitation' && !eventId)}
+            disabled={
+              busy ||
+              (kind === 'event_invitation' && !eventId) ||
+              (kind === 'newsletter' && !newsletterId)
+            }
             onClick={() => void prepare()}
           >
             <Eye size={17} />
@@ -187,7 +204,15 @@ export function MailPage() {
           </Button>
         </div>
         {kind === 'event_invitation' && events.isError && <ErrorState error={events.error} />}
-        <p className="mail-help">{t(kind === 'fee_reminder' ? 'mailFeeHint' : 'mailEventHint')}</p>
+        <p className="mail-help">
+          {t(
+            kind === 'fee_reminder'
+              ? 'mailFeeHint'
+              : kind === 'newsletter'
+                ? 'mailNewsletterHint'
+                : 'mailEventHint',
+          )}
+        </p>
       </div>
       <section className="panel mail-outbox" aria-label={t('mailOutbox')}>
         <div className="mail-section-title">
@@ -264,6 +289,11 @@ export function MailPage() {
               recent: preview.skipped.recentlyContacted,
             })}
           </p>
+          {preview.request.kind === 'newsletter' && (
+            <p className="mail-help">
+              {t('mailSkippedOptOut', { count: preview.skipped.optedOut })}
+            </p>
+          )}
           {error && <Notice error>{error}</Notice>}
           {!!preview.items.length && (
             <>
