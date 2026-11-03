@@ -68,18 +68,20 @@ CSV-Vorschau/-Parsing findet im Browser statt. Der Export lädt die gefilterte L
 
 Alle folgenden Ressourcen verwenden die bestehende Cookie-Session und den geprüften Organisationskontext. Admin und Kassier haben Finanz-Lese-/Schreibrechte; ausschließlich Admin verwaltet Tarife. Vorstand, Projektleitung und Mitglieder erhalten keinen Zugriff, auch nicht auf PDFs.
 
-| Methode / Pfad                         | Zweck                                                                     |
-| -------------------------------------- | ------------------------------------------------------------------------- |
-| GET/POST /fee-plans                    | Tarife auflisten / anlegen                                                |
-| GET/PATCH /fee-plans/:id               | Tarif lesen / mit `version` ändern                                        |
-| GET/POST /fee-assessments              | Forderungen auflisten / aus Tarif und Mitgliedschaft festsetzen           |
-| GET /fee-assessments/:id               | Forderung einschließlich berechnetem Saldo und Zahlungshistorie           |
-| GET /finance/summary                   | Exakte Cent-Summen, offene/bezahlte/befreite Forderungen                  |
-| GET/POST /payments                     | Zahlungsereignisse auflisten / vollständig zugeordnet erfassen            |
-| GET /payments/:id                      | Unveränderliche Zahlung und alle Zuordnungen                              |
-| GET /payments/:id/receipt?language=de  | Autorisierte PDF-Zahlungsbestätigung, alternativ `it`                     |
-| POST /fee-assessments/:id/reminders    | Überfälligen offenen Betrag als Erinnerungsentwurf vorbereiten; Body `{}` |
-| GET /fee-reminders/:id/pdf?language=de | Autorisierter Erinnerungsentwurf; kein automatischer Versand              |
+| Methode / Pfad                         | Zweck                                                                                                           |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| GET/POST /fee-plans                    | Tarife auflisten / anlegen                                                                                      |
+| GET/PATCH /fee-plans/:id               | Tarif lesen / mit `version` ändern                                                                              |
+| GET/POST /fee-assessments              | Forderungen auflisten / aus Tarif und Mitgliedschaft festsetzen                                                 |
+| POST /fee-assessments/batch/preview    | Sammelvorschreibung: Empfänger, Summe und übersprungene Mitglieder mit `previewHash`                            |
+| POST /fee-assessments/batch            | Bestätigte Sammelvorschreibung mit `previewHash` und `Idempotency-Key`; 409 `PREVIEW_STALE` bei geänderter Lage |
+| GET /fee-assessments/:id               | Forderung einschließlich berechnetem Saldo und Zahlungshistorie                                                 |
+| GET /finance/summary                   | Exakte Cent-Summen, offene/bezahlte/befreite Forderungen                                                        |
+| GET/POST /payments                     | Zahlungsereignisse auflisten / vollständig zugeordnet erfassen                                                  |
+| GET /payments/:id                      | Unveränderliche Zahlung und alle Zuordnungen                                                                    |
+| GET /payments/:id/receipt?language=de  | Autorisierte PDF-Zahlungsbestätigung, alternativ `it`                                                           |
+| POST /fee-assessments/:id/reminders    | Überfälligen offenen Betrag als Erinnerungsentwurf vorbereiten; Body `{}`                                       |
+| GET /fee-reminders/:id/pdf?language=de | Autorisierter Erinnerungsentwurf; kein automatischer Versand                                                    |
 
 Jede Finanzmutation benötigt den Header `Idempotency-Key` mit UUID. Erfolgreiche Wiederholung liefert denselben Status und dieselbe ursprüngliche Antwort ohne neue Daten; Header `Idempotency-Replayed` zeigt `true`/`false`. Der Schlüssel gilt organisationsweit und ist an Operation und normalisierten Inhalt gebunden. Geänderte Daten mit demselben Schlüssel ergeben 409 `IDEMPOTENCY_MISMATCH`. Der JSON-Body darf keinen Organisations-/Akteurkontext einschleusen.
 

@@ -740,3 +740,103 @@ it('documents protected PDF success and JSON error responses accurately', () => 
   expect(text).toContain('idempotency-key');
   expect(text).toContain('uuid');
 });
+describe('batch fee claims', () => {
+  type Preview = {
+    items: { membershipId: string; amountCents: number }[];
+    totalCents: number;
+    skippedExisting: number;
+    skippedCategory: number;
+    previewHash: string;
+  };
+  const preview = async (body: Record<string, unknown>, cookie = admin) => {
+    const r = await post('/fee-assessments/batch/preview', body, cookie);
+    expect(r.statusCode, r.body).toBe(200);
+    return r.json<Preview>();
+  };
+  it('previews, then creates exactly the previewed claims once', async () => {
+    const batchPlan = await newPlan({ amountCents: 4200 });
+    const request = { planId: batchPlan.id, fiscalYear: 2031, dueDate: '2031-03-31' };
+    await newAssessment(batchPlan.id, 2031, own.id);
+    const first = await preview(request, treasurer);
+    const ids = first.items.map((i) => i.membershipId);
+    expect(ids).toContain(other.id);
+    expect(ids).not.toContain(own.id);
+    expect(ids).not.toContain(foreign.id);
+    expect(first.skippedExisting).toBe(1);
+    expect(first.totalCents).toBe(4200 * first.items.length);
+    const key = crypto.randomUUID();
+    const confirm = { ...request, previewHash: first.previewHash };
+    const [created, replay] = await Promise.all([
+      post('/fee-assessments/batch', confirm, admin, key),
+      post('/fee-assessments/batch', confirm, admin, key),
+    ]);
+    expect(created.statusCode, created.body).toBe(201);
+    expect(replay.statusCode, replay.body).toBe(201);
+    expect(created.json()).toEqual({ created: first.items.length, totalCents: first.totalCents });
+    const rows = await db
+      .select()
+      .from(s.membershipFeeAssessments)
+      .where(
+        and(
+          eq(s.membershipFeeAssessments.planId, batchPlan.id),
+          eq(s.membershipFeeAssessments.fiscalYear, 2031),
+        ),
+      );
+    expect(rows).toHaveLength(first.items.length + 1);
+    expect(
+      rows.filter((r) => r.membershipId !== own.id).every((r) => r.dueDate === '2031-03-31'),
+    ).toBe(true);
+    // The same fingerprint no longer matches once the claims exist.
+    const again = await post('/fee-assessments/batch', confirm);
+    expect(again.statusCode).toBe(409);
+    expect(again.json().error.code).toBe('PREVIEW_STALE');
+    const after = await preview(request);
+    expect(after.items).toEqual([]);
+    expect(
+      (await post('/fee-assessments/batch', { ...request, previewHash: after.previewHash })).json()
+        .error.code,
+    ).toBe('NOTHING_TO_CREATE');
+  });
+  it('rejects a stale preview without creating anything', async () => {
+    const batchPlan = await newPlan();
+    const request = { planId: batchPlan.id, fiscalYear: 2032, dueDate: '2032-03-31' };
+    const before = await preview(request);
+    await newAssessment(batchPlan.id, 2032, other.id);
+    const r = await post('/fee-assessments/batch', { ...request, previewHash: before.previewHash });
+    expect(r.statusCode).toBe(409);
+    expect(r.json().error.code).toBe('PREVIEW_STALE');
+    const rows = await db
+      .select()
+      .from(s.membershipFeeAssessments)
+      .where(eq(s.membershipFeeAssessments.planId, batchPlan.id));
+    expect(rows).toHaveLength(1);
+  });
+  it('respects plan category, active state, tenant and permissions', async () => {
+    const honorary = await newPlan({ membershipType: 'honorary' });
+    const result = await preview({ planId: honorary.id, fiscalYear: 2033, dueDate: '2033-01-31' });
+    expect(result.items.every((i) => i.membershipId !== own.id)).toBe(true);
+    expect(result.skippedCategory).toBeGreaterThan(0);
+    const body = { planId: honorary.id, fiscalYear: 2033, dueDate: '2033-01-31' };
+    expect((await post('/fee-assessments/batch/preview', body, member)).statusCode).toBe(403);
+    expect((await post('/fee-assessments/batch/preview', body, board)).statusCode).toBe(403);
+    expect(
+      (
+        await post('/fee-assessments/batch/preview', {
+          planId: foreignPlan.id,
+          fiscalYear: 2033,
+          dueDate: '2033-01-31',
+        })
+      ).statusCode,
+    ).toBe(404);
+    const inactive = await newPlan({ active: false });
+    expect(
+      (
+        await post('/fee-assessments/batch/preview', {
+          planId: inactive.id,
+          fiscalYear: 2033,
+          dueDate: '2033-01-31',
+        })
+      ).json().error.code,
+    ).toBe('PLAN_INACTIVE');
+  });
+});

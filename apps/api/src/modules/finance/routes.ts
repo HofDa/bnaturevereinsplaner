@@ -24,8 +24,13 @@ import {
   financeWriteHeaders,
   pdfQuerySchema,
   reminderResponseSchema,
+  assessmentBatchRequestSchema,
+  assessmentBatchPreviewSchema,
+  assessmentBatchConfirmSchema,
+  assessmentBatchResultSchema,
 } from '@bnature/contracts';
 import type { ModuleContext } from '../context';
+import { previewAssessmentBatch, createAssessmentBatch } from './batch';
 import {
   createPlan,
   updatePlan,
@@ -150,6 +155,41 @@ export function registerFinanceRoutes({ server, db, access }: ModuleContext) {
     async (req, reply) => {
       const a = await access(req, 'finance:write'),
         result = await createAssessment(db, a, req.headers['idempotency-key'], req.body);
+      return reply
+        .code(201)
+        .header('Idempotency-Replayed', String(result.replayed))
+        .send(result.data);
+    },
+  );
+  app.post(
+    `${p}/fee-assessments/batch/preview`,
+    {
+      schema: {
+        tags: ['Membership fees'],
+        body: assessmentBatchRequestSchema,
+        response: { 200: assessmentBatchPreviewSchema },
+      },
+    },
+    async (req) => previewAssessmentBatch(db, await access(req, 'finance:write'), req.body),
+  );
+  app.post(
+    `${p}/fee-assessments/batch`,
+    {
+      schema: {
+        tags: ['Membership fees'],
+        headers: financeWriteHeaders,
+        body: assessmentBatchConfirmSchema,
+        response: { 201: assessmentBatchResultSchema },
+      },
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    },
+    async (req, reply) => {
+      const result = await createAssessmentBatch(
+        db,
+        await access(req, 'finance:write'),
+        req.headers['idempotency-key'],
+        req.body,
+      );
       return reply
         .code(201)
         .header('Idempotency-Replayed', String(result.replayed))

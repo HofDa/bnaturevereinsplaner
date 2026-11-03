@@ -238,3 +238,34 @@ export function formatMoney(cents: number | string, language = 'de'): string {
   }).format(absolute / 100n);
   return `${negative ? '-' : ''}${whole},${String(absolute % 100n).padStart(2, '0')} €`;
 }
+
+/** Upper bound for one batch, so a single confirmation stays reviewable. */
+export const MAX_ASSESSMENT_BATCH = 1000;
+export const assessmentBatchRequestSchema = z
+  .object({ planId: idSchema, fiscalYear: fiscalYearSchema, dueDate: z.iso.date() })
+  .strict();
+export type AssessmentBatchRequest = z.infer<typeof assessmentBatchRequestSchema>;
+export const assessmentBatchPreviewSchema = z.object({
+  planName: z.string(),
+  amountCents: centsSchema,
+  items: z.array(
+    z.object({
+      membershipId: idSchema,
+      memberName: z.string(),
+      membershipNumber: z.string(),
+      amountCents: centsSchema,
+    }),
+  ),
+  totalCents: z.number().int().min(0),
+  skippedExisting: z.number().int().min(0),
+  skippedCategory: z.number().int().min(0),
+  previewHash: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type AssessmentBatchPreview = z.infer<typeof assessmentBatchPreviewSchema>;
+export const assessmentBatchConfirmSchema = assessmentBatchRequestSchema
+  .extend({ previewHash: z.string().regex(/^[a-f0-9]{64}$/) })
+  .strict();
+export const assessmentBatchResultSchema = z.object({
+  created: z.number().int().min(0),
+  totalCents: z.number().int().min(0),
+});
