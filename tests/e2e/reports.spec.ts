@@ -7,6 +7,11 @@ async function login(page: Page, email = 'e2e@example.test') {
   await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Abmelden', exact: true })).toBeVisible();
 }
+// Waits for the login form, so the next navigation cannot cancel the sign-out request.
+async function logout(page: Page) {
+  await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+  await expect(page.getByLabel('E-Mail', { exact: true })).toBeVisible();
+}
 async function a11y(page: Page) {
   expect(
     (
@@ -39,7 +44,7 @@ test('shows the annual overview with charts, tooltips and tables', async ({ page
   await expect(members.getByRole('img')).toBeVisible();
   await a11y(page);
   await page.screenshot({ path: `test-results/reports-dark-${info.project.name}.png` });
-  await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+  await logout(page);
   await login(page, 'e2e-member@example.test');
   await expect(page.getByRole('link', { name: 'Auswertungen' })).toHaveCount(0);
   expect((await page.request.get('/api/v1/reports/annual-overview?year=2026')).status()).toBe(403);

@@ -65,6 +65,8 @@ Auf `feat/member-consents` ergänzt: **Zusatzfelder** je Verein (Text, Zahl, Dat
 
 Auf `feat/volunteer-self-reports` ergänzt: **Auswertungen** (`/reports`, Admin, Vorstand, Kassier) mit Kennzahlen und Monatsverläufen eines Jahres in Vereinszeit: aktive Mitgliedschaften am Monatsende, Eintritte und Austritte, Anmeldungen und erfasste Anwesenheit bei veröffentlichten oder abgeschlossenen Veranstaltungen, bestätigte Freiwilligenstunden gesamt und nach Projekt. Abschnitte ohne Leserecht entfallen; jedes Diagramm hat eine Tabellenansicht. Offen: Export als PDF/CSV, Vergleich mit dem Vorjahr.
 
+Auf `feat/chat-extras` und `feat/scheduling-polls` ergänzt: Antworten, @-Erwähnungen sowie Veranstaltungs- und Umfragekarten im Vereinschat; Terminfindung (Doodle-ähnlich) im [Vereinsleben](community.md#terminfindung). Offen: festgelegten Termin direkt als Veranstaltung anlegen, Terminfindungen in Ungelesen-Zählung und Chatkarten.
+
 Für b*nature vereinbarter weiterer Schwerpunkt: Kommunikation, Inventar/Ausleihe, Geburtstage/Jubiläen, Excel-Import und weitere Auswertungen. SEPA und elektronische Rechnungen nur bei konkretem Bedarf. Sportmodule (Mannschaften, Tesseramento und sportbezogene Verwaltung) sind ausdrücklich ausgeschlossen.
 
 Release-Gates aus [Prüfnachweise](verification.md#offene-release-gates) abarbeiten, insbesondere rechtliche Freigabe des Registerverfahrens und der Startregeln. Danach: qualifizierter Signaturadapter und Aufbewahrungs-/Löschprozesse. Öffentliche Anmeldung und Gebühren bleiben getrennt zu planen.

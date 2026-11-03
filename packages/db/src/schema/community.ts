@@ -268,3 +268,95 @@ export const communityChatMentions = pgTable(
     index('community_chat_mentions_user').on(t.organizationId, t.userId),
   ],
 );
+
+// Doodle-style scheduling: participants answer every proposed slot with yes / maybe / no.
+export const communitySchedules = pgTable(
+  'community_schedules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    groupId: uuid('group_id'),
+    titleI18n: jsonb('title_i18n').$type<Text>().notNull(),
+    descriptionI18n: jsonb('description_i18n').$type<Text>().notNull(),
+    location: text('location').notNull().default(''),
+    state: text('state').$type<'open' | 'closed' | 'archived'>().notNull().default('open'),
+    closesAt: timestamp('closes_at', { withTimezone: true }),
+    finalSlotId: uuid('final_slot_id'),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    version: integer('version').notNull().default(1),
+    createdBy: uuid('created_by').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('community_schedules_org_id').on(t.organizationId, t.id),
+    foreignKey({
+      columns: [t.organizationId, t.groupId],
+      foreignColumns: [groups.organizationId, groups.id],
+    }),
+    foreignKey({
+      columns: [t.organizationId, t.createdBy],
+      foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
+    }),
+    index('community_schedules_org_state').on(t.organizationId, t.state, t.createdAt),
+    check('community_schedule_state', sql`${t.state} in ('open','closed','archived')`),
+    check(
+      'community_schedule_closed',
+      sql`(${t.state}='open') = (${t.closedAt} is null) and (${t.finalSlotId} is null or ${t.state}<>'open')`,
+    ),
+    check('community_schedule_version', sql`${t.version}>0`),
+  ],
+);
+
+export const communityScheduleSlots = pgTable(
+  'community_schedule_slots',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id').notNull(),
+    scheduleId: uuid('schedule_id').notNull(),
+    startAt: timestamp('start_at', { withTimezone: true }).notNull(),
+    endAt: timestamp('end_at', { withTimezone: true }).notNull(),
+    position: integer('position').notNull(),
+  },
+  (t) => [
+    unique('community_schedule_slots_scope').on(t.organizationId, t.scheduleId, t.id),
+    unique('community_schedule_slots_position').on(t.scheduleId, t.position),
+    foreignKey({
+      columns: [t.organizationId, t.scheduleId],
+      foreignColumns: [communitySchedules.organizationId, communitySchedules.id],
+    }).onDelete('cascade'),
+    check('community_schedule_slot_time', sql`${t.endAt}>${t.startAt}`),
+  ],
+);
+
+export const communityScheduleAnswers = pgTable(
+  'community_schedule_answers',
+  {
+    organizationId: uuid('organization_id').notNull(),
+    scheduleId: uuid('schedule_id').notNull(),
+    slotId: uuid('slot_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    answer: text('answer').$type<'yes' | 'maybe' | 'no'>().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.slotId, t.userId] }),
+    // The slot must belong to the same schedule and organization.
+    foreignKey({
+      columns: [t.organizationId, t.scheduleId, t.slotId],
+      foreignColumns: [
+        communityScheduleSlots.organizationId,
+        communityScheduleSlots.scheduleId,
+        communityScheduleSlots.id,
+      ],
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.organizationId, t.userId],
+      foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
+    }).onDelete('cascade'),
+    index('community_schedule_answers_schedule').on(t.organizationId, t.scheduleId),
+    check('community_schedule_answer', sql`${t.answer} in ('yes','maybe','no')`),
+  ],
+);

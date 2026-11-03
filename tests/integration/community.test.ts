@@ -853,3 +853,184 @@ describe('chat replies, mentions and shared cards', () => {
     expect((await list('other')).find((x) => x.id === shared.id)!.attachment).toBeNull();
   });
 });
+describe('scheduling polls', () => {
+  const at = (days: number, hour: number) => {
+    const d = new Date(Date.now() + days * 86_400_000);
+    d.setUTCHours(hour, 0, 0, 0);
+    return d.toISOString();
+  };
+  const input = (patch: Record<string, unknown> = {}) => ({
+    titleI18n: { de: 'Wann pflegen wir die Hecke?', it: 'Quando curiamo la siepe?' },
+    location: 'Biotop',
+    slots: [
+      { startAt: at(10, 8), endAt: at(10, 11) },
+      { startAt: at(11, 8), endAt: at(11, 11) },
+      { startAt: at(12, 14), endAt: at(12, 17) },
+    ],
+    ...patch,
+  });
+  type Detail = {
+    id: string;
+    version: number;
+    isOpen: boolean;
+    slots: { id: string; yes: number; maybe: number; no: number; mine: string | null }[];
+    bestSlotIds: string[];
+    participants: { name: string; answers: Record<string, string> }[];
+    canManage: boolean;
+    finalSlot: { startAt: string } | null;
+  };
+  const detail = async (id: string, role = 'member') =>
+    ok<Detail>(await get(`/community/schedules/${id}`, role));
+  const answer = (id: string, answers: unknown, role = 'member', key?: string) =>
+    write('PUT', `/community/schedules/${id}/answers`, { answers }, role, key);
+  it('collects yes/maybe/no per slot, lets answers change and highlights the best slot', async () => {
+    const created = await ok<{ id: string }>(
+      await write('POST', '/community/schedules', input(), 'lead'),
+      201,
+    );
+    expect((await write('POST', '/community/schedules', input(), 'member')).statusCode).toBe(403);
+    expect(
+      (
+        await write('POST', '/community/schedules', {
+          ...input(),
+          slots: [
+            { startAt: at(1, 9), endAt: at(1, 8) },
+            { startAt: at(2, 9), endAt: at(2, 10) },
+          ],
+        })
+      ).statusCode,
+    ).toBe(422);
+    const view = await detail(created.id);
+    expect(view.slots).toHaveLength(3);
+    expect(view.canManage).toBe(false);
+    const [a, b, c] = view.slots.map((x) => x.id) as [string, string, string];
+    const key = crypto.randomUUID();
+    const twice = await Promise.all([
+      answer(
+        created.id,
+        [
+          { slotId: a, answer: 'yes' },
+          { slotId: b, answer: 'maybe' },
+        ],
+        'member',
+        key,
+      ),
+      answer(
+        created.id,
+        [
+          { slotId: a, answer: 'yes' },
+          { slotId: b, answer: 'maybe' },
+        ],
+        'member',
+        key,
+      ),
+    ]);
+    twice.forEach((r) => expect(r.statusCode, r.body).toBe(200));
+    await ok(
+      await answer(
+        created.id,
+        [
+          { slotId: b, answer: 'yes' },
+          { slotId: c, answer: 'no' },
+        ],
+        'other',
+      ),
+    );
+    await ok(await answer(created.id, [{ slotId: b, answer: 'yes' }], 'board'));
+    // Changing an answer replaces it.
+    await ok(await answer(created.id, [{ slotId: b, answer: 'yes' }], 'member'));
+    const after = await detail(created.id);
+    expect(after.slots.map((x) => [x.yes, x.maybe, x.no])).toEqual([
+      [1, 0, 0],
+      [3, 0, 0],
+      [0, 0, 1],
+    ]);
+    expect(after.slots.map((x) => x.mine)).toEqual(['yes', 'yes', null]);
+    expect(after.bestSlotIds).toEqual([b]);
+    expect(after.participants.map((p) => p.name)).toEqual(['board', 'member', 'other']);
+    expect(
+      (await answer(created.id, [{ slotId: crypto.randomUUID(), answer: 'yes' }])).statusCode,
+    ).toBe(404);
+    // Only the organizer (or a moderator) closes it, with a final slot.
+    expect(
+      (
+        await write('POST', `/community/schedules/${created.id}/close`, {
+          version: after.version,
+          finalSlotId: b,
+        })
+      ).statusCode,
+    ).toBe(200);
+    const closed = await detail(created.id);
+    expect(closed.isOpen).toBe(false);
+    expect(closed.finalSlot?.startAt).toBe(after.slots[1] ? at(11, 8) : '');
+    expect((await answer(created.id, [{ slotId: a, answer: 'no' }])).json().error.code).toBe(
+      'SCHEDULE_CLOSED',
+    );
+    await expect(
+      db.insert(s.communityScheduleAnswers).values({
+        organizationId: org,
+        scheduleId: created.id,
+        slotId: c,
+        userId: users.member!.id,
+        answer: 'yes',
+      }),
+    ).rejects.toThrow();
+    const open = await ok<{ items: { id: string }[] }>(await get('/community/schedules', 'member'));
+    expect(open.items.map((x) => x.id)).not.toContain(created.id);
+    const done = await ok<{ items: { id: string; finalSlot: unknown }[] }>(
+      await get('/community/schedules?state=closed', 'member'),
+    );
+    expect(done.items.find((x) => x.id === created.id)?.finalSlot).not.toBeNull();
+  });
+  it('limits group schedules to the group and rejects foreign slots and closing by others', async () => {
+    const grouped = await ok<{ id: string }>(
+      await write('POST', '/community/schedules', input({ groupId }), 'board'),
+      201,
+    );
+    expect((await get(`/community/schedules/${grouped.id}`, 'other')).statusCode).toBe(404);
+    const view = await detail(grouped.id);
+    const other = await ok<{ id: string }>(
+      await write('POST', '/community/schedules', input()),
+      201,
+    );
+    const foreignSlot = (await detail(other.id)).slots[0]!.id;
+    expect((await answer(grouped.id, [{ slotId: foreignSlot, answer: 'yes' }])).statusCode).toBe(
+      404,
+    );
+    expect(
+      (
+        await write(
+          'POST',
+          `/community/schedules/${grouped.id}/close`,
+          { version: view.version },
+          'member',
+        )
+      ).statusCode,
+    ).toBe(403);
+    expect(
+      (
+        await app.inject({
+          url: `/api/v1/community/schedules/${grouped.id}`,
+          headers: headers('foreign', undefined, foreignOrg),
+        })
+      ).statusCode,
+    ).toBe(404);
+    const expired = await write(
+      'POST',
+      '/community/schedules',
+      input({ closesAt: '2020-01-01T00:00:00Z' }),
+    );
+    expect(expired.json().error.code).toBe('DEADLINE_PASSED');
+  });
+});
+describe('rate limits', () => {
+  it('keeps unread polling out of the general per-IP budget', async () => {
+    const remoteAddress = '203.0.113.42';
+    const call = (url: string) =>
+      app.inject({ url: `/api/v1${url}`, headers: headers('member'), remoteAddress });
+    for (let i = 0; i < 120; i++) expect((await call('/community/unread')).statusCode).toBe(200);
+    expect((await call('/community/unread')).statusCode).toBe(429);
+    // 120 polls plus 100 regular requests exceed 150, yet regular requests still pass.
+    for (let i = 0; i < 100; i++) expect((await call('/community/audiences')).statusCode).toBe(200);
+  });
+});

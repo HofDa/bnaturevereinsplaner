@@ -14,6 +14,12 @@ import {
   chatQuerySchema,
   chatPageSchema,
   chatMemberSchema,
+  scheduleInputSchema,
+  scheduleAnswersInputSchema,
+  scheduleCloseSchema,
+  scheduleQuerySchema,
+  scheduleSummarySchema,
+  scheduleDetailSchema,
   chatReactionInputSchema,
   unreadSchema,
   markReadSchema,
@@ -40,6 +46,13 @@ import {
   reactCommunityChat,
 } from './community-chat';
 import { chatMembers } from './community-chat-extras';
+import {
+  listSchedules,
+  getSchedule,
+  createSchedule,
+  answerSchedule,
+  closeSchedule,
+} from './community-schedules';
 import { readSnapshot } from './finance/operations';
 import {
   communityUnread,
@@ -148,7 +161,12 @@ export function registerCommunityRoutes({ server, db, access, config }: ModuleCo
   );
   app.get(
     '/api/v1/community/unread',
-    { schema: { tags, response: { 200: unreadSchema } } },
+    {
+      schema: { tags, response: { 200: unreadSchema } },
+      // Background badge polling runs on every page; its own budget keeps it from using up
+      // the general per-IP limit that protects user actions.
+      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+    },
     async (req) => communityUnread(db, await access(req, 'community:read')),
   );
   app.put(
@@ -178,6 +196,86 @@ export function registerCommunityRoutes({ server, db, access, config }: ModuleCo
     },
     async (req) =>
       updateNotificationSettings(db, await access(req, 'community:read'), config, req.body.digest),
+  );
+  app.get(
+    '/api/v1/community/schedules',
+    {
+      schema: {
+        tags,
+        querystring: scheduleQuerySchema,
+        response: { 200: z.object({ items: z.array(scheduleSummarySchema) }) },
+      },
+    },
+    async (req) => listSchedules(db, await access(req, 'community:read'), req.query.state),
+  );
+  app.get(
+    '/api/v1/community/schedules/:id',
+    { schema: { tags, params: idParams, response: { 200: scheduleDetailSchema } } },
+    async (req) => getSchedule(db, await access(req, 'community:read'), req.params.id),
+  );
+  app.post(
+    '/api/v1/community/schedules',
+    {
+      schema: {
+        tags,
+        body: scheduleInputSchema,
+        headers: financeWriteHeaders,
+        response: { 201: result },
+      },
+    },
+    async (req, reply) => {
+      const r = await createSchedule(
+        db,
+        await access(req, 'community:read'),
+        req.headers['idempotency-key'],
+        req.body,
+      );
+      return reply.code(201).header('Idempotency-Replayed', String(r.replayed)).send(r.data);
+    },
+  );
+  app.put(
+    '/api/v1/community/schedules/:id/answers',
+    {
+      schema: {
+        tags,
+        params: idParams,
+        body: scheduleAnswersInputSchema,
+        headers: financeWriteHeaders,
+        response: { 200: result },
+      },
+    },
+    async (req, reply) => {
+      const r = await answerSchedule(
+        db,
+        await access(req, 'community:vote'),
+        req.headers['idempotency-key'],
+        req.params.id,
+        req.body,
+      );
+      return reply.header('Idempotency-Replayed', String(r.replayed)).send(r.data);
+    },
+  );
+  app.post(
+    '/api/v1/community/schedules/:id/close',
+    {
+      schema: {
+        tags,
+        params: idParams,
+        body: scheduleCloseSchema,
+        headers: financeWriteHeaders,
+        response: { 200: result },
+      },
+    },
+    async (req, reply) => {
+      const r = await closeSchedule(
+        db,
+        await access(req, 'community:read'),
+        req.headers['idempotency-key'],
+        req.params.id,
+        req.body,
+      );
+      return reply.header('Idempotency-Replayed', String(r.replayed)).send(r.data);
+    },
   );
   app.get(
     '/api/v1/community/audiences',

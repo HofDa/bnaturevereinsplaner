@@ -16,6 +16,7 @@ import {
   MessagesSquare,
   CornerUpLeft,
   Share2,
+  CalendarClock,
 } from 'lucide-react';
 import {
   communityInputSchema,
@@ -29,6 +30,7 @@ import { useSession } from '../app/session';
 import { useFinancialWrite } from './finance/client';
 import { ChatReactions, EmojiPicker } from './community-emoji';
 import { UnreadBadge, useMarkRead, useUnread } from './community-unread';
+import { ScheduleEditor, ScheduleList, canCreateSchedules } from './community-schedules';
 import {
   AttachmentCard,
   ComposeBanner,
@@ -310,8 +312,16 @@ export function CommunityIndex() {
   const { me } = useSession();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const kind: Kind | 'chat' =
-    params.get('kind') === 'chat' ? 'chat' : params.get('kind') === 'poll' ? 'poll' : 'news';
+  const kind: Kind | 'chat' | 'schedule' =
+    params.get('kind') === 'chat'
+      ? 'chat'
+      : params.get('kind') === 'poll'
+        ? 'poll'
+        : params.get('kind') === 'schedule'
+          ? 'schedule'
+          : 'news';
+  const [creatingSchedule, setCreatingSchedule] = useState(false);
+  const scheduleState = params.get('state') === 'closed' ? 'closed' : 'open';
   const state = ['draft', 'archived'].includes(params.get('state') ?? '')
     ? params.get('state')!
     : 'published';
@@ -332,13 +342,13 @@ export function CommunityIndex() {
   const posts = useQuery({
     queryKey: ['community', 'posts', me.activeOrganizationId, query.toString()],
     queryFn: () => api<Page<CommunityPost>>(`/community/posts?${query}`),
-    enabled: kind !== 'chat',
+    enabled: kind === 'news' || kind === 'poll',
   });
   const unread = useUnread().data;
   const chatUnread = (id: string | null) => unread?.chat.find((c) => c.groupId === id)?.count ?? 0;
   // The unfiltered first page shows the newest posts, so seeing it marks the tab as read.
   const newest =
-    kind !== 'chat' && state === 'published' && page === 1 && !groupId
+    (kind === 'news' || kind === 'poll') && state === 'published' && page === 1 && !groupId
       ? posts.data?.items.reduce<string | null>(
           (max, post) =>
             post.publishedAt && (!max || post.publishedAt > max) ? post.publishedAt : max,
@@ -359,17 +369,24 @@ export function CommunityIndex() {
         title={t('commTitle')}
         description={t('commIntro')}
         actions={
-          canManage &&
-          kind !== 'chat' && (
-            <Button onClick={() => setCreating(true)}>
-              <Plus size={17} />
-              {t(kind === 'news' ? 'commCreateNews' : 'commCreatePoll')}
-            </Button>
-          )
+          kind === 'schedule'
+            ? canCreateSchedules(me.permissions) && (
+                <Button onClick={() => setCreatingSchedule(true)}>
+                  <Plus size={17} />
+                  {t('schedCreate')}
+                </Button>
+              )
+            : canManage &&
+              kind !== 'chat' && (
+                <Button onClick={() => setCreating(true)}>
+                  <Plus size={17} />
+                  {t(kind === 'news' ? 'commCreateNews' : 'commCreatePoll')}
+                </Button>
+              )
         }
       />
       <div className="community-tabs" role="tablist" aria-label={t('commTitle')}>
-        {(['news', 'poll', 'chat'] as const).map((value) => (
+        {(['news', 'poll', 'schedule', 'chat'] as const).map((value) => (
           <button
             key={value}
             role="tab"
@@ -380,35 +397,55 @@ export function CommunityIndex() {
             onKeyDown={(event) => {
               if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
               event.preventDefault();
-              const tabs = ['news', 'poll', 'chat'] as const;
+              const tabs = ['news', 'poll', 'schedule', 'chat'] as const;
               const index = tabs.indexOf(value);
               const next =
                 event.key === 'Home'
                   ? 'news'
                   : event.key === 'End'
                     ? 'chat'
-                    : tabs[(index + (event.key === 'ArrowRight' ? 1 : 2)) % 3]!;
+                    : tabs[
+                        (index + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length
+                      ]!;
               filter('kind', next);
               document.getElementById(`community-tab-${next}`)?.focus();
             }}
             className={kind === value ? 'active' : ''}
-            onClick={() => filter('kind', value)}
+            onClick={() => {
+              const next = new URLSearchParams(params);
+              next.set('kind', value);
+              next.delete('page');
+              next.delete('state');
+              setParams(next);
+            }}
           >
             {value === 'news' ? (
               <Newspaper size={18} />
             ) : value === 'poll' ? (
               <ChartColumn size={18} />
+            ) : value === 'schedule' ? (
+              <CalendarClock size={18} />
             ) : (
               <MessagesSquare size={18} />
             )}
-            {t(value === 'news' ? 'commNews' : value === 'poll' ? 'commPolls' : 'commChat')}
+            {t(
+              value === 'news'
+                ? 'commNews'
+                : value === 'poll'
+                  ? 'commPolls'
+                  : value === 'schedule'
+                    ? 'schedTab'
+                    : 'commChat',
+            )}
             <UnreadBadge
               count={
                 value === 'news'
                   ? unread?.news
                   : value === 'poll'
                     ? unread?.polls
-                    : unread?.chat.reduce((n, c) => n + c.count, 0)
+                    : value === 'chat'
+                      ? unread?.chat.reduce((n, c) => n + c.count, 0)
+                      : 0
               }
             />
           </button>
@@ -429,7 +466,15 @@ export function CommunityIndex() {
             ))}
           </select>
         </Field>
-        {canManage && kind !== 'chat' && (
+        {kind === 'schedule' && (
+          <Field label={t('status')}>
+            <select value={scheduleState} onChange={(e) => filter('state', e.target.value)}>
+              <option value="open">{t('commOpen')}</option>
+              <option value="closed">{t('commClosed')}</option>
+            </select>
+          </Field>
+        )}
+        {canManage && (kind === 'news' || kind === 'poll') && (
           <Field label={t('status')}>
             <select value={state} onChange={(e) => filter('state', e.target.value)}>
               <option value="published">{t('commState_published')}</option>
@@ -442,6 +487,8 @@ export function CommunityIndex() {
       <section id="community-panel" role="tabpanel" aria-labelledby={`community-tab-${kind}`}>
         {kind === 'chat' ? (
           <CommunityChat key={`${me.activeOrganizationId}:${groupId}`} groupId={groupId || null} />
+        ) : kind === 'schedule' ? (
+          <ScheduleList state={scheduleState} groupId={groupId} />
         ) : posts.isPending ? (
           <Loading />
         ) : posts.isError ? (
@@ -509,7 +556,17 @@ export function CommunityIndex() {
           </>
         )}
       </section>
-      {creating && kind !== 'chat' && (
+      {creatingSchedule && (
+        <ScheduleEditor
+          defaultGroupId={groupId || null}
+          onClose={() => setCreatingSchedule(false)}
+          onSaved={(id) => {
+            setCreatingSchedule(false);
+            navigate(`/community/schedules/${id}`);
+          }}
+        />
+      )}
+      {creating && (kind === 'news' || kind === 'poll') && (
         <CommunityEditor
           key={kind}
           kind={kind}

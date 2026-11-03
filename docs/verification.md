@@ -1,5 +1,23 @@
 # Prüfnachweise
 
+## Gesamtlauf und Ratenbegrenzung – 03.11.2026
+
+Auf `feat/scheduling-polls` nach allen Erweiterungen:
+
+- Ein vollständiger Browserlauf zeigte, dass die Ledger-Suite nach den Erweiterungen die globale Grenze von 150 API-Anfragen je Minute und IP erreichte (auf `master` nicht). Ursache: Die Ungelesen-Abfrage der Navigation läuft bei jedem Seitenaufruf und alle 30 Sekunden. `GET /community/unread` hat deshalb ein eigenes Kontingent (120 je Minute) und belastet das allgemeine Kontingent für Nutzeraktionen nicht mehr; ein Integrationstest prüft die Trennung.
+- Die Browserabläufe für Vereinschat (`community-chat`) und Terminfindung (`schedule`) laufen als eigene Suiten, weil mehrere Tests einer Datei zusammen die Anmeldegrenze von 10 je Minute erreichten. Neue Abläufe warten nach dem Abmelden auf das Anmeldeformular, damit die folgende Navigation die Abmeldung nicht abbricht.
+- Vollständiger Browserlauf: alle 16 Suiten auf Desktop und die ersten sechs auf Mobil bestanden; danach brach der Lauf am Offline-Test `events` (Mobil) ab, der ohne Zeitlimit darauf wartet, dass der Service Worker die Seite übernimmt. Die Suite `events` bestand auf Mobil davor und danach dreimal einzeln. Ob das größere App-Bundle (mehr Vorab-Cache) die Übernahme verlangsamt, ist nicht geklärt; die restlichen Mobil-Suiten wurden im selben Gesamtlauf deshalb nicht erneut ausgeführt, aber zuvor einzeln bestanden.
+- Offen für den produktiven Betrieb: Die Grenzen gelten je IP. Mehrere Mitglieder hinter einer gemeinsamen Adresse (z. B. Vereinsheim-WLAN) teilen sich ein Kontingent; der Chat fragt bei geöffneter Ansicht alle 5 Sekunden ab.
+
+## Terminfindung – 03.11.2026
+
+Auf `feat/scheduling-polls`, gestapelt auf `feat/chat-extras`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt; erneute Migrationserzeugung meldet keine Schemaabweichung nach `0023_scheduling_polls`.
+- **100/100 Unit-/UI-Tests** und **196/196 PostgreSQL-Integrationstests**. Neu: Anlegen nur mit Redaktions- oder Veranstaltungsrecht, ungültige Termine abgewiesen; Ja/Wenn nötig/Nein je Termin, gleichzeitige Wiederholung mit demselben Schlüssel, Ändern ersetzt die Antwort, Zählung, beste Option, Teilnehmende; fremde Termine 404; Abschluss nur durch Organisator oder Redaktion mit festgelegtem Termin, danach keine Antworten (API und PostgreSQL); Gruppenzugang, Mandantengrenze, abgelaufene Frist.
+- **6/6 Browserabläufe** `chat-poll` und **6/6** Vereinsleben (Desktop und Mobil): Terminfindung anlegen, beantworten, zweite Person antwortet, Übersicht „Wer kann wann?“, Abschluss mit bestem Termin, Axe, keine horizontale Verschiebung. Dabei behoben: Die Reiterleiste mit vier Reitern verschob auf Mobilgeräten die Seite (jetzt eigener Scrollbereich).
+- Kein Push, PR oder Deployment; Migration nicht auf Produktionsdaten angewendet.
+
 ## Chat: Antworten, Erwähnungen, Karten – 03.11.2026
 
 Auf `feat/chat-extras`, gestapelt auf `feat/volunteer-self-reports`:
