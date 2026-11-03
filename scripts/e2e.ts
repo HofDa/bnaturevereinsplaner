@@ -19,7 +19,22 @@ const suites = [
   'schedule',
   'newsletter',
 ];
-const requested = process.argv.slice(2);
+// Suites whose layout differs on phones (navigation, tabs, wide tables, charts, dialogs).
+// CI runs only these on mobile for pull requests; the nightly run covers all of them.
+const mobileSuites = [
+  'platform',
+  'community',
+  'community-chat',
+  'schedule',
+  'reports',
+  'member-extras',
+];
+const args = process.argv.slice(2);
+const flag = (name: string) => args.find((a) => a === name || a.startsWith(`${name}=`));
+const projectArg = flag('--project')?.split('=')[1];
+if (projectArg && !['desktop', 'mobile'].includes(projectArg)) throw new Error('Unknown project');
+const mobileSubset = !!flag('--mobile-subset');
+const requested = args.filter((a) => !a.startsWith('--'));
 if (requested.some((s) => !suites.includes(s))) throw new Error('Unknown E2E suite');
 const build = spawn('bun', ['run', '--filter', '@bnature/web', 'build'], {
   stdio: 'inherit',
@@ -28,8 +43,13 @@ const build = spawn('bun', ['run', '--filter', '@bnature/web', 'build'], {
 const [buildCode] = await once(build, 'exit');
 if (buildCode !== 0) process.exit(typeof buildCode === 'number' ? buildCode : 1);
 // Each suite gets the real rate limits and a fresh API process; fast synthetic sessions do not share IP counters.
-for (const project of ['desktop', 'mobile']) {
-  for (const suite of requested.length ? requested : suites) {
+for (const project of projectArg ? [projectArg] : ['desktop', 'mobile']) {
+  const selected = requested.length
+    ? requested
+    : project === 'mobile' && mobileSubset
+      ? mobileSuites
+      : suites;
+  for (const suite of selected) {
     console.log(`\nBrowser suite: ${suite} / ${project}`);
     const child = spawn(
       'bun',

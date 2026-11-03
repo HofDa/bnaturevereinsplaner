@@ -47,6 +47,8 @@ bun run test:e2e
 
 Für die neue Mail-Browsersuite muss zusätzlich `docker compose --profile mail up -d mailpit` laufen. Gezielt prüfen: `bun run test:e2e mail`.
 
+`bun run test:e2e` führt lokal alle Suiten auf Desktop und Mobil aus. Optionen: `--project=desktop|mobile` (nur ein Format) und `--mobile-subset` (auf Mobil nur die layoutempfindlichen Suiten `platform`, `community`, `community-chat`, `schedule`, `reports`, `member-extras`). Die CI führt Prüfungen und Browsertests als parallele Jobs aus: Desktop vollständig, Mobil bei Pushes und Pull Requests mit `--mobile-subset`, nächtlich (02:00 UTC) vollständig.
+
 Integrationstests und E2E-Tests verwenden ausschließlich die Datenbank **bnature_test** auf Port **55440**. Sie setzen deren Daten zurück und müssen nacheinander laufen. Desktop und Mobilprojekt starten bewusst getrennte API-Prozesse, damit die Rate-Limits auch bei der schnellen Gesamtprüfung aktiv bleiben, ohne die Anfragen beider künstlicher Nutzungsreihen zu addieren. Die Suite verweigert andere Datenbanknamen und benötigt `NODE_ENV=test`. PostgreSQL-Tests prüfen echte Better-Auth-Sessions, Transaktionen, Constraints, Statuswechsel und organisationsübergreifende Zugriffe. Playwright prüft Desktop und Mobilformat einschließlich Offline-App-Shell und verschlüsselter Offline-Anwesenheit mit Neuladen, Sessionablauf, Rechteentzug und Konflikten; Testdaten sind ausdrücklich synthetisch. `CHROME_PATH` kann einen anderen Chromium-Pfad angeben. CI installiert den passenden Playwright-Browser.
 
 `bun run format` formatiert Quellcode und Dokumentation. Änderungen an Drizzle-Schemas: `bun run db:generate`, die erzeugte SQL-Migration prüfen und versionieren, dann `bun run db:migrate`. Der API-Server verändert beim Start kein Schema.
