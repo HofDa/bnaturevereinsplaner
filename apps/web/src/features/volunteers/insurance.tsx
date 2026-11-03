@@ -1,3 +1,4 @@
+import { useBusinessDate } from '../../hooks/use-business-date';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -27,7 +28,6 @@ import {
   FormModal,
   StatusTag,
   VolunteerNavigation,
-  todayIso,
   usePermission,
   usePrivateUpload,
   useVolunteerWrite,
@@ -79,6 +79,7 @@ function policyPayload(v: FormValues) {
   };
 }
 function PolicyDetail({ policy, onClose }: { policy: InsurancePolicy; onClose: () => void }) {
+  const todayIso = useBusinessDate();
   const { t, i18n } = useTranslation(),
     { me } = useSession(),
     can = usePermission(),
@@ -367,6 +368,7 @@ function PolicyDetail({ policy, onClose }: { policy: InsurancePolicy; onClose: (
   );
 }
 export function VolunteerInsurance() {
+  const todayIso = useBusinessDate();
   const { t, i18n } = useTranslation(),
     { me } = useSession(),
     can = usePermission(),

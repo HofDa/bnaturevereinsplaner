@@ -669,6 +669,24 @@ describe('attendance and offline operation protocol', () => {
     expect(ics.body).not.toContain('Mira Member');
     expect((await get(`/events/${event.id}/attendance/export`, member)).statusCode).toBe(403);
   });
+  it('escapes control-prefixed user names in the actual attendance CSV', async () => {
+    const [before] = await db.select().from(s.user).where(eq(s.user.id, leadId));
+    try {
+      const update = await app.inject({
+        method: 'POST',
+        url: '/api/auth/update-user',
+        headers: headers(lead),
+        payload: { name: '\t=1+1' },
+      });
+      expect(update.statusCode, update.body).toBe(200);
+      const csv = await get(`/events/${event.id}/attendance/export?format=csv`, lead);
+      expect(csv.statusCode, csv.body).toBe(200);
+      expect(csv.body).toContain('"\'\t=1+1"');
+      expect(csv.body).not.toContain('"\t=1+1"');
+    } finally {
+      await db.update(s.user).set({ name: before!.name }).where(eq(s.user.id, leadId));
+    }
+  });
   it('links private event documents without exposing general archives to project leaders', async () => {
     const response = await app.inject({
       method: 'POST',
@@ -735,5 +753,37 @@ describe('attendance and offline operation protocol', () => {
     expect(sync.results[0]!.status).toBe('rejected');
     expect(await db.select().from(s.cashbookEntries)).toEqual([]);
     expect(await db.select().from(s.payments)).toEqual([]);
+  });
+  it('keeps the full waitlist rank when members can only see their own registration', async () => {
+    const ranked = await ok<EventOccurrence>(
+      await post('/events', payload({ capacity: 1 }), lead),
+      201,
+    );
+    await ok(
+      await post(
+        `/events/${ranked.id}/registrations`,
+        { guest: { firstName: 'First', lastName: 'Seat' } },
+        lead,
+      ),
+      201,
+    );
+    await ok(
+      await post(
+        `/events/${ranked.id}/registrations`,
+        { guest: { firstName: 'First', lastName: 'Waiting' } },
+        lead,
+      ),
+      201,
+    );
+    const own = await ok<EventRegistration>(
+      await post(`/events/${ranked.id}/registrations`, {}, member),
+      201,
+    );
+    expect(own.waitlistPosition).toBe(2);
+    const visible = await ok<{ items: EventRegistration[] }>(
+      await get(`/events/${ranked.id}/registrations`, member),
+    );
+    expect(visible.items).toHaveLength(1);
+    expect(visible.items[0]!.waitlistPosition).toBe(2);
   });
 });

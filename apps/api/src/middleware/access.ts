@@ -1,6 +1,6 @@
 import { fromNodeHeaders } from 'better-auth/node';
 import { and, eq, asc } from 'drizzle-orm';
-import { schema, type Database } from '@bnature/db';
+import { schema, type Database, type Executor, type Transaction } from '@bnature/db';
 import { can, idSchema, type Permission, type Role } from '@bnature/contracts';
 import type { FastifyRequest } from 'fastify';
 import type { Auth } from '../auth';
@@ -18,8 +18,56 @@ export type Access = {
   userId: string;
   role: Role;
   user: { id: string; name: string; email: string };
-  organizations: { id: string; name: string; role: Role }[];
+  organizations: { id: string; name: string; role: Role; timezone?: string }[];
 };
+export async function currentAccess(
+  db: Executor,
+  access: Access,
+  permission?: Permission,
+): Promise<Access> {
+  const [row] = await db
+    .select({ role: schema.organizationUserRoles.role })
+    .from(schema.organizationUserRoles)
+    .where(
+      and(
+        eq(schema.organizationUserRoles.organizationId, access.organizationId),
+        eq(schema.organizationUserRoles.userId, access.userId),
+      ),
+    );
+  if (!row || (permission && !can(row.role, permission)))
+    throw new HttpError(403, 'FORBIDDEN', 'Keine Berechtigung für diese Aktion.');
+  return { ...access, role: row.role };
+}
+export async function lockAccess(
+  tx: Transaction,
+  access: Access,
+  permission?: Permission,
+): Promise<Access> {
+  const [organization] = await tx
+    .select({ id: schema.organizations.id })
+    .from(schema.organizations)
+    .where(eq(schema.organizations.id, access.organizationId))
+    .for('no key update');
+  if (!organization) throw new HttpError(404, 'NOT_FOUND', 'Organisation nicht gefunden.');
+  return currentAccess(tx, access, permission);
+}
+export async function assertResponsibleUser(
+  db: Executor,
+  access: Access,
+  userId: string | null | undefined,
+) {
+  if (!userId) return;
+  const [row] = await db
+    .select({ id: schema.organizationUserRoles.userId })
+    .from(schema.organizationUserRoles)
+    .where(
+      and(
+        eq(schema.organizationUserRoles.organizationId, access.organizationId),
+        eq(schema.organizationUserRoles.userId, userId),
+      ),
+    );
+  if (!row) throw new HttpError(422, 'INVALID_RELATION', 'Verantwortliche Person unbekannt.');
+}
 export function accessControl(db: Database, auth: Auth) {
   return async (request: FastifyRequest, permission?: Permission): Promise<Access> => {
     const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
@@ -29,6 +77,7 @@ export function accessControl(db: Database, auth: Auth) {
         id: schema.organizations.id,
         name: schema.organizations.name,
         role: schema.organizationUserRoles.role,
+        timezone: schema.organizations.timezone,
       })
       .from(schema.organizationUserRoles)
       .innerJoin(

@@ -1,3 +1,5 @@
+import { assertResponsibleUser } from '../../middleware/access';
+import { businessDate } from '../../services/business-date';
 import { and, eq, sql, asc, desc, count, gte, lte, isNull } from 'drizzle-orm';
 import { schema as s, type Database, type Executor, type Transaction } from '@bnature/db';
 import {
@@ -23,7 +25,6 @@ import { audit } from '../../services/audit';
 import { financialOperation, readSnapshot } from '../finance/operations';
 import { getDocument } from '../documents';
 import { wire } from '../responses';
-import { today } from './common';
 
 const cr = s.complianceRules,
   cd = s.complianceDeadlines;
@@ -319,7 +320,7 @@ async function presentDeadline(db: Executor, a: Access, id: string): Promise<Com
     )
     .orderBy(asc(s.complianceDeadlineHistory.createdAt));
   const d = row.deadline,
-    now = today(),
+    now = await businessDate(db, a.organizationId),
     open = d.status === 'open' || d.status === 'in_progress';
   return deadlineSchema.parse({
     ...wire(d),
@@ -375,23 +376,7 @@ async function history(
     actorUserId: a.userId,
   });
 }
-async function assertResponsibleUser(
-  tx: Transaction,
-  a: Access,
-  userId: string | null | undefined,
-) {
-  if (!userId) return;
-  const [row] = await tx
-    .select({ id: s.organizationUserRoles.userId })
-    .from(s.organizationUserRoles)
-    .where(
-      and(
-        eq(s.organizationUserRoles.organizationId, a.organizationId),
-        eq(s.organizationUserRoles.userId, userId),
-      ),
-    );
-  if (!row) throw new HttpError(422, 'INVALID_RELATION', 'Verantwortliche Person unbekannt.');
-}
+
 const deadlineResult =
   (db: Database, a: Access) => async (r: { data: { id: string }; replayed: boolean }) => ({
     data: await presentDeadline(db, a, r.data.id),
@@ -561,7 +546,7 @@ export function completeDeadline(
         throw new HttpError(409, 'STALE_VERSION', 'Die Frist wurde zwischenzeitlich geändert.');
       if (row.status === 'done' || row.status === 'not_applicable')
         throw new HttpError(409, 'DEADLINE_DONE', 'Die Frist ist bereits abgeschlossen.');
-      if (input.completedOn > today())
+      if (input.completedOn > (await businessDate(tx, a.organizationId)))
         throw new HttpError(422, 'VALIDATION_ERROR', 'Das Erledigungsdatum liegt in der Zukunft.');
       const [evidence] = await tx
         .select({ n: count() })

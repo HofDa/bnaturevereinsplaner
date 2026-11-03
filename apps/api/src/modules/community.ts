@@ -1,4 +1,4 @@
-import { and, or, eq, isNull, sql, asc, desc, count } from 'drizzle-orm';
+import { and, or, eq, isNull, sql, asc, desc, count, inArray } from 'drizzle-orm';
 import { schema as s, type Database, type Executor } from '@bnature/db';
 import {
   can,
@@ -7,25 +7,13 @@ import {
   type CommunityInput,
   type CommunityQuery,
 } from '@bnature/contracts';
-import { HttpError, type Access } from '../middleware/access';
+import { HttpError, currentAccess, type Access } from '../middleware/access';
 import { audit } from '../services/audit';
 import { financialOperation, readSnapshot } from './finance/operations';
 import { wire } from './responses';
 const p = s.communityPosts;
 const manager = (a: Access) => can(a.role, 'community:manage');
-export async function currentAccess(db: Executor, a: Access): Promise<Access> {
-  const [role] = await db
-    .select({ role: s.organizationUserRoles.role })
-    .from(s.organizationUserRoles)
-    .where(
-      and(
-        eq(s.organizationUserRoles.organizationId, a.organizationId),
-        eq(s.organizationUserRoles.userId, a.userId),
-      ),
-    );
-  if (!role) throw new HttpError(403, 'FORBIDDEN', 'Kein Vereinszugang.');
-  return { ...a, role: role.role };
-}
+export { currentAccess } from '../middleware/access';
 function audienceCondition(a: Access) {
   return or(
     isNull(p.groupId),
@@ -107,75 +95,93 @@ async function postRow(db: Executor, a: Access, id: string): Promise<Row> {
   if (!row) throw new HttpError(404, 'NOT_FOUND', 'Beitrag nicht gefunden.');
   return { ...row.post, authorName: row.authorName, groupName: row.groupName };
 }
-async function response(db: Executor, a: Access, row: Row) {
-  const isClosed =
-    row.kind === 'poll' &&
-    (row.state === 'archived' ||
-      !!row.closedAt ||
-      (!!row.closesAt && row.closesAt.getTime() <= Date.now()));
-  const [own] =
-    row.kind === 'poll'
-      ? await db
-          .select({ optionId: s.communityVotes.optionId })
-          .from(s.communityVotes)
-          .where(
-            and(
-              eq(s.communityVotes.organizationId, a.organizationId),
-              eq(s.communityVotes.postId, row.id),
-              eq(s.communityVotes.userId, a.userId),
-            ),
-          )
-      : [];
-  const resultsVisible =
-    row.kind === 'poll' &&
-    row.state !== 'draft' &&
-    pollResultsVisible(row.resultsVisibility, isClosed, !!own);
-  const options =
-    row.kind === 'poll'
-      ? await db
-          .select()
-          .from(s.communityOptions)
-          .where(
-            and(
-              eq(s.communityOptions.organizationId, a.organizationId),
-              eq(s.communityOptions.postId, row.id),
-            ),
-          )
-          .orderBy(asc(s.communityOptions.position))
-      : [];
-  const totals = resultsVisible
+async function responses(db: Executor, a: Access, rows: Row[]) {
+  const ids = rows.filter((row) => row.kind === 'poll').map((row) => row.id);
+  const ownRows = ids.length
     ? await db
-        .select({ optionId: s.communityVotes.optionId, votes: count() })
+        .select({ postId: s.communityVotes.postId, optionId: s.communityVotes.optionId })
         .from(s.communityVotes)
         .where(
           and(
             eq(s.communityVotes.organizationId, a.organizationId),
-            eq(s.communityVotes.postId, row.id),
+            inArray(s.communityVotes.postId, ids),
+            eq(s.communityVotes.userId, a.userId),
           ),
         )
-        .groupBy(s.communityVotes.optionId)
     : [];
-  const votes = new Map(totals.map((t) => [t.optionId, t.votes]));
-  return communityPostSchema.parse(
-    wire({
-      ...row,
-      isClosed,
-      myOptionId: own?.optionId ?? null,
-      resultsVisible,
-      canManage: manager(a),
-      canVote:
-        row.kind === 'poll' &&
-        row.state === 'published' &&
-        !isClosed &&
-        can(a.role, 'community:vote'),
-      totalVotes: resultsVisible ? totals.reduce((sum, t) => sum + t.votes, 0) : null,
-      options: options.map((option) => ({
-        id: option.id,
-        labelI18n: option.labelI18n,
-        votes: resultsVisible ? (votes.get(option.id) ?? 0) : null,
-      })),
-    }),
-  );
+  const own = new Map(ownRows.map((row) => [row.postId, row.optionId]));
+  const closed = (row: Row) =>
+    row.kind === 'poll' &&
+    (row.state === 'archived' ||
+      !!row.closedAt ||
+      (!!row.closesAt && row.closesAt.getTime() <= Date.now()));
+  const resultsVisible = (row: Row) =>
+    row.kind === 'poll' &&
+    row.state !== 'draft' &&
+    pollResultsVisible(row.resultsVisibility, closed(row), own.has(row.id));
+  const visibleIds = rows.filter(resultsVisible).map((row) => row.id);
+  const options = ids.length
+    ? await db
+        .select()
+        .from(s.communityOptions)
+        .where(
+          and(
+            eq(s.communityOptions.organizationId, a.organizationId),
+            inArray(s.communityOptions.postId, ids),
+          ),
+        )
+        .orderBy(asc(s.communityOptions.position))
+    : [];
+  const totals = visibleIds.length
+    ? await db
+        .select({
+          postId: s.communityVotes.postId,
+          optionId: s.communityVotes.optionId,
+          votes: count(),
+        })
+        .from(s.communityVotes)
+        .where(
+          and(
+            eq(s.communityVotes.organizationId, a.organizationId),
+            inArray(s.communityVotes.postId, visibleIds),
+          ),
+        )
+        .groupBy(s.communityVotes.postId, s.communityVotes.optionId)
+    : [];
+  const votes = new Map(totals.map((total) => [total.optionId, total.votes]));
+  return rows.map((row) => {
+    const isClosed = closed(row),
+      showResults = resultsVisible(row);
+    return communityPostSchema.parse(
+      wire({
+        ...row,
+        isClosed,
+        myOptionId: own.get(row.id) ?? null,
+        resultsVisible: showResults,
+        canManage: manager(a),
+        canVote:
+          row.kind === 'poll' &&
+          row.state === 'published' &&
+          !isClosed &&
+          can(a.role, 'community:vote'),
+        totalVotes: showResults
+          ? totals
+              .filter((total) => total.postId === row.id)
+              .reduce((sum, total) => sum + total.votes, 0)
+          : null,
+        options: options
+          .filter((option) => option.postId === row.id)
+          .map((option) => ({
+            id: option.id,
+            labelI18n: option.labelI18n,
+            votes: showResults ? (votes.get(option.id) ?? 0) : null,
+          })),
+      }),
+    );
+  });
+}
+async function response(db: Executor, a: Access, row: Row) {
+  return (await responses(db, a, [row]))[0]!;
 }
 export function getCommunityPost(db: Database, access: Access, id: string) {
   return readSnapshot(db, async (tx) => {
@@ -201,15 +207,11 @@ export function listCommunityPosts(db: Database, access: Access, query: Communit
       .limit(12)
       .offset((query.page - 1) * 12);
     const [total] = await tx.select({ n: count() }).from(p).where(where);
-    const items = [];
-    for (const row of rows)
-      items.push(
-        await response(tx, a, {
-          ...row.post,
-          authorName: row.authorName,
-          groupName: row.groupName,
-        }),
-      );
+    const items = await responses(
+      tx,
+      a,
+      rows.map((row) => ({ ...row.post, authorName: row.authorName, groupName: row.groupName })),
+    );
     return { items, total: total?.n ?? 0, page: query.page, pageSize: 12 };
   });
 }

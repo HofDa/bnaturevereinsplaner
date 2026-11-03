@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { schema as s, type Database, type Transaction } from '@bnature/db';
-import { can, type Permission } from '@bnature/contracts';
-import { HttpError, type Access } from '../middleware/access';
+import { type Permission } from '@bnature/contracts';
+import { HttpError, lockAccess, type Access } from '../middleware/access';
 import { canonicalJson } from './finance/operations';
 export const eventHash = (input: unknown) =>
   createHash('sha256').update(canonicalJson(input)).digest('hex');
@@ -16,24 +16,8 @@ export async function eventWrite<T extends Record<string, unknown>>(
   work: (tx: Transaction, current: Access) => Promise<T>,
 ) {
   return db.transaction(async (tx) => {
-    await tx
-      .select({ id: s.organizations.id })
-      .from(s.organizations)
-      .where(eq(s.organizations.id, a.organizationId))
-      .for('no key update');
-    const [role] = await tx
-      .select()
-      .from(s.organizationUserRoles)
-      .where(
-        and(
-          eq(s.organizationUserRoles.organizationId, a.organizationId),
-          eq(s.organizationUserRoles.userId, a.userId),
-        ),
-      );
-    if (!role || !can(role.role, permission))
-      throw new HttpError(403, 'FORBIDDEN', 'Keine Berechtigung.');
-    const current = { ...a, role: role.role },
-      hash = eventHash({ operation, input, actor: a.userId });
+    const current = await lockAccess(tx, a, permission);
+    const hash = eventHash({ operation, input, actor: a.userId });
     const [previous] = await tx
       .select()
       .from(s.eventOperations)

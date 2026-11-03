@@ -1,13 +1,7 @@
+import { login } from './helpers/login';
 import { test, expect, request as requestFactory, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 const appOrigin = `http://localhost:${process.env.E2E_WEB_PORT ?? '5174'}`;
-async function login(page: Page, email = 'e2e@example.test') {
-  await page.goto('/');
-  await page.getByLabel('E-Mail', { exact: true }).fill(email);
-  await page.getByLabel('Passwort', { exact: true }).fill('E2E-only-Password-2026!');
-  await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Abmelden', exact: true })).toBeVisible();
-}
 const writeHeaders = () => ({
   Origin: appOrigin,
   'Idempotency-Key': crypto.randomUUID(),
@@ -47,6 +41,10 @@ async function fixture(page: Page, title: string) {
   return { event, registrations, org: me.activeOrganizationId };
 }
 async function prepare(page: Page, eventId: string) {
+  // Finish installation before a full navigation can interrupt the registering document.
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
   await page.goto(`/events/${eventId}?tab=attendance`);
   await expect(
     page.getByRole('button', { name: 'Für Offline-Nutzung vorbereiten', exact: true }),

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Download, WifiOff } from 'lucide-react';
@@ -7,21 +7,32 @@ type InstallEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: string }>;
 };
-export function PwaStatus() {
-  const { t } = useTranslation();
+const PwaContext = createContext<{
+  offline: boolean;
+  install: InstallEvent | null;
+  needRefresh: boolean;
+  setNeedRefresh: (value: boolean) => void;
+  updateServiceWorker: (reload?: boolean) => Promise<void>;
+  clearInstall: () => void;
+} | null>(null);
+export function PwaProvider({ children }: { children: ReactNode }) {
   const [offline, setOffline] = useState(!navigator.onLine),
     [install, setInstall] = useState<InstallEvent | null>(null);
+  const registration = useRef<ServiceWorkerRegistration | undefined>(undefined);
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegisteredSW: (_url, registration) => {
-      if (registration) window.addEventListener('online', () => void registration.update());
+    onRegisteredSW: (_url, value) => {
+      registration.current = value;
     },
   });
   useEffect(() => {
     const off = () => setOffline(true),
-      on = () => setOffline(false),
+      on = () => {
+        setOffline(false);
+        void registration.current?.update();
+      },
       ready = (event: Event) => {
         event.preventDefault();
         setInstall(event as InstallEvent);
@@ -35,6 +46,27 @@ export function PwaStatus() {
       window.removeEventListener('beforeinstallprompt', ready);
     };
   }, []);
+  return (
+    <PwaContext.Provider
+      value={{
+        offline,
+        install,
+        needRefresh,
+        setNeedRefresh,
+        updateServiceWorker,
+        clearInstall: () => setInstall(null),
+      }}
+    >
+      {children}
+    </PwaContext.Provider>
+  );
+}
+export function PwaStatus() {
+  const { t } = useTranslation();
+  const context = useContext(PwaContext);
+  if (!context) throw new Error('PWA provider missing');
+  const { offline, install, needRefresh, setNeedRefresh, updateServiceWorker, clearInstall } =
+    context;
   return (
     <>
       {offline && (
@@ -59,7 +91,7 @@ export function PwaStatus() {
           onClick={async () => {
             await install.prompt();
             await install.userChoice;
-            setInstall(null);
+            clearInstall();
           }}
         >
           <Download size={16} />

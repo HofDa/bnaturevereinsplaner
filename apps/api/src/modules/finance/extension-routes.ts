@@ -1,3 +1,4 @@
+import { csvCell } from '@bnature/contracts';
 import { z } from 'zod';
 import type { FastifyReply } from 'fastify';
 const sendBinary = (reply: FastifyReply, bytes: Buffer) => reply.send(bytes);
@@ -42,10 +43,6 @@ import { HttpError } from '../../middleware/access';
 
 const yearQuery = z.object({ fiscalYear: z.coerce.number().int().min(1900).max(2200) });
 const binary = z.string().meta({ format: 'binary' });
-const csvCell = (value: unknown) =>
-  `"${String(value)
-    .replace(/^[=+@-]/, "'$&")
-    .replaceAll('"', '""')}"`;
 export function registerFinanceExtensions({ server, db, access }: ModuleContext) {
   const app = server.withTypeProvider<ZodTypeProvider>(),
     p = '/api/v1/finance',

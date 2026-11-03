@@ -1,3 +1,5 @@
+import { businessDate } from '../../services/business-date';
+import { csvCell } from '@bnature/contracts';
 import { createHash } from 'node:crypto';
 import { and, eq, sql, asc, desc, inArray, getTableColumns } from 'drizzle-orm';
 import { schema as s, type Database, type Executor } from '@bnature/db';
@@ -20,7 +22,7 @@ import { audit } from '../../services/audit';
 import { financialOperation, readSnapshot, canonicalJson } from '../finance/operations';
 import { renderPdf, organizationName } from '../finance/pdf';
 import { wire } from '../responses';
-import { ve, registerSettings, coverageFor, personIdentity, today } from './common';
+import { ve, registerSettings, coverageFor, personIdentity } from './common';
 
 const ip = s.insurancePolicies,
   ic = s.insuranceCoverages;
@@ -43,7 +45,7 @@ async function presentPolicies(
   })[],
 ): Promise<InsurancePolicy[]> {
   const settings = await registerSettings(db, organizationId),
-    now = today();
+    now = await businessDate(db, organizationId);
   return rows.map((row) =>
     policySchema.parse({
       ...wire(row),
@@ -282,8 +284,9 @@ export function endCoverage(
   );
 }
 // Art. 3 c. 5 D.M. 6.10.2021: register data of covered volunteers for the insurer.
-export async function notificationList(db: Database, a: Access, policyId: string, on = today()) {
+export async function notificationList(db: Database, a: Access, policyId: string, on?: string) {
   return readSnapshot(db, async (tx) => {
+    on ??= await businessDate(tx, a.organizationId);
     const policy = await getPolicy(tx, a, policyId);
     const rows = await tx
       .select({ engagement: ve, coveredFrom: ic.coveredFrom, coveredTo: ic.coveredTo })
@@ -367,10 +370,6 @@ const listLabels = {
     checksum: 'Checksum (SHA-256)',
   },
 };
-const cell = (value: unknown) =>
-  `"${String(value ?? '')
-    .replace(/^[=+@-]/, "'$&")
-    .replaceAll('"', '""')}"`;
 export async function notificationListFile(
   db: Database,
   a: Access,
@@ -399,7 +398,7 @@ export async function notificationListFile(
         ...rows,
         [t.checksum, list.sha256, '', '', '', '', '', ''],
       ]
-        .map((row) => row.map(cell).join(';'))
+        .map((row) => row.map(csvCell).join(';'))
         .join('\r\n')
     );
   return renderPdf(
@@ -493,8 +492,9 @@ export function recordNotification(
     },
   );
 }
-export async function coverageOverview(db: Database, a: Access, date = today()) {
+export async function coverageOverview(db: Database, a: Access, date?: string) {
   return readSnapshot(db, async (tx) => {
+    date ??= await businessDate(tx, a.organizationId);
     const engagements = await tx
       .select()
       .from(ve)

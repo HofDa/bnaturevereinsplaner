@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { beforeAll, afterAll, describe, it, expect } from 'vitest';
+import { beforeAll, afterAll, describe, it, expect, vi } from 'vitest';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { eq, sql } from 'drizzle-orm';
 import { createDatabase, schema as s } from '../../packages/db/src';
@@ -1263,5 +1263,41 @@ describe('compliance', () => {
       await get('/volunteers/overview', lead),
     );
     expect([leadOverview.unclearCoverage, leadOverview.lastSnapshot]).toEqual([null, null]);
+  });
+  it('accepts a completion on the organization-local date after UTC midnight differs', async () => {
+    const instant = new Date();
+    instant.setUTCHours(23, 30, 0, 0);
+    const completedOn = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(
+      instant,
+    );
+    const deadline = await ok<ComplianceDeadline>(
+      await post('/compliance-deadlines', {
+        kind: 'internal',
+        titleI18n: { de: 'Mitternacht', it: 'Mezzanotte' },
+        dueDate: completedOn,
+      }),
+      201,
+    );
+    const evidence = await ok<ComplianceDeadline>(
+      await post(`/compliance-deadlines/${deadline.id}/evidence`, {
+        reference: 'Local-midnight regression',
+        description: 'Documented completion',
+      }),
+      201,
+    );
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(instant);
+    try {
+      const done = await ok<ComplianceDeadline>(
+        await post(`/compliance-deadlines/${deadline.id}/complete`, {
+          version: evidence.version,
+          completedOn,
+        }),
+      );
+      expect(done.completedOn).toBe(completedOn);
+      expect(done.status).toBe('done');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

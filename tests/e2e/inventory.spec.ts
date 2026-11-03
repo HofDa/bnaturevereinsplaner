@@ -1,12 +1,6 @@
+import { login } from './helpers/login';
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-async function login(page: Page, email = 'e2e@example.test') {
-  await page.goto('/');
-  await page.getByLabel('E-Mail', { exact: true }).fill(email);
-  await page.getByLabel('Passwort', { exact: true }).fill('E2E-only-Password-2026!');
-  await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Abmelden', exact: true })).toBeVisible();
-}
 async function a11y(page: Page) {
   const result = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
@@ -163,4 +157,47 @@ test('limits inventory actions by role', async ({ page }) => {
   expect((await page.request.get('/api/v1/inventory/my-loans')).status()).toBe(200);
   await page.goto('/inventory');
   await expect(page.getByText('Für diese Ansicht fehlt Ihnen die Berechtigung.')).toBeVisible();
+});
+
+test('shows all history pages for an item with more than 100 loans', async ({ page }) => {
+  await login(page);
+  const created = await page.request.post('/api/v1/inventory/items', {
+    headers: {
+      Origin: `http://localhost:${process.env.E2E_WEB_PORT ?? '5174'}`,
+      'Idempotency-Key': crypto.randomUUID(),
+    },
+    data: { name: 'History pagination regression' },
+  });
+  expect(created.status()).toBe(201);
+  const item = await created.json();
+  await page.route('**/api/v1/inventory/loans?*', async (route) => {
+    const query = new URL(route.request().url()).searchParams;
+    if (query.get('itemId') !== item.id) return route.continue();
+    const current = Number(query.get('page') ?? 1),
+      pageSize = Number(query.get('pageSize') ?? 25);
+    const offset = (current - 1) * pageSize;
+    const items = Array.from({ length: Math.min(pageSize, 101 - offset) }, (_, i) => ({
+      id: `${item.id}-${offset + i}`,
+      borrowerName: `History borrower ${offset + i + 1}`,
+      quantity: 1,
+      issuedOn: '2026-01-01',
+      dueOn: '2026-02-01',
+      returnedOn: '2026-01-02',
+      issueCondition: 'good',
+      returnCondition: 'good',
+      returnNotes: '',
+    }));
+    await route.fulfill({ json: { items, total: 101, page: current, pageSize } });
+  });
+  await page.goto('/inventory');
+  await page.getByRole('button', { name: 'Details öffnen: History pagination regression' }).click();
+  const detail = page.getByRole('dialog');
+  await expect(detail.getByRole('cell', { name: 'History borrower 1', exact: true })).toBeVisible();
+  for (let current = 2; current <= 5; current++) {
+    await detail.getByRole('button', { name: 'Weiter', exact: true }).click();
+    await expect(
+      detail.getByRole('cell', { name: `History borrower ${(current - 1) * 25 + 1}`, exact: true }),
+    ).toBeVisible();
+  }
+  await expect(detail.getByRole('button', { name: 'Weiter', exact: true })).toBeDisabled();
 });

@@ -1,3 +1,4 @@
+import { attachmentDisposition } from '../services/http';
 import { z } from 'zod';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -68,10 +69,7 @@ function uploadedFile(req: FastifyRequest): UploadedFile {
   return { bytes, mediaType: detected, sha256: fingerprint(bytes) };
 }
 // RFC 6266/5987: ASCII fallback plus the exact UTF-8 name.
-function disposition(filename: string) {
-  const fallback = filename.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
-  return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
-}
+
 const replayed = (reply: FastifyReply, value: boolean) =>
   reply.header('Idempotency-Replayed', String(value));
 export function registerDocumentRoutes(context: ModuleContext, prefix = '/api/v1/documents') {
@@ -249,7 +247,7 @@ export function registerDocumentRoutes(context: ModuleContext, prefix = '/api/v1
         );
       return (reply as FastifyReply)
         .type(file.mediaType)
-        .header('Content-Disposition', disposition(file.filename))
+        .header('Content-Disposition', attachmentDisposition(file.filename))
         .header('Content-Security-Policy', "default-src 'none'; sandbox")
         .header('X-Content-Type-Options', 'nosniff')
         .send(file.bytes);

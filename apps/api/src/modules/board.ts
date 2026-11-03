@@ -3,7 +3,7 @@ import type { ModuleContext } from './context';
 import { schema as s } from '@bnature/db';
 import { and, eq, count, asc, desc, ilike, or } from 'drizzle-orm';
 import { patchSchema, idParams, listQuerySchema, boardSchema } from '@bnature/contracts';
-import { HttpError } from '../middleware/access';
+import { HttpError, lockAccess } from '../middleware/access';
 import { audit } from '../services/audit';
 import { escapeLike } from './members';
 import { pageOf, boardResponse } from './responses';
@@ -76,6 +76,7 @@ export function registerBoardRoutes({ server, db, access }: ModuleContext) {
     async (req, reply) => {
       const a = await access(req, 'board:write');
       const result = await db.transaction(async (tx) => {
+        await lockAccess(tx, a, 'board:write');
         const [person] = await tx
           .select({ id: s.persons.id })
           .from(s.persons)
@@ -102,6 +103,7 @@ export function registerBoardRoutes({ server, db, access }: ModuleContext) {
     async (req) => {
       const a = await access(req, 'board:write');
       return db.transaction(async (tx) => {
+        await lockAccess(tx, a, 'board:write');
         const [current] = await tx
           .select()
           .from(s.boardMandates)

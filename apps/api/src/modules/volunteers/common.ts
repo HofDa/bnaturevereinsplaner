@@ -1,3 +1,4 @@
+import { businessDate } from '../../services/business-date';
 import { and, eq, inArray, sql, asc } from 'drizzle-orm';
 import { schema as s, type Executor, type Transaction } from '@bnature/db';
 import {
@@ -12,7 +13,7 @@ import {
 import { HttpError, type Access } from '../../middleware/access';
 
 export const ve = s.volunteerEngagements;
-export const today = () => new Date().toISOString().slice(0, 10);
+
 export function requirePermission(a: Access, permission: Permission) {
   if (!can(a.role, permission))
     throw new HttpError(403, 'FORBIDDEN', 'Diese Aktion ist für Ihre Rolle nicht freigegeben.');
@@ -136,8 +137,9 @@ export async function coverageFor(
   db: Executor,
   organizationId: string,
   engagements: EngagementLike[],
-  date = today(),
+  date?: string,
 ) {
+  date ??= await businessDate(db, organizationId);
   const ids = engagements.map((e) => e.id);
   const result = new Map<string, ReturnType<typeof assessCoverage>>();
   if (!ids.length) return result;
@@ -226,16 +228,4 @@ export async function engagementHistory(
   });
 }
 // Re-read inside write transactions; project leads only act on events they manage.
-export async function currentRole(tx: Transaction, a: Access) {
-  const [row] = await tx
-    .select({ role: s.organizationUserRoles.role })
-    .from(s.organizationUserRoles)
-    .where(
-      and(
-        eq(s.organizationUserRoles.organizationId, a.organizationId),
-        eq(s.organizationUserRoles.userId, a.userId),
-      ),
-    );
-  if (!row) throw new HttpError(403, 'FORBIDDEN', 'Keine Berechtigung.');
-  return { ...a, role: row.role };
-}
+export { currentAccess as currentRole } from '../../middleware/access';

@@ -1,3 +1,4 @@
+import { csvCell } from '@bnature/contracts';
 import { eventLocal, type EventOccurrence } from '@bnature/contracts';
 import type { Database } from '@bnature/db';
 import { HttpError, type Access } from '../middleware/access';
@@ -116,10 +117,6 @@ const labels = {
     cancelled: 'Annullata',
   },
 };
-const cell = (value: unknown) =>
-  `"${String(value)
-    .replace(/^[=+@-]/, "'$&")
-    .replaceAll('"', '""')}"`;
 export async function attendanceExport(
   db: Database,
   a: Access,
@@ -143,7 +140,7 @@ export async function attendanceExport(
       return (
         '\uFEFF' +
         [[t.name, t.registration, t.status, t.checked, t.version, t.recorded], ...lines]
-          .map((row) => row.map(cell).join(';'))
+          .map((row) => row.map(csvCell).join(';'))
           .join('\r\n')
       );
     return renderPdf(

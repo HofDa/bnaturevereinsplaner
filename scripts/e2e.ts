@@ -14,6 +14,12 @@ const suites = [
 ];
 const requested = process.argv.slice(2);
 if (requested.some((s) => !suites.includes(s))) throw new Error('Unknown E2E suite');
+const build = spawn('bun', ['run', '--filter', '@bnature/web', 'build'], {
+  stdio: 'inherit',
+  env: { ...process.env, NODE_ENV: 'production' },
+});
+const [buildCode] = await once(build, 'exit');
+if (buildCode !== 0) process.exit(typeof buildCode === 'number' ? buildCode : 1);
 // Each suite gets the real rate limits and a fresh API process; fast synthetic sessions do not share IP counters.
 for (const project of ['desktop', 'mobile']) {
   for (const suite of requested.length ? requested : suites) {
@@ -31,7 +37,11 @@ for (const project of ['desktop', 'mobile']) {
       ],
       {
         stdio: 'inherit',
-        env: { ...process.env, EMAIL_MODE: suite === 'mail' ? 'local' : 'disabled' },
+        env: {
+          ...process.env,
+          E2E_PREBUILT: 'true',
+          EMAIL_MODE: suite === 'mail' ? 'local' : 'disabled',
+        },
       },
     );
     const interrupt = () => child.kill('SIGTERM');

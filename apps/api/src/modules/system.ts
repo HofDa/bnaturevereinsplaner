@@ -27,6 +27,7 @@ export function registerSystemRoutes({ server, db, access }: ModuleContext) {
       organizations: a.organizations,
       role: a.role,
       activeOrganizationId: a.organizationId,
+      timezone: a.organizations.find((org) => org.id === a.organizationId)?.timezone,
       permissions: permissions.filter((p) => can(a.role, p)),
     };
   });

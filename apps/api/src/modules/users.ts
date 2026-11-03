@@ -4,7 +4,7 @@ import { schema as s } from '@bnature/db';
 import { and, eq, count, asc, desc, ilike, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { idParams, listQuerySchema, userProvisionSchema, roleSchema } from '@bnature/contracts';
-import { HttpError } from '../middleware/access';
+import { HttpError, lockAccess } from '../middleware/access';
 import { createAuth } from '../auth';
 import { audit } from '../services/audit';
 import { escapeLike } from './members';
@@ -56,6 +56,7 @@ export function registerUsersRoutes({ server, db, access, config }: ModuleContex
     async (req, reply) => {
       const a = await access(req, 'users:manage');
       const row = await db.transaction(async (tx) => {
+        await lockAccess(tx, a, 'users:manage');
         const [existingUser] = await tx
           .select({ id: s.user.id })
           .from(s.user)
@@ -112,11 +113,7 @@ export function registerUsersRoutes({ server, db, access, config }: ModuleContex
     async (req) => {
       const a = await access(req, 'users:manage');
       return db.transaction(async (tx) => {
-        await tx
-          .select({ id: s.organizations.id })
-          .from(s.organizations)
-          .where(eq(s.organizations.id, a.organizationId))
-          .for('update');
+        await lockAccess(tx, a, 'users:manage');
         const [target] = await tx
           .select()
           .from(s.organizationUserRoles)

@@ -1,3 +1,4 @@
+import { businessDate } from '../../services/business-date';
 import { createHash } from 'node:crypto';
 import { and, eq, sql, asc, desc, lte } from 'drizzle-orm';
 import { schema as s, type Database, type Executor, type Transaction } from '@bnature/db';
@@ -17,7 +18,7 @@ import {
   type signatureVerificationSchema,
 } from '@bnature/contracts';
 import type { z } from 'zod';
-import { HttpError, type Access } from '../../middleware/access';
+import { HttpError, currentAccess, type Access } from '../../middleware/access';
 import { audit } from '../../services/audit';
 import type { DocumentStorage } from '../../services/storage';
 import { technicalSignatureChecks, manualExternalProvider } from '../../services/signature';
@@ -33,7 +34,6 @@ import {
   registeredData,
   registerState,
   sectionFor,
-  today,
 } from './common';
 
 const re = s.volunteerRegisterEntries,
@@ -67,7 +67,7 @@ export function updateSettings(
       // The legal sign-off of the procedure is recorded by administrators only.
       if (
         (patch.legalApprovedOn !== undefined || patch.legalApprovalReference !== undefined) &&
-        a.role !== 'admin'
+        (await currentAccess(tx, a)).role !== 'admin'
       )
         throw new HttpError(403, 'FORBIDDEN', 'Die rechtliche Freigabe erfassen Administratoren.');
       const values = {
@@ -292,7 +292,7 @@ export function createRegisterEntry(
         Object.entries(data).every(([k, v]) => k === 'endedOn' || (last[k] ?? null) === (v ?? null))
       )
         throw new HttpError(409, 'REGISTER_NO_CHANGE', 'Die Registerdaten sind unverändert.');
-      effectiveDate = today();
+      effectiveDate = await businessDate(tx, a.organizationId);
     }
     const [last] = await tx
       .select({ entryNumber: re.entryNumber, entryHash: re.entryHash })
@@ -350,7 +350,7 @@ export async function validateSnapshot(db: Database, a: Access, cutoffDate: stri
       cutoffDate,
       ready:
         !pending.length &&
-        cutoffDate <= today() &&
+        cutoffDate <= (await businessDate(tx, a.organizationId)) &&
         (!lastSnapshot || cutoffDate >= lastSnapshot.cutoffDate),
       pending,
       invalid,

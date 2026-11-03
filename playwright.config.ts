@@ -41,11 +41,11 @@ export default defineConfig({
       },
     },
     {
-      command: `bun run --filter @bnature/web build && bun run --filter @bnature/web preview --port ${web}`,
+      command: `${process.env.E2E_PREBUILT === 'true' ? '' : 'bun run --filter @bnature/web build && '}bun run --filter @bnature/web preview --port ${web}`,
       url: `http://localhost:${web}`,
       reuseExistingServer: false,
       timeout: 60_000,
-      env: { API_PROXY_URL: `http://127.0.0.1:${api}` },
+      env: { NODE_ENV: 'production', API_PROXY_URL: `http://127.0.0.1:${api}` },
     },
   ],
 });

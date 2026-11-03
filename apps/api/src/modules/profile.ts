@@ -3,7 +3,7 @@ import type { ModuleContext } from './context';
 import { schema as s } from '@bnature/db';
 import { and, eq } from 'drizzle-orm';
 import { patchSchema, personSchema } from '@bnature/contracts';
-import { HttpError } from '../middleware/access';
+import { HttpError, lockAccess } from '../middleware/access';
 import { audit } from '../services/audit';
 export function registerProfileRoutes({ server, db, access }: ModuleContext) {
   const app = server.withTypeProvider<ZodTypeProvider>();
@@ -48,6 +48,7 @@ export function registerProfileRoutes({ server, db, access }: ModuleContext) {
     async (req) => {
       const a = await access(req);
       return db.transaction(async (tx) => {
+        await lockAccess(tx, a);
         const [link] = await tx
           .select()
           .from(s.personUserLinks)

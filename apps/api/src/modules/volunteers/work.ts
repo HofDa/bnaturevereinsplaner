@@ -1,3 +1,5 @@
+import { assertResponsibleUser } from '../../middleware/access';
+import { csvCell } from '@bnature/contracts';
 import { and, eq, sql, asc, desc, count, gte, lt, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { schema as s, type Database, type Executor, type Transaction } from '@bnature/db';
@@ -123,19 +125,7 @@ export async function listAssignments(
     };
   });
 }
-async function assertResponsible(tx: Transaction, a: Access, userId: string | null) {
-  if (!userId) return;
-  const [row] = await tx
-    .select({ id: s.organizationUserRoles.userId })
-    .from(s.organizationUserRoles)
-    .where(
-      and(
-        eq(s.organizationUserRoles.organizationId, a.organizationId),
-        eq(s.organizationUserRoles.userId, userId),
-      ),
-    );
-  if (!row) throw new HttpError(422, 'INVALID_RELATION', 'Verantwortliche Person unbekannt.');
-}
+
 async function assertEventScope(tx: Transaction, a: Access, eventId: string | null) {
   if (eventId) {
     await eventRow(tx, a, eventId, true);
@@ -224,7 +214,7 @@ export function createAssignment(
             'Diese Person ist für die Veranstaltung bereits eingeplant.',
           );
       }
-      await assertResponsible(tx, current, input.responsibleUserId);
+      await assertResponsibleUser(tx, current, input.responsibleUserId);
       await assertOverlapFree(
         tx,
         current,
@@ -281,7 +271,7 @@ export function updateAssignment(
       if (Date.parse(end) <= Date.parse(start))
         throw new HttpError(422, 'VALIDATION_ERROR', 'Das Ende liegt vor dem Beginn.');
       if (patch.responsibleUserId !== undefined)
-        await assertResponsible(tx, current, patch.responsibleUserId);
+        await assertResponsibleUser(tx, current, patch.responsibleUserId);
       if ((patch.status ?? row.status) !== 'cancelled')
         await assertOverlapFree(tx, current, row.engagementId, start, end, id);
       await tx
@@ -787,10 +777,6 @@ const exportLabels = {
     note: 'Prospetto interno delle ore. Contano come ore prestate solo le voci confermate.',
   },
 };
-const cell = (value: unknown) =>
-  `"${String(value)
-    .replace(/^[=+@-]/, "'$&")
-    .replaceAll('"', '""')}"`;
 export async function exportTimeEntries(
   db: Database,
   a: Access,
@@ -825,7 +811,7 @@ export async function exportTimeEntries(
           ...lines,
           [t.total, '', '', '', formatMinutes(total), '', '', '', ''],
         ]
-          .map((row) => row.map(cell).join(';'))
+          .map((row) => row.map(csvCell).join(';'))
           .join('\r\n')
       );
     return renderPdf(

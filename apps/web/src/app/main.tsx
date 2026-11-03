@@ -1,4 +1,5 @@
-import React, { useEffect, useState, type ReactNode } from 'react';
+import { PwaProvider } from '../components/pwa';
+import React, { useEffect, useState, lazy, type ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router';
@@ -11,30 +12,96 @@ import { Shell } from '../layouts/shell';
 import { SessionContext, useSession } from './session';
 import { Login } from '../features/login';
 import { Dashboard } from '../features/dashboard';
-import { Members, MemberDetail } from '../features/members';
-import { Groups } from '../features/groups';
-import { Board } from '../features/board';
 import { Settings, applyTheme, type Theme } from '../features/settings';
-import { OrganizationPage } from '../features/organization';
-import { UsersPage } from '../features/users';
-import { Profile } from '../features/profile';
-import { Audit } from '../features/audit';
-import { Finance } from '../features/finance';
-import { Events, EventDetails, EventCategories, EventAttendanceIndex } from '../features/events';
 import { OfflineAttendanceHub, AttendanceSyncManager } from '../features/events/offline-attendance';
 import { purgeAttendance, attendanceOwner } from '../lib/attendance-offline';
 import { Link } from 'react-router';
-import { Documents } from '../features/documents';
-import { VolunteerOverview, VolunteerList, VolunteerDetailPage } from '../features/volunteers';
-import { VolunteerAssignments, VolunteerHours } from '../features/volunteers/work';
-import { VolunteerInsurance } from '../features/volunteers/insurance';
-import { VolunteerRegister } from '../features/volunteers/register';
-import { Compliance } from '../features/compliance';
-import { MailPage } from '../features/mail';
-import { InventoryItems, InventoryLoans } from '../features/inventory';
-import { CommunityIndex, CommunityDetail } from '../features/community';
 import { Empty, ErrorState, Loading } from '../components/ui';
 import { shellDatabase } from '../lib/offline';
+
+const Members = lazy(() =>
+  import('../features/members').then((module) => ({ default: module.Members })),
+);
+const MemberDetail = lazy(() =>
+  import('../features/members').then((module) => ({ default: module.MemberDetail })),
+);
+const Groups = lazy(() =>
+  import('../features/groups').then((module) => ({ default: module.Groups })),
+);
+const Board = lazy(() => import('../features/board').then((module) => ({ default: module.Board })));
+const OrganizationPage = lazy(() =>
+  import('../features/organization').then((module) => ({ default: module.OrganizationPage })),
+);
+const UsersPage = lazy(() =>
+  import('../features/users').then((module) => ({ default: module.UsersPage })),
+);
+const Profile = lazy(() =>
+  import('../features/profile').then((module) => ({ default: module.Profile })),
+);
+const Audit = lazy(() => import('../features/audit').then((module) => ({ default: module.Audit })));
+const Finance = lazy(() =>
+  import('../features/finance').then((module) => ({ default: module.Finance })),
+);
+const Events = lazy(() =>
+  import('../features/events').then((module) => ({ default: module.Events })),
+);
+const EventDetails = lazy(() =>
+  import('../features/events').then((module) => ({ default: module.EventDetails })),
+);
+const EventCategories = lazy(() =>
+  import('../features/events').then((module) => ({ default: module.EventCategories })),
+);
+const EventAttendanceIndex = lazy(() =>
+  import('../features/events').then((module) => ({ default: module.EventAttendanceIndex })),
+);
+const Documents = lazy(() =>
+  import('../features/documents').then((module) => ({ default: module.Documents })),
+);
+const VolunteerOverview = lazy(() =>
+  import('../features/volunteers').then((module) => ({ default: module.VolunteerOverview })),
+);
+const VolunteerList = lazy(() =>
+  import('../features/volunteers').then((module) => ({ default: module.VolunteerList })),
+);
+const VolunteerDetailPage = lazy(() =>
+  import('../features/volunteers').then((module) => ({ default: module.VolunteerDetailPage })),
+);
+const VolunteerAssignments = lazy(() =>
+  import('../features/volunteers/work').then((module) => ({
+    default: module.VolunteerAssignments,
+  })),
+);
+const VolunteerHours = lazy(() =>
+  import('../features/volunteers/work').then((module) => ({ default: module.VolunteerHours })),
+);
+const VolunteerInsurance = lazy(() =>
+  import('../features/volunteers/insurance').then((module) => ({
+    default: module.VolunteerInsurance,
+  })),
+);
+const VolunteerRegister = lazy(() =>
+  import('../features/volunteers/register').then((module) => ({
+    default: module.VolunteerRegister,
+  })),
+);
+const Compliance = lazy(() =>
+  import('../features/compliance').then((module) => ({ default: module.Compliance })),
+);
+const MailPage = lazy(() =>
+  import('../features/mail').then((module) => ({ default: module.MailPage })),
+);
+const InventoryItems = lazy(() =>
+  import('../features/inventory').then((module) => ({ default: module.InventoryItems })),
+);
+const InventoryLoans = lazy(() =>
+  import('../features/inventory').then((module) => ({ default: module.InventoryLoans })),
+);
+const CommunityIndex = lazy(() =>
+  import('../features/community').then((module) => ({ default: module.CommunityIndex })),
+);
+const CommunityDetail = lazy(() =>
+  import('../features/community').then((module) => ({ default: module.CommunityDetail })),
+);
 applyTheme((localStorage.getItem('bnature-theme') as Theme) || 'system');
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   if (localStorage.getItem('bnature-theme') === 'system') applyTheme('system');
@@ -67,7 +134,8 @@ function App() {
       }
       return api<Me>('/me');
     },
-    retry: false,
+    retry: (count, error) =>
+      count < 1 && !(error instanceof ApiError && [400, 401, 403, 404, 422].includes(error.status)),
   });
   useEffect(() => {
     const expire = () => setExpired(true);
@@ -332,9 +400,11 @@ function App() {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <PwaProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </PwaProvider>
     </QueryClientProvider>
   </React.StrictMode>,
 );

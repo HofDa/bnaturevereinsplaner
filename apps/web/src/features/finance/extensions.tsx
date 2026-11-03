@@ -1,3 +1,4 @@
+import { useLedgerBasics, refreshFinanceQueries as refresh } from './queries';
 import { EntryDocuments } from '../documents';
 import { useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -14,9 +15,6 @@ import {
   type LedgerTransfer,
   type EtsReport,
   type CashbookEntry,
-  type CashbookCategory,
-  type FiscalYear,
-  type FinanceAccount,
 } from '@bnature/contracts';
 import {
   Button,
@@ -29,33 +27,14 @@ import {
   formatDate,
 } from '../../components/ui';
 import { DataForm } from '../../components/data-form';
-import { api, downloadPrivateFile, errorMessage, queryClient } from '../../lib/api';
+import { api, downloadPrivateFile, errorMessage } from '../../lib/api';
 import { useSession } from '../../app/session';
 import { useFinancialWrite } from './client';
-const refresh = () =>
-  void queryClient.invalidateQueries({
-    predicate: (q) => String(q.queryKey[0]).startsWith('finance-'),
-  });
-function useBasics() {
-  const { me } = useSession();
-  const accounts = useQuery({
-    queryKey: ['finance-accounts', me.activeOrganizationId],
-    queryFn: () => api<{ items: FinanceAccount[] }>('/finance/accounts'),
-  });
-  const years = useQuery({
-    queryKey: ['finance-fiscal-years', me.activeOrganizationId],
-    queryFn: () => api<{ items: FiscalYear[] }>('/finance/fiscal-years'),
-  });
-  const categories = useQuery({
-    queryKey: ['finance-categories', me.activeOrganizationId],
-    queryFn: () => api<{ items: CashbookCategory[] }>('/finance/categories'),
-  });
-  return { accounts, years, categories };
-}
+
 export function FinanceOverview() {
   const { t, i18n } = useTranslation(),
     { me } = useSession(),
-    basics = useBasics(),
+    basics = useLedgerBasics(),
     [selected, setSelected] = useState('');
   const dashboard = useQuery({
     queryKey: ['finance-dashboard', me.activeOrganizationId, selected],
@@ -191,7 +170,7 @@ export function Transfers() {
   const { t, i18n } = useTranslation(),
     { me } = useSession(),
     write = useFinancialWrite(),
-    basics = useBasics();
+    basics = useLedgerBasics();
   const [year, setYear] = useState(''),
     [editor, setEditor] = useState<{ transfer?: LedgerTransfer } | null>(null),
     [documentTransfer, setDocumentTransfer] = useState<LedgerTransfer | null>(null);
@@ -361,7 +340,7 @@ export function Transfers() {
 }
 export function EtsMappings() {
   const { t, i18n } = useTranslation(),
-    basics = useBasics(),
+    basics = useLedgerBasics(),
     { me } = useSession(),
     write = useFinancialWrite(),
     [category, setCategory] = useState(''),
@@ -462,7 +441,7 @@ export function EtsMappings() {
 export function PaymentBackfill() {
   const { t } = useTranslation(),
     { me } = useSession(),
-    basics = useBasics(),
+    basics = useLedgerBasics(),
     write = useFinancialWrite(),
     [error, setError] = useState(''),
     [notice, setNotice] = useState(''),

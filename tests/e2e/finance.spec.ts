@@ -1,12 +1,6 @@
+import { login } from './helpers/login';
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-async function login(page: Page, email = 'e2e@example.test') {
-  await page.goto('/');
-  await page.getByLabel('E-Mail', { exact: true }).fill(email);
-  await page.getByLabel('Passwort', { exact: true }).fill('E2E-only-Password-2026!');
-  await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Abmelden', exact: true })).toBeVisible();
-}
 async function checkAccessibility(page: Page) {
   const report = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])

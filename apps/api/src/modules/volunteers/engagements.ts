@@ -1,3 +1,4 @@
+import { businessDate } from '../../services/business-date';
 import { and, eq, sql, asc, desc, count, ilike, or, getTableColumns, inArray } from 'drizzle-orm';
 import { schema as s, type Database, type Executor } from '@bnature/db';
 import {
@@ -26,7 +27,6 @@ import {
   coverageFor,
   engagementHistory,
   identityIssues,
-  today,
 } from './common';
 
 const summaryColumns = {
@@ -448,7 +448,7 @@ export function endEngagement(
 // Dashboard figures across volunteers, insurance, register and compliance.
 export async function volunteerOverview(db: Database, a: Access) {
   return readSnapshot(db, async (tx) => {
-    const now = today();
+    const now = await businessDate(tx, a.organizationId);
     const engagements = await tx
       .select()
       .from(ve)

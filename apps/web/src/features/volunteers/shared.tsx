@@ -77,7 +77,6 @@ export function toLocalInput(iso: string) {
     pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-export const todayIso = () => new Date().toISOString().slice(0, 10);
 export type FormFieldSpec = {
   name: string;
   label: string;

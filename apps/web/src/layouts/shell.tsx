@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { Loading } from '../components/ui';
+import { Suspense, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
@@ -180,7 +181,9 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
         <PwaStatus />
         <main id="main" className="main-content" tabIndex={-1}>
           {error && <Notice error>{error}</Notice>}
-          <Outlet />
+          <Suspense fallback={<Loading />}>
+            <Outlet />
+          </Suspense>
         </main>
         <footer className="workspace-footer">
           <span>b*nature</span>

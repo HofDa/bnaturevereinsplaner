@@ -1,6 +1,6 @@
-# Vereinsleben: News, Umfragen und Chat
+# Vereinsleben: News, Abstimmungen und Chat
 
-Unter **Vereinsleben** (`/community`) gibt es die Bereiche **News**, **Umfragen** und **Vereinschat**. Alle Konten mit Vereinszugang können veröffentlichte Vereinsinhalte lesen, abstimmen und am Chat teilnehmen. Admin und Vorstand verwalten Veröffentlichungen und moderieren den Chat.
+Unter **Vereinsleben** (`/community`) gibt es die Bereiche **News**, **Abstimmungen** und **Vereinschat**. Alle Konten mit Vereinszugang können veröffentlichte Vereinsinhalte lesen, abstimmen und am Chat teilnehmen. Admin und Vorstand verwalten Veröffentlichungen und moderieren den Chat.
 
 ## Verein und Gruppen
 
@@ -12,9 +12,9 @@ Diese Regeln gelten serverseitig für Listen, direkte Detailadressen, Abstimmung
 
 Admin oder Vorstand erstellen einen zweisprachigen Entwurf mit Titel, Nachricht und Zielgruppe. **Entwurf speichern** veröffentlicht noch nicht; erst **Veröffentlichen** mit Bestätigung macht den Beitrag sichtbar. Angeheftete Beiträge erscheinen zuerst. Veröffentlichte News können mit Versionsprüfung korrigiert werden; der Empfängerkreis bleibt fest. Archivieren blendet sie für Mitglieder aus. Der Text wird als Text dargestellt, ohne ausführbares HTML.
 
-## Umfragen
+## Abstimmungen
 
-Eine Umfrage besteht aus Frage, optionaler Beschreibung und zwei bis zehn unterschiedlichen Antwortmöglichkeiten auf Deutsch und Italienisch. Optional kann ein Ende in der Ortszeit des verwendeten Geräts gewählt werden. Der Server speichert den absoluten Zeitpunkt. Ohne Frist wird die Umfrage manuell geschlossen.
+Eine Abstimmung besteht aus Frage, optionaler Beschreibung und zwei bis zehn unterschiedlichen Antwortmöglichkeiten auf Deutsch und Italienisch. Optional kann ein Ende in der Ortszeit des verwendeten Geräts gewählt werden. Der Server speichert den absoluten Zeitpunkt. Ohne Frist wird die Abstimmung manuell geschlossen.
 
 Pro Benutzerkonto ist genau eine Antwort zulässig. Bis zum Abschluss kann die eigene Stimme geändert werden; sie wird dabei ersetzt und nicht als zusätzliche Stimme gezählt. Frage, Antworten, Zielgruppe, Frist und Ergebnisregel sind nach Veröffentlichung fest. Ein Abschluss ist endgültig. Die Datenbank erzwingt zusätzlich Wahlmöglichkeiten, Mandantenbezug, Einmaligkeit und die Sperre nach Abschluss oder Fristablauf.
 
@@ -28,6 +28,6 @@ Benutzer können ihre eigenen Nachrichten entfernen. Admin und Vorstand können 
 
 ## Technik und Prüfung
 
-Migration `0015` ergänzt Beiträge, Umfrageoptionen und Stimmen einschließlich SQL-Triggern; `0016` ergänzt Chatnachrichten. Migration `0014` stammt aus der vorausgehenden Mail-Schemaerweiterung. Beim Merge mit Inventar (`0013`) wurden die Dateinummern vereinheitlicht; SQL-Inhalte und bereits angewendete Zeitstempel bleiben erhalten. Migration `0017` ergänzt die jeweils fehlenden Module bei Datenbanken aus beiden Branches, ohne vorhandene Daten zurückzusetzen. Die Zeitstempel der historischen Einträge sind deshalb nicht streng aufsteigend und dürfen nicht nachträglich verändert werden. Schreiboperationen sind über `Idempotency-Key` wiederholbar; Redaktion und Moderation prüfen zusätzlich die Version. Die Organisations- und Gruppenrechte werden serverseitig erneut geprüft. Private Inhalte erhalten `no-store` und werden nicht für Offline-Nutzung zwischengespeichert.
+Migration `0015` ergänzt Beiträge, Abstimmungsoptionen und Stimmen einschließlich SQL-Triggern; `0016` ergänzt Chatnachrichten. Migration `0014` stammt aus der vorausgehenden Mail-Schemaerweiterung. Beim Merge mit Inventar (`0013`) wurden die Dateinummern vereinheitlicht; SQL-Inhalte und bereits angewendete Zeitstempel bleiben erhalten. Migration `0017` ergänzt die jeweils fehlenden Module bei Datenbanken aus beiden Branches, ohne vorhandene Daten zurückzusetzen. Die Zeitstempel der historischen Einträge sind deshalb nicht streng aufsteigend und dürfen nicht nachträglich verändert werden. Schreiboperationen sind über `Idempotency-Key` wiederholbar; Redaktion und Moderation prüfen zusätzlich die Version. Die Organisations- und Gruppenrechte werden serverseitig erneut geprüft. Private Inhalte erhalten `no-store` und werden nicht für Offline-Nutzung zwischengespeichert.
 
 Gemeinsame Verträge stehen in `packages/contracts/src/community.ts`, Endpunkte unter `/api/v1/community`. Die Browserprüfung läuft auf Desktop und Mobil mit `bun run test:e2e community`. Sie prüft Veröffentlichung, DE/IT, Mitgliederansicht, Abstimmung mit Änderung und Abschluss, Gruppenzugriff, Chat und Moderation sowie Axe-Regeln. Details der tatsächlich ausgeführten Prüfungen stehen in [Prüfnachweise](verification.md).

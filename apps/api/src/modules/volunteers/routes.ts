@@ -1,3 +1,4 @@
+import { attachmentDisposition } from '../../services/http';
 import { z } from 'zod';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -131,10 +132,7 @@ const replay = (reply: FastifyReply, r: { data: unknown; replayed: boolean }, st
   reply.code(status).header('Idempotency-Replayed', String(r.replayed)).send(r.data);
 const key = (req: FastifyRequest) => String(req.headers['idempotency-key']);
 const binary = z.string().meta({ format: 'binary' });
-function disposition(filename: string) {
-  const fallback = filename.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
-  return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
-}
+
 const overviewSchema = z.object({
   activeRegular: z.number().int(),
   activeOccasional: z.number().int(),
@@ -384,7 +382,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
       const data = await exportTimeEntries(db, await access(req, 'volunteers:read'), req.query);
       return (reply as FastifyReply)
         .type(req.query.format === 'csv' ? 'text/csv; charset=utf-8' : 'application/pdf')
-        .header('Content-Disposition', disposition(`volunteer-hours.${req.query.format}`))
+        .header('Content-Disposition', attachmentDisposition(`volunteer-hours.${req.query.format}`))
         .send(data);
     },
   );
@@ -594,7 +592,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
       );
       return (reply as FastifyReply)
         .type(req.query.format === 'csv' ? 'text/csv; charset=utf-8' : 'application/pdf')
-        .header('Content-Disposition', disposition(`insurer-list.${req.query.format}`))
+        .header('Content-Disposition', attachmentDisposition(`insurer-list.${req.query.format}`))
         .send(data);
     },
   );
@@ -788,7 +786,7 @@ export function registerVolunteerRoutes({ server, db, access, config }: ModuleCo
       );
       return (reply as FastifyReply)
         .type(file.mediaType)
-        .header('Content-Disposition', disposition(file.filename))
+        .header('Content-Disposition', attachmentDisposition(file.filename))
         .header('Content-Security-Policy', "default-src 'none'; sandbox")
         .header('X-Content-Type-Options', 'nosniff')
         .send(file.bytes);

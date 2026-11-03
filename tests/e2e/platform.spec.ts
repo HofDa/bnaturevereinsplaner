@@ -1,11 +1,21 @@
+import { login } from './helpers/login';
 import { test, expect } from '@playwright/test';
-async function login(page: import('@playwright/test').Page) {
-  await page.goto('/');
-  await page.getByLabel('E-Mail', { exact: true }).fill('e2e@example.test');
-  await page.getByLabel('Passwort', { exact: true }).fill('E2E-only-Password-2026!');
-  await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Abmelden', exact: true })).toBeVisible();
-}
+test('recovers when an authenticated session read fails once', async ({ page }) => {
+  let failed = false;
+  await page.route('**/api/v1/me', async (route) => {
+    const response = await route.fetch();
+    if (!failed && response.status() === 200) {
+      failed = true;
+      await route.fulfill({
+        status: 500,
+        json: { error: { code: 'INTERNAL_ERROR', message: 'Transient test failure' } },
+      });
+    } else await route.fulfill({ response });
+  });
+  await login(page);
+  expect(failed).toBe(true);
+  await expect(page.getByRole('heading', { name: 'Gemeinsam mehr bewegen.' })).toBeVisible();
+});
 test('logs in, creates and edits a membership, searches, exports, changes language and logs out', async ({
   page,
 }, info) => {
@@ -95,10 +105,11 @@ test('installs an app-shell service worker and never caches API responses', asyn
   page,
   context,
 }) => {
-  await login(page);
+  await page.goto('/');
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
+  await login(page);
   await page.reload();
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
   const manifest = await page.request.get('/manifest.webmanifest');

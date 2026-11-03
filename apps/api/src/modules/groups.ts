@@ -11,7 +11,7 @@ import {
   groupSchema,
   can,
 } from '@bnature/contracts';
-import { HttpError } from '../middleware/access';
+import { HttpError, lockAccess } from '../middleware/access';
 import { audit } from '../services/audit';
 import { escapeLike } from './members';
 import { pageOf, groupResponse } from './responses';
@@ -63,6 +63,7 @@ export function registerGroupsRoutes({ server, db, access }: ModuleContext) {
     async (req, reply) => {
       const a = await access(req, 'groups:write');
       const row = await db.transaction(async (tx) => {
+        await lockAccess(tx, a, 'groups:write');
         const [g] = await tx
           .insert(s.groups)
           .values({ ...req.body, organizationId: a.organizationId })
@@ -117,6 +118,7 @@ export function registerGroupsRoutes({ server, db, access }: ModuleContext) {
     async (req) => {
       const a = await access(req, 'groups:write');
       return db.transaction(async (tx) => {
+        await lockAccess(tx, a, 'groups:write');
         const [g] = await tx
           .update(s.groups)
           .set({ ...req.body, updatedAt: new Date() })
@@ -139,9 +141,10 @@ export function registerGroupsRoutes({ server, db, access }: ModuleContext) {
     },
     async (req) => {
       const a = await access(req, 'groups:write');
-      if (!can(a.role, 'members:read'))
-        throw new HttpError(403, 'FORBIDDEN', 'Personenzuordnungen erfordern Mitgliederzugriff.');
       return db.transaction(async (tx) => {
+        const current = await lockAccess(tx, a, 'groups:write');
+        if (!can(current.role, 'members:read'))
+          throw new HttpError(403, 'FORBIDDEN', 'Personenzuordnungen erfordern Mitgliederzugriff.');
         const [g] = await tx
           .select()
           .from(s.groups)

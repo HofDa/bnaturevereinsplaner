@@ -1,14 +1,9 @@
+import { login } from './helpers/login';
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+const appOrigin = `http://localhost:${process.env.E2E_WEB_PORT ?? '5174'}`;
 test.setTimeout(120_000);
 const password = 'E2E-only-Password-2026!';
-async function login(page: Page, email = 'e2e@example.test', pass = password) {
-  await page.goto('/');
-  await page.getByLabel('E-Mail', { exact: true }).fill(email);
-  await page.getByLabel('Passwort', { exact: true }).fill(pass);
-  await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Abmelden', exact: true })).toBeVisible();
-}
 async function post<T>(
   page: Page,
   path: string,
@@ -17,7 +12,7 @@ async function post<T>(
 ): Promise<T> {
   const r = await page.request.fetch(`/api/v1${path}`, {
     method,
-    headers: { Origin: 'http://localhost:5174', 'Idempotency-Key': crypto.randomUUID() },
+    headers: { Origin: appOrigin, 'Idempotency-Key': crypto.randomUUID() },
     data,
   });
   expect(r.ok(), await r.text()).toBe(true);
@@ -91,8 +86,8 @@ test('lets members vote, change their answer and see the final results after clo
 }, info) => {
   await login(page);
   await page.goto('/community?kind=poll');
-  await page.getByRole('button', { name: 'Umfrage erstellen', exact: true }).click();
-  const editor = page.getByRole('dialog', { name: 'Umfrage erstellen' });
+  await page.getByRole('button', { name: 'Abstimmung erstellen', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Abstimmung erstellen' });
   await editor.getByLabel('Frage (DE)', { exact: true }).fill('Welcher Tag passt?');
   await editor.getByLabel('Frage (IT)', { exact: true }).fill('Quale giorno preferisci?');
   await editor.getByLabel('Beschreibung (DE)', { exact: true }).fill('Gemeinsam entscheiden.');
@@ -119,12 +114,12 @@ test('lets members vote, change their answer and see the final results after clo
   await expect(page.getByRole('radio', { name: 'Sonntag', exact: true })).toBeChecked();
   await expect(page.getByText('Abgegebene Stimmen insgesamt: 1', { exact: true })).toBeVisible();
   await a11y(page);
-  const adminContext = await browser.newContext({ baseURL: 'http://localhost:5174' });
+  const adminContext = await browser.newContext({ baseURL: appOrigin });
   try {
     const admin = await adminContext.newPage();
     await login(admin);
     await admin.goto(url);
-    await admin.getByRole('button', { name: 'Umfrage schließen', exact: true }).click();
+    await admin.getByRole('button', { name: 'Abstimmung schließen', exact: true }).click();
     await admin
       .getByRole('dialog')
       .getByRole('button', { name: 'Bestätigen', exact: true })
@@ -187,7 +182,7 @@ test('shows group news and chat only to assigned users and supports live moderat
   await page.getByLabel('Deine Nachricht', { exact: true }).press('Control+Enter');
   await expect(page.getByText('Hallo aus dem Browser!', { exact: true })).toHaveCount(2);
   await a11y(page);
-  const moderatorContext = await browser.newContext({ baseURL: 'http://localhost:5174' });
+  const moderatorContext = await browser.newContext({ baseURL: appOrigin });
   try {
     const moderator = await moderatorContext.newPage();
     await login(moderator);

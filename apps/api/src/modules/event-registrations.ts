@@ -1,3 +1,4 @@
+import { readSnapshot } from './finance/operations';
 import { and, eq, sql, count, asc } from 'drizzle-orm';
 import { schema as s, type Database, type Executor, type Transaction } from '@bnature/db';
 import {
@@ -50,22 +51,56 @@ async function describeRegistration(
   });
 }
 export async function listRegistrations(db: Executor, a: Access, eventId: string) {
-  const event = await eventRow(db, a, eventId),
-    person = await ownPerson(db, a);
-  const rows = await db
-    .select()
-    .from(r)
-    .where(
-      and(
-        eq(r.organizationId, a.organizationId),
-        eq(r.eventOccurrenceId, eventId),
-        managesEvent(a, event) ? undefined : person ? eq(r.personId, person) : sql`false`,
+  return readSnapshot(db, async (tx) => {
+    const event = await eventRow(tx, a, eventId),
+      person = await ownPerson(tx, a);
+    // Rank the complete waitlist before restricting a member to their own registration.
+    const positions = tx
+      .select({
+        id: r.id,
+        position: sql<number>`(row_number() over (order by ${r.registeredAt}, ${r.id}))::int`.as(
+          'position',
+        ),
+      })
+      .from(r)
+      .where(
+        and(
+          eq(r.organizationId, a.organizationId),
+          eq(r.eventOccurrenceId, eventId),
+          eq(r.status, 'waitlisted'),
+        ),
+      )
+      .as('positions');
+    const rows = await tx
+      .select({
+        registration: r,
+        displayName: sql<string>`${s.persons.firstName} || ' ' || ${s.persons.lastName}`,
+        waitlistPosition: positions.position,
+      })
+      .from(r)
+      .innerJoin(
+        s.persons,
+        and(eq(s.persons.organizationId, r.organizationId), eq(s.persons.id, r.personId)),
+      )
+      .leftJoin(positions, eq(positions.id, r.id))
+      .where(
+        and(
+          eq(r.organizationId, a.organizationId),
+          eq(r.eventOccurrenceId, eventId),
+          managesEvent(a, event) ? undefined : person ? eq(r.personId, person) : sql`false`,
+        ),
+      )
+      .orderBy(asc(r.registeredAt), asc(r.id));
+    return {
+      items: rows.map((row) =>
+        registrationResponseSchema.parse({
+          ...wire(row.registration),
+          displayName: row.displayName,
+          waitlistPosition: row.waitlistPosition,
+        }),
       ),
-    )
-    .orderBy(asc(r.registeredAt), asc(r.id));
-  const items: EventRegistration[] = [];
-  for (const row of rows) items.push(await describeRegistration(db, row));
-  return { items };
+    };
+  });
 }
 export async function promoteWaitlist(tx: Transaction, a: Access, eventId: string, manual = false) {
   const event = await eventRow(tx, a, eventId, true);

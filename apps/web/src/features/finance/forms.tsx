@@ -32,7 +32,7 @@ import {
 import { allPages, errorMessage, queryClient } from '../../lib/api';
 import { useSession } from '../../app/session';
 import { useFinancialWrite } from './client';
-import { useLedgerBasics } from './ledger';
+import { useLedgerBasics } from './queries';
 
 const planFormSchema = feePlanInputSchema
   .omit({ amountCents: true, membershipType: true })

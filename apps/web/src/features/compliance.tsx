@@ -1,3 +1,4 @@
+import { useBusinessDate } from '../hooks/use-business-date';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -20,7 +21,6 @@ import {
 import {
   FormModal,
   StatusTag,
-  todayIso,
   usePermission,
   usePrivateUpload,
   useVolunteerWrite,
@@ -43,6 +43,7 @@ function DeadlineDialog({
   deadline: ComplianceDeadline;
   onClose: () => void;
 }) {
+  const todayIso = useBusinessDate();
   const { t, i18n } = useTranslation(),
     can = usePermission(),
     write = useVolunteerWrite(),
@@ -253,6 +254,7 @@ function DeadlineDialog({
   );
 }
 function Rules() {
+  const todayIso = useBusinessDate();
   const { t, i18n } = useTranslation(),
     { me } = useSession(),
     can = usePermission(),

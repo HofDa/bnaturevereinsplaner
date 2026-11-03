@@ -1,3 +1,4 @@
+import { csvCell } from '@bnature/contracts';
 import {
   and,
   eq,
@@ -525,10 +526,6 @@ export function extendLoan(
   ).then(loanResult(db, a));
 }
 
-const cell = (value: unknown) =>
-  `"${String(value)
-    .replace(/^[=+@-]/, "'$&")
-    .replaceAll('"', '""')}"`;
 const exportLabels = {
   de: {
     number: 'Inventarnummer',
@@ -626,7 +623,7 @@ export async function exportItems(
           t.statuses[r.status],
         ]),
       ]
-        .map((row) => row.map(cell).join(';'))
+        .map((row) => row.map(csvCell).join(';'))
         .join('\r\n')
     );
   });

@@ -1,7 +1,7 @@
 import { and, eq, or, ilike, asc, desc, count, sql } from 'drizzle-orm';
 import { schema as s, type Database, type Executor } from '@bnature/db';
 import { memberInputSchema, type MemberInput, type ListQuery } from '@bnature/contracts';
-import { HttpError, type Access } from '../middleware/access';
+import { HttpError, lockAccess, type Access } from '../middleware/access';
 import { audit } from '../services/audit';
 const selection = {
   id: s.memberships.id,
@@ -85,6 +85,7 @@ export async function listMembers(db: Database, organizationId: string, q: ListQ
 }
 export async function createMember(db: Database, access: Access, input: MemberInput) {
   return db.transaction(async (tx) => {
+    await lockAccess(tx, access, 'members:write');
     const { person, membership } = splitMember(input);
     const [p] = await tx
       .insert(s.persons)
@@ -107,6 +108,7 @@ export async function updateMember(
   patch: Partial<MemberInput>,
 ) {
   return db.transaction(async (tx) => {
+    await lockAccess(tx, access, 'members:write');
     await tx
       .select({ id: s.memberships.id })
       .from(s.memberships)

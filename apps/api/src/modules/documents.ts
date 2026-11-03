@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { and, eq, sql, desc, count, ilike, or, isNull, type SQL } from 'drizzle-orm';
+import { and, eq, sql, desc, count, ilike, or, isNull, inArray, type SQL } from 'drizzle-orm';
 import { schema as s, type Database, type Executor, type Transaction } from '@bnature/db';
 import {
   can,
@@ -14,7 +14,7 @@ import {
   type Page,
   type Role,
 } from '@bnature/contracts';
-import { HttpError, type Access } from '../middleware/access';
+import { HttpError, currentAccess, type Access } from '../middleware/access';
 import { audit } from '../services/audit';
 import type { DocumentStorage } from '../services/storage';
 import { wire } from './responses';
@@ -112,18 +112,12 @@ async function versionsOf(db: Executor, org: string, documentId: string) {
     .orderBy(desc(v.versionNumber));
   return rows.map((row) => documentVersionResponseSchema.parse(wire(row)));
 }
-async function present(
-  db: Executor,
-  org: string,
+function present(
   row: { latestVersionId: string | null } & Record<string, unknown>,
-): Promise<DocumentRecord> {
-  const { latestVersionId, ...rest } = row;
-  const [version] = latestVersionId
-    ? await db
-        .select()
-        .from(v)
-        .where(and(eq(v.organizationId, org), eq(v.id, latestVersionId)))
-    : [];
+  version?: typeof v.$inferSelect | DocumentRecord['latestVersion'],
+): DocumentRecord {
+  const { latestVersionId: _, ...rest } = row;
+  void _;
   return documentResponseSchema.parse({
     ...wire(rest),
     protected: evidenceDocument(rest as Parameters<typeof evidenceDocument>[0]),
@@ -136,9 +130,13 @@ export async function getDocument(db: Executor, org: string, role: Role, id: str
     .from(d)
     .where(and(eq(d.organizationId, org), eq(d.id, id), financeVisible(role, userId)));
   if (!row) throw new HttpError(404, 'NOT_FOUND', 'Dokument nicht gefunden.');
+  const versions = await versionsOf(db, org, id);
   return documentDetailSchema.parse({
-    ...(await present(db, org, row)),
-    versions: await versionsOf(db, org, id),
+    ...present(
+      row,
+      versions.find((version) => version.id === row.latestVersionId),
+    ),
+    versions,
   });
 }
 export async function listDocuments(
@@ -178,24 +176,23 @@ export async function listDocuments(
       .limit(q.pageSize)
       .offset((q.page - 1) * q.pageSize);
     const [total] = await tx.select({ n: count() }).from(d).where(where);
-    const items: DocumentRecord[] = [];
-    for (const row of rows) items.push(await present(tx, org, row));
+    const ids = rows.flatMap((row) => (row.latestVersionId ? [row.latestVersionId] : []));
+    const versions = ids.length
+      ? await tx
+          .select()
+          .from(v)
+          .where(and(eq(v.organizationId, org), inArray(v.id, ids)))
+      : [];
+    const byId = new Map(versions.map((version) => [version.id, version]));
+    const items = rows.map((row) =>
+      present(row, row.latestVersionId ? byId.get(row.latestVersionId) : undefined),
+    );
     return { items, total: total?.n ?? 0, page: q.page, pageSize: q.pageSize };
   }, readOnly);
 }
 // Roles are re-read inside the locked transaction, like every financial write.
 async function currentRole(tx: Transaction, access: Access) {
-  const [row] = await tx
-    .select({ role: s.organizationUserRoles.role })
-    .from(s.organizationUserRoles)
-    .where(
-      and(
-        eq(s.organizationUserRoles.organizationId, access.organizationId),
-        eq(s.organizationUserRoles.userId, access.userId),
-      ),
-    );
-  if (!row) throw new HttpError(403, 'FORBIDDEN', 'Keine Berechtigung für diese Aktion.');
-  return row.role;
+  return (await currentAccess(tx, access)).role;
 }
 async function assertReferences(
   tx: Transaction,

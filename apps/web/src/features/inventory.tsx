@@ -271,10 +271,14 @@ function LendDialog({ item, onClose }: { item: InventoryItem; onClose: () => voi
 function ItemDetail({ item, onClose }: { item: InventoryItem; onClose: () => void }) {
   const { t, i18n } = useTranslation(),
     { me } = useSession();
+  const [page, setPage] = useState(1);
+  const pageSize = 25;
   const history = useQuery({
-    queryKey: ['inventory', 'item-loans', me.activeOrganizationId, item.id],
+    queryKey: ['inventory', 'item-loans', me.activeOrganizationId, item.id, page],
     queryFn: () =>
-      api<Page<InventoryLoan>>(`/inventory/loans?state=all&itemId=${item.id}&pageSize=100`),
+      api<Page<InventoryLoan>>(
+        `/inventory/loans?state=all&itemId=${item.id}&pageSize=${pageSize}&page=${page}`,
+      ),
   });
   return (
     <Modal wide title={item.name} onClose={onClose}>
@@ -347,6 +351,9 @@ function ItemDetail({ item, onClose }: { item: InventoryItem; onClose: () => voi
         </div>
       ) : (
         <Empty title={t('invNoHistory')} />
+      )}
+      {history.data && (
+        <Pagination page={page} pageSize={pageSize} total={history.data.total} onChange={setPage} />
       )}
     </Modal>
   );

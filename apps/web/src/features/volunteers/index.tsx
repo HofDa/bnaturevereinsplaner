@@ -1,3 +1,4 @@
+import { useBusinessDate } from '../../hooks/use-business-date';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -41,7 +42,6 @@ import {
   hoursLabel,
   nullable,
   splitList,
-  todayIso,
   usePermission,
   usePrivateUpload,
   useVolunteerWrite,
@@ -214,6 +214,7 @@ const registerPayload = (v: FormValues) => ({
   domicile: v.domicile,
 });
 function RegisterVolunteer({ onClose }: { onClose: () => void }) {
+  const todayIso = useBusinessDate();
   const { t } = useTranslation(),
     { me } = useSession(),
     write = useVolunteerWrite(),
@@ -470,6 +471,7 @@ export function VolunteerList() {
   );
 }
 export function VolunteerDetailPage() {
+  const todayIso = useBusinessDate();
   const { id = '' } = useParams(),
     { t, i18n } = useTranslation(),
     { me } = useSession(),

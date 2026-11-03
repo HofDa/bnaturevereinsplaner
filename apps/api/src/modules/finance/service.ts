@@ -23,26 +23,10 @@ import { wire } from '../responses';
 import { escapeLike } from '../members';
 import { financialOperation } from './operations';
 import { bookPayment } from './ledger';
+import { businessDate } from '../../services/business-date';
 
-export async function businessDate(
-  db: Executor,
-  organizationId: string,
-  now = new Date(),
-): Promise<string> {
-  const [org] = await db
-    .select({ timezone: s.organizations.timezone })
-    .from(s.organizations)
-    .where(eq(s.organizations.id, organizationId));
-  if (!org) throw new HttpError(404, 'NOT_FOUND', 'Organisation nicht gefunden.');
-  const parts = new Intl.DateTimeFormat('en', {
-    timeZone: org.timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(now);
-  const part = (type: string) => parts.find((p) => p.type === type)!.value;
-  return `${part('year')}-${part('month')}-${part('day')}`;
-}
+export { businessDate } from '../../services/business-date';
+
 const a = s.membershipFeeAssessments;
 // Allocations of reversed payments no longer settle an assessment.
 const paid = sql<number>`coalesce((select sum(pa.amount_cents) from payment_allocations pa where pa.organization_id="membership_fee_assessments"."organization_id" and pa.assessment_id="membership_fee_assessments"."id" and not exists(select 1 from payment_reversals pr where pr.organization_id=pa.organization_id and pr.payment_id=pa.payment_id)),0)::integer`;

@@ -3,7 +3,7 @@ import type { ModuleContext } from './context';
 import { schema as s } from '@bnature/db';
 import { eq } from 'drizzle-orm';
 import { patchSchema, idParams, organizationSchema } from '@bnature/contracts';
-import { HttpError } from '../middleware/access';
+import { HttpError, lockAccess } from '../middleware/access';
 import { audit } from '../services/audit';
 import { orgResponse } from './responses';
 export function registerOrganizationRoutes({ server, db, access }: ModuleContext) {
@@ -38,6 +38,7 @@ export function registerOrganizationRoutes({ server, db, access }: ModuleContext
       if (req.params.id !== a.organizationId)
         throw new HttpError(404, 'NOT_FOUND', 'Organisation nicht gefunden.');
       return db.transaction(async (tx) => {
+        await lockAccess(tx, a, 'organization:write');
         const [org] = await tx
           .update(s.organizations)
           .set({ ...req.body, updatedAt: new Date() })

@@ -8,10 +8,13 @@ export function useFinancialWrite() {
       signature = `${method}:${path}:${encoded}`;
     if (attempt.current?.signature !== signature)
       attempt.current = { signature, key: crypto.randomUUID() };
-    return api<T>(path, {
+    const current = attempt.current;
+    const result = await api<T>(path, {
       method,
       body: encoded,
-      headers: { 'Idempotency-Key': attempt.current.key },
+      headers: { 'Idempotency-Key': current.key },
     });
+    if (attempt.current === current) attempt.current = null;
+    return result;
   };
 }

@@ -1,7 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { encodeCsv, parseCsv, previewCsv } from '../../apps/web/src/lib/csv';
+import { csvCell } from '../../packages/contracts/src/csv';
 const header = 'firstName;lastName;membershipNumber;joinedAt';
 describe('CSV processing', () => {
+  it.each(['=1+1', '+2', '-2', '@SUM(A1)', '\t=1+1', '\r=1+1', '\n=1+1', '  =1+1', ' \t+2'])(
+    'neutralizes formula/control-prefixed cells: %j',
+    (value) => {
+      expect(csvCell(value)).toBe(`"'${value}"`);
+      expect(encodeCsv([{ value }], ['value'])).toContain(csvCell(value));
+    },
+  );
+  it('keeps null, Unicode, delimiters and quotes consistent across exports', () => {
+    expect(csvCell(null)).toBe('""');
+    expect(csvCell('Süd;"tirol"')).toBe('"Süd;""tirol"""');
+  });
   it('handles BOM, quotes, escaped quotes and multiline fields', () => {
     const rows = parseCsv(
       '\uFEFF' + header + '\r\n"Anna;Maria";"Test""Name\nZwei";001;2026-01-01\r\n',
