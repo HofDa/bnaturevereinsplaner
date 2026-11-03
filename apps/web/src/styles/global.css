@@ -1210,6 +1210,124 @@ strong {
   font-size: 10px;
   margin-top: 3px;
 }
+.unread-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  margin-left: auto;
+  border-radius: 999px;
+  background: #b4462f;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.community-tabs .unread-badge {
+  margin-left: 0.15rem;
+}
+.bottom-nav .nav-link {
+  position: relative;
+}
+.bottom-nav .unread-badge {
+  position: absolute;
+  top: 2px;
+  left: calc(50% + 6px);
+  margin: 0;
+  font-size: 0.6rem;
+  min-width: 1.1rem;
+  height: 1.1rem;
+}
+.digest-settings fieldset {
+  border: 0;
+  padding: 0;
+  margin: 1rem 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.digest-option {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  cursor: pointer;
+}
+.digest-option:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+/* Muted text falls below 4.5:1 on the selected tint. */
+.digest-option:has(input:checked) small {
+  color: var(--text);
+}
+.digest-option input {
+  margin-top: 0.2rem;
+  accent-color: var(--accent);
+}
+.digest-option strong,
+.digest-option small {
+  display: block;
+}
+.digest-option small {
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+.occasions-panel {
+  grid-column: 1 / -1;
+}
+.occasion-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 23px 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 8px 18px;
+}
+.occasion-list li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 0;
+  min-width: 0;
+}
+.occasion-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.occasion-list li.today .occasion-icon {
+  background: var(--accent);
+  color: #fff;
+}
+.occasion-text {
+  min-width: 0;
+  flex: 1;
+}
+.occasion-text a {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.occasion-text small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 3px;
+}
 .member-home {
   padding: 60px;
   background: var(--accent-soft);
@@ -3415,4 +3533,7 @@ code {
 }
 .block-note.warning-text {
   color: var(--danger);
+}
+.dark .occasion-list li.today .occasion-icon {
+  color: #17291b;
 }

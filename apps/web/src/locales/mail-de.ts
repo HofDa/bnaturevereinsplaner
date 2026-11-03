@@ -9,6 +9,7 @@ export default {
   mailKind: 'Nachrichtenart',
   mailKind_fee_reminder: 'Beitragserinnerungen',
   mailKind_event_invitation: 'Termineinladungen',
+  mailKind_community_digest: 'Vereinsleben-Zusammenfassungen',
   mailEvent: 'Veranstaltung',
   mailChooseEvent: 'Veranstaltung auswählen',
   mailPreview: 'Versandvorschau',

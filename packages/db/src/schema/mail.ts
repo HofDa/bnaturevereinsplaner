@@ -27,7 +27,8 @@ export type MailKindValue =
   | 'newsletter'
   | 'account_invitation'
   | 'password_reset'
-  | 'test';
+  | 'test'
+  | 'community_digest';
 
 export const mailSettings = pgTable(
   'mail_settings',
@@ -141,7 +142,7 @@ export const mailMessages = pgTable(
     }),
     check(
       'mail_message_kind',
-      sql`${t.kind} in ('fee_reminder','event_invitation','deadline_reminder','newsletter','account_invitation','password_reset','test')`,
+      sql`${t.kind} in ('fee_reminder','event_invitation','deadline_reminder','newsletter','account_invitation','password_reset','test','community_digest')`,
     ),
     // Exactly the source columns of each kind are set.
     check(

@@ -348,7 +348,8 @@ export async function listMail(db: Database, a: Access, page: number) {
   if (can(a.role, 'finance:read')) kinds.push('fee_reminder');
   if (can(a.role, 'mail:invite')) kinds.push('event_invitation', 'newsletter');
   if (can(a.role, 'compliance:write')) kinds.push('deadline_reminder');
-  if (can(a.role, 'users:manage')) kinds.push('account_invitation', 'password_reset', 'test');
+  if (can(a.role, 'users:manage'))
+    kinds.push('account_invitation', 'password_reset', 'test', 'community_digest');
   if (!kinds.length) throw new HttpError(403, 'FORBIDDEN', 'Keine Berechtigung.');
   const where = and(
     eq(s.mailMessages.organizationId, a.organizationId),

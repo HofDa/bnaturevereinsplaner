@@ -124,3 +124,30 @@ export const chatPageSchema = z.object({
   items: z.array(chatMessageSchema),
   nextBefore: z.uuid().nullable(),
 });
+
+export const unreadSchema = z.object({
+  news: z.number().int(),
+  polls: z.number().int(),
+  chat: z.array(z.object({ groupId: z.uuid().nullable(), count: z.number().int() })),
+  total: z.number().int(),
+});
+export type Unread = z.infer<typeof unreadSchema>;
+export const markReadSchema = z
+  .object({
+    channel: z.enum(['news', 'poll', 'chat']),
+    groupId: z.uuid().nullable().default(null),
+    until: z.iso.datetime({ offset: true }),
+  })
+  .strict()
+  .refine((v) => v.channel === 'chat' || v.groupId === null, {
+    message: 'Only chat markers belong to a group.',
+    path: ['groupId'],
+  });
+export const digestModeSchema = z.enum(['off', 'daily', 'weekly']);
+export const notificationSettingsSchema = z.object({
+  digest: digestModeSchema,
+  email: z.string(),
+  emailEnabled: z.boolean(),
+});
+export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
+export const notificationSettingsInputSchema = z.object({ digest: digestModeSchema }).strict();

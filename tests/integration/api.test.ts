@@ -393,6 +393,7 @@ describe('groups, board and roles', () => {
       '/api/v1/users',
       '/api/v1/audit-logs',
       '/api/v1/dashboard',
+      '/api/v1/dashboard/occasions',
     ])
       expect((await app.inject({ url: path, headers: headers(memberCookie) })).statusCode).toBe(
         403,
@@ -522,6 +523,39 @@ describe('groups, board and roles', () => {
     expect(dashboard.statusCode, dashboard.body).toBe(200);
     expect(dashboard.json().totalMembers).toBe(1);
     expect(dashboard.json().activeGroups).toBe(1);
+  });
+  it('lists upcoming birthdays of own active members in the club time zone', async () => {
+    const inDays = (n: number) =>
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(
+        new Date(Date.now() + n * 86_400_000),
+      );
+    const birthday = `1990${inDays(3).slice(4)}`;
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/v1/members',
+      headers: headers(cookieA),
+      payload: { ...memberInput('A-BDAY'), dateOfBirth: birthday },
+    });
+    expect(created.statusCode, created.body).toBe(201);
+    const celebrant = created.json<Member>();
+    // Another club's member with the same birthday must not leak into this list.
+    await db
+      .update(s.persons)
+      .set({ dateOfBirth: birthday })
+      .where(eq(s.persons.id, foreign.personId));
+    const response = await app.inject({
+      url: '/api/v1/dashboard/occasions?days=10',
+      headers: headers(cookieA),
+    });
+    expect(response.statusCode, response.body).toBe(200);
+    const items = response.json().items as { personId: string; kind: string; date: string }[];
+    expect(items.filter((i) => i.kind === 'birthday')).toEqual([
+      expect.objectContaining({ personId: celebrant.personId, date: inDays(3), daysAway: 3 }),
+    ]);
+    expect(
+      (await app.inject({ url: '/api/v1/dashboard/occasions?days=365', headers: headers(cookieA) }))
+        .statusCode,
+    ).toBe(422);
   });
   it('invalidates a session on logout', async () => {
     const cookie = await login('admin-b@example.test');

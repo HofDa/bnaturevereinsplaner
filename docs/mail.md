@@ -36,6 +36,10 @@ Initial ausgeschaltet. Nach Aktivierung durch einen Admin prüft der API-Worker 
 
 Gleichzeitige Schedulerläufe werden durch die Organisationssperre serialisiert. Eine gültige Adminrolle des aktivierenden Kontos ist weiterhin erforderlich. Noch wartende oder unklare Versandaufträge verhindern zusätzliche Erinnerungen für dieselbe Forderung. Deaktivieren beendet die Erzeugung weiterer automatischer Aufträge; bereits bestätigte Aufträge bleiben im Postausgang.
 
+## Zusammenfassung Vereinsleben
+
+Mitglieder können im Profil eine tägliche oder wöchentliche Zusammenfassung ungelesener News, Umfragen und Chatnachrichten abonnieren (Standard: aus). Der Worker legt fällige Zusammenfassungen ab 7 Uhr Vereinszeit als Art `community_digest` im Postausgang an; Admins sehen sie dort. Leere Zusammenfassungen werden nicht erzeugt. Details: [Vereinsleben](community.md#ungelesen-und-zusammenfassung-per-e-mail).
+
 ## Postausgang und Fehler
 
 Migration `0012` ergänzt `mail_settings` und `mail_messages`, ohne bestehende Fachdaten umzubauen. Mandantengebundene Fremdschlüssel verhindern fremde Personen-, Veranstaltungs- und Forderungsbezüge. Idempotente Bestätigungen mit demselben Schlüssel erzeugen genau einen Auftragssatz. Versand, Abbruch und Einstellungen werden ohne Nachrichtentext oder Adressen im Audit protokolliert.

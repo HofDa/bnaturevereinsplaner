@@ -26,6 +26,7 @@ import { api, errorMessage, queryClient } from '../lib/api';
 import { useSession } from '../app/session';
 import { useFinancialWrite } from './finance/client';
 import { ChatReactions, EmojiPicker } from './community-emoji';
+import { UnreadBadge, useMarkRead, useUnread } from './community-unread';
 import {
   Button,
   Empty,
@@ -288,6 +289,9 @@ function CommunityEditor({
   );
 }
 
+const withCount = (label: string, count: number) =>
+  count ? `${label} (${count > 99 ? '99+' : count})` : label;
+
 export function CommunityIndex() {
   const { t, i18n } = useTranslation();
   const { me } = useSession();
@@ -317,6 +321,18 @@ export function CommunityIndex() {
     queryFn: () => api<Page<CommunityPost>>(`/community/posts?${query}`),
     enabled: kind !== 'chat',
   });
+  const unread = useUnread().data;
+  const chatUnread = (id: string | null) => unread?.chat.find((c) => c.groupId === id)?.count ?? 0;
+  // The unfiltered first page shows the newest posts, so seeing it marks the tab as read.
+  const newest =
+    kind !== 'chat' && state === 'published' && page === 1 && !groupId
+      ? posts.data?.items.reduce<string | null>(
+          (max, post) =>
+            post.publishedAt && (!max || post.publishedAt > max) ? post.publishedAt : max,
+          null,
+        )
+      : null;
+  useMarkRead(kind === 'poll' ? 'poll' : 'news', null, newest);
   function filter(key: string, value: string) {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
@@ -373,16 +389,29 @@ export function CommunityIndex() {
               <MessagesSquare size={18} />
             )}
             {t(value === 'news' ? 'commNews' : value === 'poll' ? 'commPolls' : 'commChat')}
+            <UnreadBadge
+              count={
+                value === 'news'
+                  ? unread?.news
+                  : value === 'poll'
+                    ? unread?.polls
+                    : unread?.chat.reduce((n, c) => n + c.count, 0)
+              }
+            />
           </button>
         ))}
       </div>
       <div className="community-filters">
         <Field label={t('commFilterAudience')}>
           <select value={groupId} onChange={(e) => filter('groupId', e.target.value)}>
-            <option value="">{t(kind === 'chat' ? 'commWholeClub' : 'commAllAudiences')}</option>
+            <option value="">
+              {kind === 'chat'
+                ? withCount(t('commWholeClub'), chatUnread(null))
+                : t('commAllAudiences')}
+            </option>
             {audiences.data?.groups.map((group) => (
               <option key={group.id} value={group.id}>
-                {group.name}
+                {kind === 'chat' ? withCount(group.name, chatUnread(group.id)) : group.name}
               </option>
             ))}
           </select>
@@ -487,7 +516,15 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
   const { me } = useSession();
   const write = useFinancialWrite();
   const [before, setBefore] = useState<string | null>(null);
-  const [text, setText] = useState('');
+  const [params, setParams] = useSearchParams();
+  // A congratulation link from the dashboard pre-fills (never sends) a message.
+  const [text, setText] = useState(() => params.get('draft')?.slice(0, 2000) ?? '');
+  useEffect(() => {
+    if (!params.has('draft')) return;
+    const next = new URLSearchParams(params);
+    next.delete('draft');
+    setParams(next, { replace: true });
+  }, [params, setParams]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [removing, setRemoving] = useState<ChatMessage | null>(null);
@@ -503,6 +540,7 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
     refetchInterval: before ? false : 5000,
   });
   const lastId = query.data?.items.at(-1)?.id;
+  useMarkRead('chat', groupId, before ? null : query.data?.items.at(-1)?.createdAt);
   useEffect(() => {
     if (!before && follow.current && log.current) log.current.scrollTop = log.current.scrollHeight;
   }, [lastId, before]);

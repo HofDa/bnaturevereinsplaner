@@ -57,6 +57,8 @@ Sprint 2.3 setzt diese Strategie für Anwesenheit um. Die Phase-1-Datenbank blei
 
 Kommunikationserweiterung auf `feat/communication-email`: SMTP-Grundlage, lokales Mailpit-Testpostfach, Vorschau/Bestätigung, rollenabhängiger Postausgang, Beitragserinnerungen und Termineinladungen sowie explizit aktivierbare automatische Beitragserinnerungen sind implementiert. Details und Grenzen: [E-Mail](mail.md). Fristenmails und Newsletter bleiben offen. News, Umfragen und Chat sind inzwischen im [Vereinsleben](community.md) umgesetzt. Der vorhandene Fristenmanager verschickt weiterhin keine E-Mails.
 
+Auf `feat/unread-birthdays` ergänzt: Ungelesen-Markierungen und optionale Zusammenfassung per E-Mail im [Vereinsleben](community.md#ungelesen-und-zusammenfassung-per-e-mail) sowie Geburtstage und Mitgliedsjubiläen (1, 5, 10, … Jahre) aktiver Mitglieder der nächsten 30 Tage auf der Übersicht für Admin, Vorstand und Kassier, mit vorbereitetem Glückwunsch im Vereinschat.
+
 Für b*nature vereinbarter weiterer Schwerpunkt: Kommunikation, Inventar/Ausleihe, Beitrags-Sammelvorschreibungen, Mitgliedszusatzfelder/Einwilligungen/Erziehungsberechtigte, Geburtstage/Jubiläen, Excel-Import und Auswertungen. SEPA und elektronische Rechnungen nur bei konkretem Bedarf. Sportmodule (Mannschaften, Tesseramento und sportbezogene Verwaltung) sind ausdrücklich ausgeschlossen.
 
 Release-Gates aus [Prüfnachweise](verification.md#offene-release-gates) abarbeiten, insbesondere rechtliche Freigabe des Registerverfahrens und der Startregeln. Danach: qualifizierter Signaturadapter, Mailerinnerungen für Fristen, Selbstansicht für Freiwillige und Aufbewahrungs-/Löschprozesse. Öffentliche Anmeldung und Gebühren bleiben getrennt zu planen.

@@ -164,3 +164,7 @@ export async function allPages<T>(path: string): Promise<T[]> {
   }
   return items;
 }
+/** For endpoints answering 204 No Content. */
+export async function apiSend(path: string, options: RequestInit = {}): Promise<void> {
+  await apiResponse(path, options);
+}

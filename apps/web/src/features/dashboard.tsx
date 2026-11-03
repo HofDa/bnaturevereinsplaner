@@ -10,8 +10,11 @@ import {
   Plus,
   ArrowUpRight,
   Sprout,
+  Cake,
+  Award,
+  PartyPopper,
 } from 'lucide-react';
-import type { Dashboard as DashboardData } from '@bnature/contracts';
+import type { Dashboard as DashboardData, Occasion } from '@bnature/contracts';
 import { api } from '../lib/api';
 import { useSession } from '../app/session';
 import {
@@ -277,9 +280,83 @@ export function Dashboard() {
                 <Empty description={t('noBoard')} />
               )}
             </section>
+            <Occasions />
           </div>
         </>
       )}
     </>
+  );
+}
+
+function Occasions() {
+  const { t, i18n } = useTranslation(),
+    { me } = useSession();
+  const query = useQuery({
+    queryKey: ['dashboard', 'occasions', me.activeOrganizationId],
+    queryFn: () => api<{ items: Occasion[] }>('/dashboard/occasions?days=30'),
+  });
+  const when = (item: Occasion) =>
+    item.daysAway === 0
+      ? t('occasionToday')
+      : item.daysAway === 1
+        ? t('occasionTomorrow')
+        : t('occasionInDays', { count: item.daysAway });
+  const draft = (item: Occasion) =>
+    `/community?kind=chat&draft=${encodeURIComponent(
+      t(item.kind === 'birthday' ? 'occasionDraftBirthday' : 'occasionDraftAnniversary', {
+        name: item.firstName,
+        years: item.years,
+      }),
+    )}`;
+  return (
+    <section className="panel occasions-panel">
+      <header className="panel-header">
+        <div>
+          <h2>{t('occasionsTitle')}</h2>
+          <p>{t('occasionsIntro')}</p>
+        </div>
+      </header>
+      {query.isPending ? (
+        <Loading />
+      ) : query.isError ? (
+        <ErrorState error={query.error} retry={() => void query.refetch()} />
+      ) : !query.data.items.length ? (
+        <Empty description={t('occasionsEmpty')} />
+      ) : (
+        <ul className="occasion-list">
+          {query.data.items.map((item) => (
+            <li
+              key={`${item.personId}:${item.kind}`}
+              className={item.daysAway === 0 ? 'today' : ''}
+            >
+              <span className="occasion-icon" aria-hidden="true">
+                {item.kind === 'birthday' ? <Cake size={18} /> : <Award size={18} />}
+              </span>
+              <span className="occasion-text">
+                <Link to={`/members/${item.memberId}`}>
+                  {item.firstName} {item.lastName}
+                </Link>
+                <small>
+                  {t(item.kind === 'birthday' ? 'occasionBirthday' : 'occasionAnniversary', {
+                    count: item.years,
+                  })}{' '}
+                  · {when(item)}, {formatDate(item.date, i18n.language)}
+                </small>
+              </span>
+              {me.permissions.includes('community:chat') && item.daysAway <= 1 && (
+                <Link
+                  className="icon-button"
+                  to={draft(item)}
+                  aria-label={`${t('occasionCongratulate')}: ${item.firstName} ${item.lastName}`}
+                  title={t('occasionCongratulate')}
+                >
+                  <PartyPopper size={17} />
+                </Link>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
