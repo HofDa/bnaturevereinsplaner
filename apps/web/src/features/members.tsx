@@ -24,6 +24,7 @@ import {
 } from '../components/ui';
 import { MemberForm } from './member-form';
 import { CsvImport } from './csv-import';
+import { MemberExtrasPanels } from './member-extras';
 export function Members() {
   const { t, i18n } = useTranslation(),
     { me } = useSession();
@@ -310,6 +311,7 @@ export function MemberDetail() {
           </p>
         </section>
       </div>
+      <MemberExtrasPanels membershipId={member.id} />
       {editing && (
         <Modal wide title={t('edit')} onClose={() => setEditing(false)}>
           <MemberForm

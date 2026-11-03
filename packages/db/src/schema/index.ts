@@ -8,3 +8,4 @@ export * from './volunteers';
 export * from './mail';
 export * from './inventory';
 export * from './community';
+export * from './member-extras';

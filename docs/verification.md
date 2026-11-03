@@ -1,5 +1,15 @@
 # Prüfnachweise
 
+## Zusatzfelder, Einwilligungen und Erziehungsberechtigte – 03.11.2026
+
+Auf `feat/member-consents`, gestapelt auf `feat/fee-batch`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt; erneute Migrationserzeugung meldet keine Schemaabweichung nach `0020_member_extras`.
+- Neue PostgreSQL-Integrationstests: Felddefinitionen mit Typ- und Optionsprüfung, Werte je Typ inklusive Leeren, deaktivierte Felder, unveränderliche Feldart; Einwilligungen als Verlauf mit aktuellem Stand, Zukunftsdatum abgewiesen, Änderungen und Löschungen in PostgreSQL blockiert; Erziehungsberechtigte anlegen, teilweise ändern (ohne Überschreiben anderer Angaben), löschen; Mandantengrenzen und Rechte (Mitglied 403, Kassier nur lesend).
+- **2/2 Browserabläufe** `member-extras` (Desktop und Mobil): Feld definieren, Minderjährigen-Hinweis, erziehungsberechtigte Person, Fotoeinwilligung mit vorbelegter erklärender Person und Widerruf mit Verlauf, Zusatzwert setzen, Axe und keine horizontale Verschiebung.
+- Build: Workbox-Grenze für vorab gespeicherte Dateien auf 3 MiB angehoben, weil das einzelne App-Bundle mit dem Entwicklungs-React der Browsertests 2,1 MB erreicht. Aufteilung in nachgeladene Teile ist als Folgeaufgabe offen.
+- Kein Push, PR oder Deployment; Migration nicht auf Produktionsdaten angewendet.
+
 ## Sammelvorschreibung – 03.11.2026
 
 Auf `feat/fee-batch`, gestapelt auf `feat/unread-birthdays`:
