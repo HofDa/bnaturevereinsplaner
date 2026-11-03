@@ -1,5 +1,14 @@
 # Prüfnachweise
 
+## Chat-Emojis und Reaktionen – 03.11.2026
+
+Auf `feat/chat-emoji`, Basis `a7cbf82`:
+
+- Typecheck, ESLint und Prettier bestanden; OpenAPI neu erzeugt; erneute Migrationserzeugung meldet keine Schemaabweichung nach `0018_chat_reactions`.
+- **96/96 Unit-/UI-Tests** und **171/171 PostgreSQL-Integrationstests** bestanden. Der neue Integrationstest prüft eine Reaktion je Konto und Emoji, gleichzeitige Wiederholung mit demselben `Idempotency-Key`, Setzen/Zurücknehmen ohne Umschalten, die Emoji-Auswahl in API und Datenbank, Gruppen- und Mandantengrenzen sowie das Entfernen aller Reaktionen beim Moderieren mit Datenbanksperre für neue Reaktionen.
+- **6/6 Vereinsleben-Browserabläufe** (drei Desktop, drei Mobil) einschließlich Emoji-Auswahl, Einfügen an der Cursorposition, Escape, Reaktion setzen/zurücknehmen und Axe-Prüfung mit geöffneter Reaktion. Auf Mobil liegt die Auswahl sichtbar über der unteren Navigation. Web-Produktionsbundle gebaut. Andere Browsersuiten wurden nicht erneut ausgeführt.
+- Kein Push, PR oder Deployment; Migration nicht auf Produktionsdaten angewendet.
+
 ## Zusammenführung auf master – 31.10.2026
 
 Inventar (`d26034f`) und Vereinsleben/E-Mail (`e88ad40`) sind gemeinsam integriert. Navigation, API-Registrierung, Verträge und Rollen behalten beide Funktionsbereiche. Die kollidierenden Migrationen sind als Inventar `0013`, Mail `0014`, News/Umfragen `0015` und Chat `0016` eingeordnet. Die ursprünglichen SQL-Inhalte und Zeitstempel bleiben erhalten; `0017_merge_reconciliation` ergänzt fehlende Module bei bereits migrierten Datenbanken aus beiden Branches. Die Snapshots bilden eine gemeinsame Kette; erneute Migrationserzeugung meldet keine Schemaabweichung.

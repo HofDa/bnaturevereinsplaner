@@ -95,6 +95,19 @@ export const chatQuerySchema = z.object({
   groupId: z.uuid().optional(),
   before: z.uuid().optional(),
 });
+/** Fixed reaction set; mirrored by the `community_chat_reaction_emoji` check constraint. */
+export const chatReactionEmojis = ['👍', '❤️', '😂', '😮', '🎉', '🙏'] as const;
+export type ChatReactionEmoji = (typeof chatReactionEmojis)[number];
+export const chatReactionInputSchema = z
+  .object({ emoji: z.enum(chatReactionEmojis), active: z.boolean() })
+  .strict();
+export const chatReactionSchema = z.object({
+  emoji: z.enum(chatReactionEmojis),
+  count: z.number().int(),
+  mine: z.boolean(),
+  names: z.array(z.string()),
+});
+export type ChatReaction = z.infer<typeof chatReactionSchema>;
 export const chatMessageSchema = z.object({
   id: z.uuid(),
   authorName: z.string(),
@@ -104,6 +117,7 @@ export const chatMessageSchema = z.object({
   version: z.number().int(),
   isOwn: z.boolean(),
   canRemove: z.boolean(),
+  reactions: z.array(chatReactionSchema),
 });
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
 export const chatPageSchema = z.object({

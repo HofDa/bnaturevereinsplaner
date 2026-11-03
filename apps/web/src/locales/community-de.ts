@@ -9,6 +9,13 @@ export default {
   commChatRemove: 'Nachricht entfernen',
   commChatMessage: 'Deine Nachricht',
   commChatKeyboard: 'Bis zu 2000 Zeichen. Senden auch mit Strg/⌘ + Enter.',
+  commEmojiInsert: 'Emoji einfügen',
+  commEmojiFaces: 'Smileys',
+  commEmojiGestures: 'Gesten',
+  commEmojiSymbols: 'Symbole',
+  commEmojiNature: 'Natur und Unterwegs',
+  commReactionAdd: 'Reaktion hinzufügen',
+  commReactionWho: '{{emoji}} von {{names}}',
   commChatSend: 'Senden',
   commChatRemoveConfirm:
     'Diese Nachricht entfernen? Der Text wird gelöscht; im Gespräch bleibt ein Hinweis stehen.',

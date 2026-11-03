@@ -147,10 +147,37 @@ export const communityChatMessages = pgTable(
       foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
     }),
     index('community_chat_channel').on(t.organizationId, t.groupId, t.createdAt, t.id),
+    unique('community_chat_messages_tenant').on(t.organizationId, t.id),
     check(
       'community_chat_body',
       sql`(${t.removedAt} is null and ${t.removedBy} is null and length(trim(${t.body})) between 1 and 2000) or (${t.removedAt} is not null and ${t.removedBy} is not null and ${t.body}='')`,
     ),
     check('community_chat_version', sql`${t.version}>0`),
+  ],
+);
+
+// Keep the emoji list in sync with `chatReactionEmojis` in @bnature/contracts.
+export const communityChatReactions = pgTable(
+  'community_chat_reactions',
+  {
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    messageId: uuid('message_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    emoji: text('emoji').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.messageId, t.userId, t.emoji] }),
+    foreignKey({
+      columns: [t.organizationId, t.messageId],
+      foreignColumns: [communityChatMessages.organizationId, communityChatMessages.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.organizationId, t.userId],
+      foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
+    }),
+    check('community_chat_reaction_emoji', sql`${t.emoji} in ('👍', '❤️', '😂', '😮', '🎉', '🙏')`),
   ],
 );

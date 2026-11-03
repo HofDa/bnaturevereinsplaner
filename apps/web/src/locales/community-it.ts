@@ -10,6 +10,13 @@ const it: Record<keyof typeof de, string> = {
   commChatRemove: 'Rimuovi messaggio',
   commChatMessage: 'Il tuo messaggio',
   commChatKeyboard: 'Fino a 2000 caratteri. Invia anche con Ctrl/⌘ + Invio.',
+  commEmojiInsert: 'Inserisci emoji',
+  commEmojiFaces: 'Faccine',
+  commEmojiGestures: 'Gesti',
+  commEmojiSymbols: 'Simboli',
+  commEmojiNature: 'Natura e uscite',
+  commReactionAdd: 'Aggiungi reazione',
+  commReactionWho: '{{emoji}} da {{names}}',
   commChatSend: 'Invia',
   commChatRemoveConfirm:
     'Rimuovere questo messaggio? Il testo sarà eliminato; nella conversazione rimarrà un avviso.',

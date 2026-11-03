@@ -228,6 +228,90 @@ describe('news and polls', () => {
     );
     await ok(await write('POST', `/community/chat/${own.id}/remove`, { version: 1 }, 'member'));
   });
+  it('stores one reaction per account and emoji, scoped to the channel and the live message', async () => {
+    const msg = await ok<{ id: string }>(
+      await write('POST', '/community/chat', { body: 'Wer kommt mit? 🌲' }, 'member'),
+      201,
+    );
+    const react = (emoji: string, active: boolean, role = 'member', key?: string) =>
+      write('PUT', `/community/chat/${msg.id}/reactions`, { emoji, active }, role, key);
+    const key = crypto.randomUUID();
+    const replies = await Promise.all([
+      react('👍', true, 'member', key),
+      react('👍', true, 'member', key),
+    ]);
+    replies.forEach((r) => expect(r.statusCode, r.body).toBe(200));
+    await ok(await react('👍', true));
+    await ok(await react('👍', true, 'board'));
+    await ok(await react('🎉', true, 'board'));
+    type Listed = {
+      items: {
+        id: string;
+        reactions: { emoji: string; count: number; mine: boolean; names: string[] }[];
+      }[];
+    };
+    const reactionsOf = async (role: string) =>
+      (await ok<Listed>(await get('/community/chat', role))).items.find((m) => m.id === msg.id)!
+        .reactions;
+    expect(await reactionsOf('member')).toEqual([
+      { emoji: '👍', count: 2, mine: true, names: expect.any(Array) },
+      { emoji: '🎉', count: 1, mine: false, names: expect.any(Array) },
+    ]);
+    expect((await reactionsOf('board'))[1]!.mine).toBe(true);
+    await ok(await react('👍', false));
+    await ok(await react('👍', false));
+    expect(await reactionsOf('member')).toMatchObject([
+      { emoji: '👍', count: 1, mine: false },
+      { emoji: '🎉', count: 1 },
+    ]);
+    expect((await react('🍕', true)).statusCode).toBe(422);
+    await expect(
+      db.insert(s.communityChatReactions).values({
+        organizationId: org,
+        messageId: msg.id,
+        userId: users.member!.id,
+        emoji: '🍕',
+      }),
+    ).rejects.toThrow();
+    const group = await ok<{ id: string }>(
+      await write('POST', '/community/chat', { body: 'Nur Gruppe', groupId }, 'member'),
+      201,
+    );
+    expect(
+      (
+        await write(
+          'PUT',
+          `/community/chat/${group.id}/reactions`,
+          { emoji: '👍', active: true },
+          'other',
+        )
+      ).statusCode,
+    ).toBe(404);
+    const foreign = await app.inject({
+      method: 'PUT',
+      url: `/api/v1/community/chat/${msg.id}/reactions`,
+      headers: headers('foreign', crypto.randomUUID(), foreignOrg),
+      payload: { emoji: '👍', active: true },
+    });
+    expect(foreign.statusCode).toBe(404);
+    await ok(await write('POST', `/community/chat/${msg.id}/remove`, { version: 1 }, 'member'));
+    expect(await reactionsOf('member')).toEqual([]);
+    expect(
+      await db
+        .select()
+        .from(s.communityChatReactions)
+        .where(eq(s.communityChatReactions.messageId, msg.id)),
+    ).toHaveLength(0);
+    expect((await react('👍', true)).statusCode).toBe(409);
+    await expect(
+      db.insert(s.communityChatReactions).values({
+        organizationId: org,
+        messageId: msg.id,
+        userId: users.member!.id,
+        emoji: '👍',
+      }),
+    ).rejects.toThrow();
+  });
   it('paginates chat history without duplicates and rejects cursors from another channel', async () => {
     await db.insert(s.communityChatMessages).values(
       Array.from({ length: 55 }, (_, i) => ({

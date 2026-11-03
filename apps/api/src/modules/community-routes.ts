@@ -13,6 +13,7 @@ import {
   chatInputSchema,
   chatQuerySchema,
   chatPageSchema,
+  chatReactionInputSchema,
 } from '@bnature/contracts';
 import type { ModuleContext } from './context';
 import { pageOf } from './responses';
@@ -25,7 +26,12 @@ import {
   transitionCommunityPost,
   voteCommunityPoll,
 } from './community';
-import { listCommunityChat, sendCommunityChat, removeCommunityChat } from './community-chat';
+import {
+  listCommunityChat,
+  sendCommunityChat,
+  removeCommunityChat,
+  reactCommunityChat,
+} from './community-chat';
 export function registerCommunityRoutes({ server, db, access }: ModuleContext) {
   const app = server.withTypeProvider<ZodTypeProvider>();
   const tags = ['Community'];
@@ -80,6 +86,29 @@ export function registerCommunityRoutes({ server, db, access }: ModuleContext) {
         req.headers['idempotency-key'],
         req.params.id,
         req.body.version,
+      );
+      return reply.header('Idempotency-Replayed', String(r.replayed)).send(r.data);
+    },
+  );
+  app.put(
+    '/api/v1/community/chat/:id/reactions',
+    {
+      schema: {
+        tags,
+        params: idParams,
+        body: chatReactionInputSchema,
+        headers: financeWriteHeaders,
+        response: { 200: result },
+      },
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    },
+    async (req, reply) => {
+      const r = await reactCommunityChat(
+        db,
+        await access(req, 'community:chat'),
+        req.headers['idempotency-key'],
+        req.params.id,
+        req.body,
       );
       return reply.header('Idempotency-Replayed', String(r.replayed)).send(r.data);
     },

@@ -19,11 +19,13 @@ import {
   communityInputSchema,
   type CommunityPost,
   type ChatMessage,
+  type ChatReactionEmoji,
   type Page,
 } from '@bnature/contracts';
 import { api, errorMessage, queryClient } from '../lib/api';
 import { useSession } from '../app/session';
 import { useFinancialWrite } from './finance/client';
+import { ChatReactions, EmojiPicker } from './community-emoji';
 import {
   Button,
   Empty,
@@ -491,7 +493,9 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
   const [removing, setRemoving] = useState<ChatMessage | null>(null);
   const attempt = useRef<{ text: string; key: string } | null>(null);
   const log = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
   const follow = useRef(true);
+  const [reacting, setReacting] = useState<string | null>(null);
   const q = new URLSearchParams({ ...(groupId ? { groupId } : {}), ...(before ? { before } : {}) });
   const query = useQuery({
     queryKey: ['community', 'chat', me.activeOrganizationId, groupId, before],
@@ -524,6 +528,18 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
       setError(error);
     } finally {
       setBusy(false);
+    }
+  }
+  async function react(message: ChatMessage, emoji: ChatReactionEmoji, active: boolean) {
+    setReacting(message.id);
+    setError(null);
+    try {
+      await write(`/community/chat/${message.id}/reactions`, { emoji, active }, 'PUT');
+      await queryClient.invalidateQueries({ queryKey: ['community', 'chat'] });
+    } catch (error) {
+      setError(error);
+    } finally {
+      setReacting(null);
     }
   }
   async function remove() {
@@ -599,6 +615,13 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
                 <p className={message.removedAt ? 'community-chat-removed' : ''}>
                   {message.removedAt ? t('commChatRemoved') : message.body}
                 </p>
+                {!message.removedAt && (
+                  <ChatReactions
+                    message={message}
+                    disabled={reacting === message.id}
+                    onReact={(emoji, active) => void react(message, emoji, active)}
+                  />
+                )}
                 {message.canRemove && (
                   <Button
                     variant="ghost"
@@ -617,6 +640,7 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
       <form className="community-chat-compose" onSubmit={(event) => void send(event)}>
         <Field label={t('commChatMessage')} hint={t('commChatKeyboard')}>
           <textarea
+            ref={input}
             rows={3}
             maxLength={2000}
             value={text}
@@ -632,6 +656,13 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
           />
         </Field>
         <div className="form-actions">
+          <EmojiPicker
+            target={input}
+            value={text}
+            maxLength={2000}
+            disabled={busy || query.isError}
+            onChange={setText}
+          />
           <small>{text.length}/2000</small>
           <Button disabled={busy || !text.trim() || query.isError}>
             <Send size={16} />

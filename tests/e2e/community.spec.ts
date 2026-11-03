@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 test.setTimeout(120_000);
 const password = 'E2E-only-Password-2026!';
+const appOrigin = `http://localhost:${process.env.E2E_WEB_PORT ?? '5174'}`;
 async function login(page: Page, email = 'e2e@example.test', pass = password) {
   await page.goto('/');
   await page.getByLabel('E-Mail', { exact: true }).fill(email);
@@ -17,7 +18,7 @@ async function post<T>(
 ): Promise<T> {
   const r = await page.request.fetch(`/api/v1${path}`, {
     method,
-    headers: { Origin: 'http://localhost:5174', 'Idempotency-Key': crypto.randomUUID() },
+    headers: { Origin: appOrigin, 'Idempotency-Key': crypto.randomUUID() },
     data,
   });
   expect(r.ok(), await r.text()).toBe(true);
@@ -119,7 +120,7 @@ test('lets members vote, change their answer and see the final results after clo
   await expect(page.getByRole('radio', { name: 'Sonntag', exact: true })).toBeChecked();
   await expect(page.getByText('Abgegebene Stimmen insgesamt: 1', { exact: true })).toBeVisible();
   await a11y(page);
-  const adminContext = await browser.newContext({ baseURL: 'http://localhost:5174' });
+  const adminContext = await browser.newContext({ baseURL: appOrigin });
   try {
     const admin = await adminContext.newPage();
     await login(admin);
@@ -186,8 +187,44 @@ test('shows group news and chat only to assigned users and supports live moderat
   await page.getByLabel('Deine Nachricht', { exact: true }).fill('Hallo aus dem Browser!');
   await page.getByLabel('Deine Nachricht', { exact: true }).press('Control+Enter');
   await expect(page.getByText('Hallo aus dem Browser!', { exact: true })).toHaveCount(2);
+  const compose = page.getByLabel('Deine Nachricht', { exact: true });
+  await compose.fill('Ab in den Wald');
+  await page.getByRole('button', { name: 'Emoji einfügen', exact: true }).click();
+  await expect(page.getByRole('group', { name: 'Emoji einfügen' })).toBeInViewport({ ratio: 0.5 });
+  await page.screenshot({ path: `test-results/community-emoji-${info.project.name}.png` });
+  await page
+    .getByRole('group', { name: 'Emoji einfügen' })
+    .getByRole('button', { name: '🌲', exact: true })
+    .click();
+  await expect(compose).toHaveValue('Ab in den Wald🌲');
+  await expect(compose).toBeFocused();
+  await compose.press('Escape');
+  await expect(page.getByRole('group', { name: 'Emoji einfügen' })).not.toBeVisible();
+  await page.getByRole('button', { name: 'Senden', exact: true }).click();
+  await expect(page.getByText('Ab in den Wald🌲', { exact: true })).toBeVisible();
+  const welcome = page
+    .locator('.community-chat-message')
+    .filter({ hasText: 'Willkommen im Gruppenchat!' });
+  await welcome.getByRole('button', { name: /Reaktion hinzufügen/ }).click();
+  await welcome
+    .getByRole('group', { name: 'Reaktion hinzufügen' })
+    .getByRole('button', { name: '👍', exact: true })
+    .click();
+  const thumbs = welcome.getByRole('button', { name: '👍 von Lena Chat-Test', exact: true });
+  await expect(thumbs).toHaveAttribute('aria-pressed', 'true');
   await a11y(page);
-  const moderatorContext = await browser.newContext({ baseURL: 'http://localhost:5174' });
+  await thumbs.click();
+  await expect(thumbs).not.toBeVisible();
+  await welcome.getByRole('button', { name: /Reaktion hinzufügen/ }).click();
+  await welcome
+    .getByRole('group', { name: 'Reaktion hinzufügen' })
+    .getByRole('button', { name: '🎉', exact: true })
+    .click();
+  await expect(
+    welcome.getByRole('button', { name: '🎉 von Lena Chat-Test', exact: true }),
+  ).toBeVisible();
+  await a11y(page);
+  const moderatorContext = await browser.newContext({ baseURL: appOrigin });
   try {
     const moderator = await moderatorContext.newPage();
     await login(moderator);

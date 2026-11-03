@@ -11,6 +11,7 @@ Alle Pfade unter `/api/v1/community`, mit Session und Organisationskontext:
 - `PUT /posts/:id/vote` (`{version,optionId}`): eigene Stimme abgeben oder ersetzen. Vor Freigabe der Ergebnisse sind Gesamtzahl und Optionszahlen `null`; die eigene Antwort ist nur im eigenen Kontext enthalten.
 - `GET /chat?groupId=...&before=...`: Nachrichten des Vereins- oder Gruppenkanals, höchstens 50 je Abschnitt, älteste zuerst. `nextBefore` ruft den vorangehenden Abschnitt auf. Cursor müssen aus demselben Kanal stammen.
 - `POST /chat` (`{body,groupId?}`), `POST /chat/:id/remove` (`{version}`): Nachricht bis 2000 Zeichen senden beziehungsweise eigene Nachricht oder als Redaktion moderieren. Entfernte Texte werden nicht zurückgegeben.
+- `PUT /chat/:id/reactions` (`{emoji,active}`): eigene Reaktion setzen (`active: true`) oder zurücknehmen (`false`). Erlaubt sind 👍 ❤️ 😂 😮 🎉 🙏. Der Aufruf setzt einen Zustand und schaltet nicht um; Wiederholungen ändern daher nichts. Nachrichten im Listenaufruf enthalten `reactions` mit Anzahl, eigener Auswahl und Namen der Reagierenden.
 
 Alle Schreiboperationen benötigen `Origin` und UUID-`Idempotency-Key`. Gruppenzugang und Ergebnisfreigabe werden auch bei direktem Detailzugriff serverseitig geprüft. [Nutzung und Grenzen](../community.md).
 
