@@ -99,6 +99,7 @@ export type Guardian = z.infer<typeof guardianSchema>;
 
 export const memberExtrasSchema = z.object({
   isMinor: z.boolean(),
+  newsletterOptOut: z.boolean(),
   fields: z.array(z.object({ field: memberFieldSchema, value: memberFieldValueSchema.nullable() })),
   /** Latest decision per kind (null: never recorded). */
   consents: z.object({

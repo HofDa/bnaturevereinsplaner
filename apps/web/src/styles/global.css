@@ -4219,3 +4219,20 @@ code {
   font-size: 0.75rem;
   white-space: nowrap;
 }
+.newsletter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: end;
+}
+.newsletter-groups {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.newsletter-groups legend {
+  font-weight: 600;
+}
+.newsletter-subscription {
+  margin-top: 23px;
+}

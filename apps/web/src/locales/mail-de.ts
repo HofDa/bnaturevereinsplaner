@@ -71,4 +71,28 @@ export default {
     'Bitte eine kommende, veröffentlichte Veranstaltung mit offener Anmeldefrist auswählen.',
   mailTooMany:
     'Diese Vorschau enthält mehr als 250 Nachrichten. Bitte wenden Sie sich an die Administration.',
+  mailKind_newsletter: 'Newsletter',
+  mailNewsletterDraft: 'Newsletter-Entwurf',
+  mailNewsletterChoose: 'Entwurf auswählen',
+  mailNewsletterNew: 'Neuer Newsletter',
+  mailNewsletterEdit: 'Newsletter bearbeiten',
+  mailNewsletterWithdraw: 'Entwurf verwerfen',
+  mailNewsletterHelp:
+    'Text als Klartext auf Deutsch und Italienisch; jedes Mitglied erhält die eigene Sprache mit persönlicher Anrede und einem Hinweis zum Abbestellen. Nach dem Versand ist der Newsletter fest.',
+  mailNewsletterSubjectDe: 'Betreff (DE)',
+  mailNewsletterSubjectIt: 'Betreff (IT)',
+  mailNewsletterBodyDe: 'Text (DE)',
+  mailNewsletterBodyIt: 'Text (IT)',
+  mailNewsletterAudience: 'Empfänger',
+  mailNewsletterAudienceHint:
+    'Ohne Auswahl erhalten ihn alle aktiven Mitglieder; sonst nur Mitglieder der gewählten Gruppen.',
+  mailNewsletterSave: 'Entwurf speichern',
+  mailNewsletterHint:
+    'Aktive Mitglieder mit gültiger E-Mail-Adresse, die den Newsletter nicht abbestellt haben. Jeder Entwurf wird genau einmal versendet.',
+  mailNewsletterProfileTitle: 'Vereins-Newsletter',
+  mailNewsletterReceive: 'Newsletter per E-Mail erhalten',
+  mailNewsletterProfileHint:
+    'Betrifft nur den Newsletter. Erinnerungen und Einladungen werden weiterhin zugestellt.',
+  mailSkippedOptOut_one: '{{count}} Mitglied hat den Newsletter abbestellt.',
+  mailSkippedOptOut_other: '{{count}} Mitglieder haben den Newsletter abbestellt.',
 };

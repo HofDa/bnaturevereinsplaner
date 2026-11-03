@@ -56,4 +56,9 @@ export default {
   memberFieldInvalid: 'ungültiger Wert für dieses Zusatzfeld',
   importFieldsHint:
     'Zusatzfelder werden über Spalten mit ihrer Bezeichnung (DE oder IT) übernommen. Einwilligungen werden nicht importiert, sondern beim Mitglied mit Datum erfasst.',
+  newsletterTitle: 'Newsletter',
+  newsletterReceives: 'Erhält den Newsletter',
+  newsletterOptedOut: 'Abbestellt',
+  newsletterUnsubscribe: 'Abbestellen',
+  newsletterResubscribe: 'Wieder anmelden',
 };

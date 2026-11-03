@@ -57,4 +57,9 @@ export default {
   memberFieldInvalid: 'valore non valido per questo campo aggiuntivo',
   importFieldsHint:
     'I campi aggiuntivi vengono ripresi dalle colonne con la loro denominazione (DE o IT). I consensi non vengono importati, ma registrati presso il socio con la data.',
+  newsletterTitle: 'Newsletter',
+  newsletterReceives: 'Riceve la newsletter',
+  newsletterOptedOut: 'Disdetta',
+  newsletterUnsubscribe: 'Disdici',
+  newsletterResubscribe: 'Iscrivi di nuovo',
 };

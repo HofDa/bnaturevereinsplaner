@@ -1,6 +1,6 @@
 # E-Mail und Erinnerungen
 
-Die begonnene Schemaerweiterung für weitere Mailarten bleibt erhalten. Versandfunktionen, Einstellungen und Postausgang liefern wieder die vollständigen vereinbarten Antwortfelder. Konfigurationsdetails werden nur Admins angezeigt. Noch nicht eingerichtete Arten (unter anderem Fristenmails und Newsletter) werden vor der Versandvorbereitung ausdrücklich abgewiesen; sie werden nicht als Termineinladung verarbeitet. Bestehende Beitragserinnerungen und Termineinladungen bleiben verfügbar. Automatische Frist- und Rückgabeerinnerungen sind seit `feat/reminders` aktivierbar (siehe unten).
+Die begonnene Schemaerweiterung für weitere Mailarten bleibt erhalten. Versandfunktionen, Einstellungen und Postausgang liefern wieder die vollständigen vereinbarten Antwortfelder. Konfigurationsdetails werden nur Admins angezeigt. Nicht manuell vorbereitbare Arten (zum Beispiel Fristerinnerungen, die automatisch laufen) werden vor der Versandvorbereitung ausdrücklich abgewiesen; sie werden nicht als Termineinladung verarbeitet. Bestehende Beitragserinnerungen und Termineinladungen bleiben verfügbar. Automatische Frist- und Rückgabeerinnerungen sind seit `feat/reminders` aktivierbar (siehe unten).
 
 Die erste Kommunikationserweiterung ergänzt Beitragserinnerungen und Termineinladungen. Menü **E-Mail** (`/mail`): Nachrichtenart wählen, Vorschau mit Empfängern und Beispieltext prüfen und den Versand ausdrücklich bestätigen. Alle Nachrichten werden einzeln in der bevorzugten Sprache der Person (DE/IT) versendet. Eine Nachricht enthält keine anderen Empfängeradressen.
 
@@ -35,6 +35,12 @@ Fehlende Adressen oder Vereinszugänge werden in der Vorschau gezählt. Ein Vers
 Initial ausgeschaltet. Nach Aktivierung durch einen Admin prüft der API-Worker die Organisation täglich, sobald der Server läuft. Der Mindestabstand beträgt konfigurierbar 7–90 Tage, initial 14 Tage. Die Aktivierung kann sofort einen ersten Versand auslösen; deshalb zuerst Vorschau und lokalen Mailtransport prüfen. Berechnungen der Fälligkeit verwenden die Vereinszeitzone. Maßgeblich für den Wiederholungsabstand ist der letzte Versandversuch beziehungsweise die SMTP-Annahme, nicht nur das Anlegen des Auftrags.
 
 Gleichzeitige Schedulerläufe werden durch die Organisationssperre serialisiert. Eine gültige Adminrolle des aktivierenden Kontos ist weiterhin erforderlich. Noch wartende oder unklare Versandaufträge verhindern zusätzliche Erinnerungen für dieselbe Forderung. Deaktivieren beendet die Erzeugung weiterer automatischer Aufträge; bereits bestätigte Aufträge bleiben im Postausgang.
+
+## Newsletter
+
+Unter E-Mail › Nachrichtenart **Newsletter** legen Admin und Vorstand zweisprachige Entwürfe an (Betreff und Klartext DE/IT, optional auf Gruppen beschränkt), bearbeiten oder verwerfen sie. Die Vorschau zeigt alle aktiven Mitglieder mit gültiger Adresse, die den Newsletter nicht abbestellt haben, in ihrer Sprache mit persönlicher Anrede; Abmeldungen werden gezählt. Mit der Bestätigung wird jeder Entwurf genau einmal in den Postausgang gestellt und danach schreibgeschützt. Vor dem SMTP-Versand wird erneut geprüft; wer inzwischen abbestellt hat, erhält nichts.
+
+Abbestellen: Mitglieder mit verknüpftem Konto im **Profil**, alle anderen über die Vereinsverwaltung auf der Mitgliederseite (z. B. nach einer Nachricht an den Verein). Jede Newsletter-Mail weist darauf hin. Erinnerungen und Einladungen sind davon nicht betroffen. Ein Abmeldelink ohne Anmeldung ist nicht enthalten.
 
 ## Frist- und Rückgabeerinnerungen
 

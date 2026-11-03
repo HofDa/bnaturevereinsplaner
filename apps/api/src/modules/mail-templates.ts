@@ -168,3 +168,21 @@ export function loanReminderMail(input: {
       : `Buongiorno ${input.name},\n\n${input.overdue ? `la restituzione di «${what}» era prevista per il ${dateText(de, input.dueOn)}.` : `le ricordiamo di restituire «${what}» entro il ${dateText(de, input.dueOn)}.`}\n\nSe ha già restituito l’oggetto o le serve più tempo, contatti l’associazione.\n\nGrazie!\n${input.organization}`,
   };
 }
+
+export function newsletterMail(input: {
+  language: 'de' | 'it';
+  organization: string;
+  name: string;
+  subject: string;
+  body: string;
+  appUrl: string;
+}) {
+  const de = input.language === 'de';
+  const profile = new URL('/profile', input.appUrl).href;
+  return {
+    subject: oneLine(`${input.organization}: ${input.subject}`).slice(0, 500),
+    text: de
+      ? `Hallo ${input.name},\n\n${input.body}\n\n${input.organization}\n\n—\nSie erhalten diesen Newsletter als Mitglied. Abbestellen können Sie ihn in Ihrem Profil (${profile}) oder mit einer kurzen Nachricht an den Verein.`
+      : `Buongiorno ${input.name},\n\n${input.body}\n\n${input.organization}\n\n—\nRiceve questa newsletter come socio. Può disdirla nel suo profilo (${profile}) o con un breve messaggio all’associazione.`,
+  };
+}

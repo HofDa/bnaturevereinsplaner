@@ -40,7 +40,11 @@ const field = (row: typeof f.$inferSelect): MemberField => ({
 /** The person behind a membership ID, scoped to the organization. */
 async function personOf(db: Executor, org: string, membershipId: string) {
   const [row] = await db
-    .select({ personId: s.memberships.personId, dateOfBirth: s.persons.dateOfBirth })
+    .select({
+      personId: s.memberships.personId,
+      dateOfBirth: s.persons.dateOfBirth,
+      newsletterOptOut: s.persons.newsletterOptOut,
+    })
     .from(s.memberships)
     .innerJoin(
       s.persons,
@@ -124,6 +128,7 @@ export async function memberExtras(
         .orderBy(asc(g.createdAt), asc(g.id));
       return {
         isMinor: !!person.dateOfBirth && ageOn(person.dateOfBirth, today) < 18,
+        newsletterOptOut: person.newsletterOptOut,
         // Inactive fields stay visible only where a value was stored before.
         fields: definitions
           .filter((d) => d.active || values.has(d.id))

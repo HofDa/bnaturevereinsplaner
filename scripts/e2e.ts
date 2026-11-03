@@ -17,6 +17,7 @@ const suites = [
   'reports',
   'chat-poll',
   'schedule',
+  'newsletter',
 ];
 const requested = process.argv.slice(2);
 if (requested.some((s) => !suites.includes(s))) throw new Error('Unknown E2E suite');
@@ -37,7 +38,10 @@ for (const project of ['desktop', 'mobile']) {
       ],
       {
         stdio: 'inherit',
-        env: { ...process.env, EMAIL_MODE: suite === 'mail' ? 'local' : 'disabled' },
+        env: {
+          ...process.env,
+          EMAIL_MODE: suite === 'mail' || suite === 'newsletter' ? 'local' : 'disabled',
+        },
       },
     );
     const interrupt = () => child.kill('SIGTERM');

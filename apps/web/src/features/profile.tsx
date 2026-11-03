@@ -10,6 +10,7 @@ import { DataForm } from '../components/data-form';
 import { ErrorState, Loading, Notice, PageHeading } from '../components/ui';
 import { MyLoans } from './inventory';
 import { DigestSettings } from './community-unread';
+import { NewsletterSubscription } from './mail-newsletter';
 import { OwnVolunteeringPanel } from './volunteers/self';
 const profileSchema = personSchema.pick({
   phone: true,
@@ -112,6 +113,7 @@ export function Profile() {
           )}
         </section>
         <DigestSettings />
+        <NewsletterSubscription />
       </div>
       <OwnVolunteeringPanel />
       <MyLoans />

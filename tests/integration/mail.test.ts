@@ -218,7 +218,8 @@ describe('organization-scoped transactional email', () => {
     }>(await get('/mail/settings'));
     expect(settings.automaticDeadlineReminders).toBe(false);
     expect(settings.deadlineLastRunOn).toBeNull();
-    const unavailable = await preview({ kind: 'newsletter', newsletterId: crypto.randomUUID() });
+    // Deadline reminders are automatic only; there is no manual preview for them.
+    const unavailable = await preview({ kind: 'deadline_reminder' });
     expect(unavailable.statusCode).toBe(409);
     expect(unavailable.json().error.code).toBe('MAIL_KIND_UNAVAILABLE');
     const p = await ok<MailPreview>(await preview());
@@ -618,5 +619,108 @@ describe('automatic deadline and loan reminders', () => {
     expect([6, -2, -7].some((d) => deadlineReminderDue(d, [7, 1]))).toBe(false);
     expect([2, -1, -8].every(loanReminderDue)).toBe(true);
     expect([3, 1, 0, -2].some(loanReminderDue)).toBe(false);
+  });
+});
+describe('newsletter', () => {
+  const newsletter = (patch: Record<string, unknown> = {}) => ({
+    subjectI18n: { de: 'Frühjahrsputz im Biotop', it: 'Pulizie di primavera nel biotopo' },
+    bodyI18n: { de: 'Wir treffen uns am Samstag.', it: 'Ci troviamo sabato.' },
+    ...patch,
+  });
+  const put = (path: string, payload: unknown, role = 'admin') =>
+    app.inject({
+      method: 'PUT',
+      url: `/api/v1${path}`,
+      headers: headers(role),
+      payload: payload as Record<string, unknown>,
+    });
+  const create = async (patch: Record<string, unknown> = {}, role = 'board') =>
+    ok<{ id: string; version: number; status: string }>(
+      await post('/mail/newsletters', newsletter(patch), role),
+      201,
+    );
+  it('previews members, honours opt-outs and sends a draft exactly once', async () => {
+    expect((await post('/mail/newsletters', newsletter(), 'treasurer')).statusCode).toBe(403);
+    const draft = await create();
+    const request = { kind: 'newsletter', newsletterId: draft.id };
+    const first = await ok<MailPreview>(await preview(request, 'board'));
+    expect(first.items.map((i) => i.recipient).sort()).toEqual([
+      'mail-de@example.test',
+      'mail-it@example.test',
+      'mail-no-account@example.test',
+    ]);
+    expect(first.skipped.invalidEmail).toBe(1);
+    const italianItem = first.items.find((i) => i.language === 'it')!;
+    expect(italianItem.subject).toBe('b*nature Mailtest: Pulizie di primavera nel biotopo');
+    expect(italianItem.text).toContain('Ci troviamo sabato.');
+    // The linked member unsubscribes in the profile.
+    expect(
+      (await ok<{ optOut: boolean }>(await put('/profile/newsletter', { optOut: true }, 'member')))
+        .optOut,
+    ).toBe(true);
+    expect(
+      (await put('/profile/newsletter', { optOut: true }, 'treasurer')).json().error.code,
+    ).toBe('PROFILE_UNLINKED');
+    const second = await ok<MailPreview>(await preview(request, 'board'));
+    expect(second.skipped.optedOut).toBe(1);
+    expect(second.items.map((i) => i.recipient)).not.toContain('mail-de@example.test');
+    await ok(await queue(second, 'board'), 202);
+    const [stored] = await db
+      .select()
+      .from(s.mailNewsletters)
+      .where(eq(s.mailNewsletters.id, draft.id));
+    expect(stored!.status).toBe('sent');
+    expect((await preview(request, 'board')).json().error.code).toBe('NEWSLETTER_NOT_DRAFT');
+    expect(
+      (
+        await put(
+          `/mail/newsletters/${draft.id}`,
+          { ...newsletter(), version: draft.version },
+          'board',
+        )
+      ).statusCode,
+    ).toBe(409);
+    // Unsubscribing after queueing still stops the message before SMTP handoff.
+    await ok(await put(`/members/${italian.id}/newsletter`, { optOut: true }));
+    await deliverMail(db, config, sender);
+    expect(sent.map((m) => m.recipient)).toEqual(['mail-no-account@example.test']);
+    const cancelled = (await rows()).find((r) => r.recipient === 'mail-it@example.test')!;
+    expect(cancelled.state).toBe('cancelled');
+  });
+  it('limits group newsletters to active group members and lets drafts be edited or withdrawn', async () => {
+    const [group] = await db
+      .insert(s.groups)
+      .values({ organizationId: org, name: 'Vogelschutz' })
+      .returning();
+    await db
+      .insert(s.groupMembers)
+      .values({ organizationId: org, groupId: group!.id, personId: italian.personId });
+    const draft = await create({ groupIds: [group!.id] });
+    const edited = await ok<{ version: number; subjectI18n: { de: string } }>(
+      await put(
+        `/mail/newsletters/${draft.id}`,
+        {
+          ...newsletter({ groupIds: [group!.id] }),
+          subjectI18n: { de: 'Neu', it: 'Nuovo' },
+          version: draft.version,
+        },
+        'board',
+      ),
+    );
+    expect(edited.subjectI18n.de).toBe('Neu');
+    const p = await ok<MailPreview>(
+      await preview({ kind: 'newsletter', newsletterId: draft.id }, 'board'),
+    );
+    expect(p.items.map((i) => i.recipient)).toEqual(['mail-it@example.test']);
+    expect(
+      (await post('/mail/newsletters', newsletter({ groupIds: [crypto.randomUUID()] }), 'board'))
+        .statusCode,
+    ).toBe(404);
+    const withdrawn = await ok<{ status: string }>(
+      await post(`/mail/newsletters/${draft.id}/withdraw`, {}, 'board'),
+    );
+    expect(withdrawn.status).toBe('withdrawn');
+    const listed = await ok<{ items: { id: string }[] }>(await get('/mail/newsletters', 'board'));
+    expect(listed.items.map((x) => x.id)).not.toContain(draft.id);
   });
 });

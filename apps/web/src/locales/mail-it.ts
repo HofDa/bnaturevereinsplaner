@@ -70,5 +70,29 @@ const it: Record<keyof typeof de, string> = {
     'Destinatari o contenuto sono cambiati. Chiudere l’anteprima e generarne una nuova.',
   mailEventUnavailable: 'Selezionare un evento futuro e pubblicato con iscrizioni ancora aperte.',
   mailTooMany: 'Questa anteprima supera i 250 messaggi. Contattare l’amministrazione.',
+  mailKind_newsletter: 'Newsletter',
+  mailNewsletterDraft: 'Bozza newsletter',
+  mailNewsletterChoose: 'Scegli bozza',
+  mailNewsletterNew: 'Nuova newsletter',
+  mailNewsletterEdit: 'Modifica newsletter',
+  mailNewsletterWithdraw: 'Scarta bozza',
+  mailNewsletterHelp:
+    'Testo semplice in tedesco e italiano; ogni socio riceve la propria lingua con saluto personale e un’indicazione per disdire. Dopo l’invio la newsletter non è più modificabile.',
+  mailNewsletterSubjectDe: 'Oggetto (DE)',
+  mailNewsletterSubjectIt: 'Oggetto (IT)',
+  mailNewsletterBodyDe: 'Testo (DE)',
+  mailNewsletterBodyIt: 'Testo (IT)',
+  mailNewsletterAudience: 'Destinatari',
+  mailNewsletterAudienceHint:
+    'Senza selezione la ricevono tutti i soci attivi; altrimenti solo i soci dei gruppi scelti.',
+  mailNewsletterSave: 'Salva bozza',
+  mailNewsletterHint:
+    'Soci attivi con indirizzo e-mail valido che non hanno disdetto la newsletter. Ogni bozza viene inviata una sola volta.',
+  mailNewsletterProfileTitle: 'Newsletter dell’associazione',
+  mailNewsletterReceive: 'Ricevere la newsletter via e-mail',
+  mailNewsletterProfileHint:
+    'Riguarda solo la newsletter. Promemoria e inviti continuano a essere inviati.',
+  mailSkippedOptOut_one: '{{count}} socio ha disdetto la newsletter.',
+  mailSkippedOptOut_other: '{{count}} soci hanno disdetto la newsletter.',
 };
 export default it;
