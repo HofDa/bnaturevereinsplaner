@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, NavLink, useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import FullCalendar from '@fullcalendar/react';
@@ -59,16 +59,31 @@ function useCategories() {
     queryFn: () => api<{ items: EventCategory[] }>('/event-categories'),
   });
 }
-function EventNavigation() {
-  const { t } = useTranslation();
+/** Links between the event areas. The overview passes `views={false}`: its tabs already switch views. */
+function EventNavigation({ views = true }: { views?: boolean }) {
+  const { t } = useTranslation(),
+    { me } = useSession();
+  const links = [
+    ...(views
+      ? [
+          { to: '/events', label: 'eventCalendar' },
+          { to: '/events?view=list', label: 'eventAll' },
+          { to: '/events?view=mine', label: 'eventMine' },
+        ]
+      : []),
+    ...(me.permissions.includes('events:write')
+      ? [{ to: '/events/attendance', label: 'eventAttendanceNav' }]
+      : []),
+    { to: '/offline-attendance', label: 'eventOfflineAttendance' },
+    { to: '/events/categories', label: 'eventCategories' },
+  ];
   return (
     <nav className="event-navigation" aria-label={t('events')}>
-      <Link to="/events">{t('eventCalendar')}</Link>
-      <Link to="/events?view=list">{t('eventAll')}</Link>
-      <Link to="/events?view=mine">{t('eventMine')}</Link>
-      <Link to="/events/attendance">{t('eventAttendanceNav')}</Link>
-      <Link to="/offline-attendance">{t('eventOfflineAttendance')}</Link>
-      <Link to="/events/categories">{t('eventCategories')}</Link>
+      {links.map((link) => (
+        <NavLink key={link.to} to={link.to} end>
+          {t(link.label)}
+        </NavLink>
+      ))}
     </nav>
   );
 }
@@ -162,7 +177,7 @@ export function Events() {
           </>
         }
       />
-      <EventNavigation />
+      <EventNavigation views={false} />
       <section className="panel event-panel">
         <div className="finance-tabs" role="tablist" aria-label={t('events')}>
           {['calendar', 'list', 'mine'].map((v) => (

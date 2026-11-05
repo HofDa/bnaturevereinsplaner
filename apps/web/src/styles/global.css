@@ -4403,15 +4403,34 @@ code {
 tr[data-href] {
   cursor: pointer;
 }
-/* Phones: name and status only; everything else is one tap away on the record. */
+/* Phones: name, number and status; everything else is one tap away on the record. */
 @media (max-width: 700px) {
-  .members-table :is(th, td):is(:nth-child(2), :nth-child(3), :nth-child(5), :nth-child(6)),
+  .members-table :is(th, td):is(:nth-child(3), :nth-child(5), :nth-child(6)),
   .members-table :is(th, td):last-child,
   .members-table .member-field-cell {
     display: none;
   }
   .members-table {
     min-width: 0;
+  }
+  .members-table :is(th, td) {
+    padding-inline: 8px;
+  }
+  .members-table :is(th, td):first-child {
+    padding-left: 14px;
+  }
+  .members-table .person-cell {
+    min-width: 0;
+  }
+  .members-table .person-cell .avatar {
+    display: none;
+  }
+  .members-table .person-cell small {
+    display: block;
+    max-width: 44vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -4456,4 +4475,110 @@ tr[data-href] {
 }
 .finance-initialize .notice {
   flex-basis: 100%;
+}
+.finance-initialize .button {
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+}
+@media (max-width: 700px) {
+  .finance-initialize {
+    margin: 0 0 18px;
+    padding: 16px;
+  }
+}
+
+/* ---------- UX pass 2 ---------- */
+
+/* Readability floor: status, table headers and meta lines were 9–10px. */
+.badge {
+  font-size: 11px;
+}
+th {
+  font-size: 11px;
+}
+.person-cell small,
+.stat-card > small,
+.workspace-footer {
+  font-size: 11px;
+}
+
+/* Event areas as a compact segmented row; one line on phones (scrolls sideways). */
+.event-navigation {
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: -6px 0 20px;
+}
+.event-navigation a {
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12.5px;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease-out,
+    border-color 0.15s ease-out;
+}
+.event-navigation a:hover {
+  border-color: var(--accent);
+}
+.event-navigation a.active {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent);
+  font-weight: 600;
+}
+@media (max-width: 700px) {
+  .event-navigation {
+    margin-inline: -18px;
+    padding-inline: 18px;
+  }
+}
+
+/* Calendar toolbar in the app's own button language instead of FullCalendar's slabs. */
+.event-calendar .fc .fc-button {
+  font-size: 12.5px;
+  font-weight: 550;
+  padding: 7px 12px;
+  border-radius: 7px;
+  box-shadow: none;
+}
+.event-calendar .fc .fc-button-primary {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+.event-calendar .fc .fc-button-primary:hover {
+  background: var(--surface-subtle);
+  border-color: var(--accent);
+  color: var(--text);
+}
+.event-calendar .fc .fc-button-primary:not(:disabled).fc-button-active,
+.event-calendar .fc .fc-button-primary:not(:disabled):active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.event-calendar .fc .fc-button-primary:disabled {
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  color: var(--muted);
+  opacity: 1;
+}
+.event-calendar .fc .fc-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.event-calendar .fc-toolbar-title {
+  font-size: 17px;
+}
+
+/* The dashboard date is the only item left in its line: keep it on every screen size. */
+.date-line > span:last-child {
+  display: inline;
 }

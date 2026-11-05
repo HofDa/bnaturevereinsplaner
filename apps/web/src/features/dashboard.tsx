@@ -55,7 +55,6 @@ export function Dashboard() {
   return (
     <>
       <div className="date-line">
-        <span className="eyebrow">B*NATURE · {t('overview').toUpperCase()}</span>
         <span>
           {new Intl.DateTimeFormat(i18n.language === 'it' ? 'it-IT' : 'de-IT', {
             weekday: 'long',
@@ -87,7 +86,8 @@ export function Dashboard() {
                   {
                     title: 'activeMembers',
                     value: queryData.activeMembers,
-                    hint: `${queryData.totalMembers} ${t('totalMembers').toLowerCase()}`,
+                    // German nouns keep their capital (“38 Mitglieder insgesamt”); Italian reads lowercase.
+                    hint: `${queryData.totalMembers} ${i18n.language === 'it' ? t('totalMembers').toLowerCase() : t('totalMembers')}`,
                     icon: Users,
                   },
                   {

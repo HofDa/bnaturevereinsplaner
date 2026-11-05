@@ -141,6 +141,15 @@ export function Modal({
     const previousOverflow = document.documentElement.style.overflow;
     document.documentElement.style.overflow = 'hidden';
     dialog?.showModal();
+    // Forms open ready to type: move focus from the close button to the first field
+    // (unless a field already took focus via autoFocus).
+    if (dialog && document.activeElement === dialog.querySelector('header button')) {
+      dialog
+        .querySelector<HTMLElement>(
+          'form :is(input:not([type=hidden], [type=checkbox], [type=radio], [type=file]), textarea, select):not([disabled], [readonly])',
+        )
+        ?.focus();
+    }
     return () => {
       dialog?.close();
       document.documentElement.style.overflow = previousOverflow;
