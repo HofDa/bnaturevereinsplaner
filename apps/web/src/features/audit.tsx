@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { AuditLog, Page } from '@bnature/contracts';
 import { api } from '../lib/api';
@@ -14,6 +14,8 @@ export function Audit() {
     debounced = useDebounced(search);
   const query = useQuery({
     queryKey: ['audit', me.activeOrganizationId, page, debounced],
+    // Keep the current rows on screen while the next page or filter result loads.
+    placeholderData: keepPreviousData,
     queryFn: () =>
       api<Page<AuditLog>>(
         `/audit-logs?page=${page}&direction=desc&search=${encodeURIComponent(debounced)}`,

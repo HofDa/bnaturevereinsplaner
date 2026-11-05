@@ -24,9 +24,11 @@ const local = (offsetDays: number) =>
   );
 const row = (page: Page, text: string) => page.getByRole('row').filter({ hasText: text });
 
-test('manages items, lends, extends and returns them in DE/IT', async ({ page }) => {
+test('manages items, lends, extends and returns them in DE/IT', async ({ page }, info) => {
   test.setTimeout(90_000);
   await login(page);
+  // Phones keep four sections in the tab bar; the rest sits behind “Mehr”.
+  if (info.project.name === 'mobile') await page.getByRole('button', { name: 'Mehr' }).click();
   await page.getByRole('link', { name: 'Inventar' }).click();
   await expect(page.getByRole('heading', { name: 'Inventar', exact: true })).toBeVisible();
   await expect(page.getByText('Keine Gegenstände gefunden.')).toBeVisible();

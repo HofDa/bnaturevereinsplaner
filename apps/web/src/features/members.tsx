@@ -1,7 +1,7 @@
 import { QueryView } from '../components/ui';
 import { useState } from 'react';
 import { Link, useParams, useSearchParams, useNavigate } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Plus, Download, Upload, ArrowUpRight, ArrowLeft, Pencil } from 'lucide-react';
 import type { ConsentState, Member, MemberField, Page } from '@bnature/contracts';
@@ -79,6 +79,8 @@ export function Members() {
   }
   const query = useQuery({
     queryKey: ['members', me.activeOrganizationId, queryString, page],
+    // Keep the current rows on screen while the next page or filter result loads.
+    placeholderData: keepPreviousData,
     queryFn: () => api<Page<Member>>(`/members?${queryString}&page=${page}`),
   });
   return (
@@ -198,7 +200,7 @@ export function Members() {
               <>
                 {queryData.items.length ? (
                   <div className="table-scroll">
-                    <table>
+                    <table className="members-table">
                       <thead>
                         <tr>
                           <th>{t('name')}</th>
@@ -207,7 +209,9 @@ export function Members() {
                           <th>{t('status')}</th>
                           <th>{t('joined')}</th>
                           <th>{t('consentsTitle')}</th>
-                          {fields.length > 0 && <th>{t('memberFieldsTitle')}</th>}
+                          {fields.length > 0 && (
+                            <th className="member-field-cell">{t('memberFieldsTitle')}</th>
+                          )}
                           <th>
                             <span className="sr-only">{t('actions')}</span>
                           </th>
@@ -215,7 +219,18 @@ export function Members() {
                       </thead>
                       <tbody>
                         {queryData.items.map((member) => (
-                          <tr key={member.id}>
+                          <tr
+                            key={member.id}
+                            data-href={`/members/${member.id}`}
+                            onClick={(event) => {
+                              // The name and arrow are real links (keyboard, new tab); the rest of
+                              // the row is a convenience target for pointer users.
+                              if ((event.target as Element).closest('a, button, input, select'))
+                                return;
+                              if (window.getSelection()?.toString()) return;
+                              navigate(`/members/${member.id}`);
+                            }}
+                          >
                             <td>
                               <Link to={`/members/${member.id}`} className="person-cell">
                                 <Avatar firstName={member.firstName} lastName={member.lastName} />

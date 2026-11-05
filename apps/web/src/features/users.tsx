@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Plus, Pencil } from 'lucide-react';
 import { z } from 'zod';
@@ -35,6 +35,8 @@ export function UsersPage() {
     debounced = useDebounced(search);
   const query = useQuery({
     queryKey: ['users', me.activeOrganizationId, page, debounced],
+    // Keep the current rows on screen while the next page or filter result loads.
+    placeholderData: keepPreviousData,
     queryFn: () =>
       api<Page<UserRow>>(`/users?page=${page}&search=${encodeURIComponent(debounced)}`),
   });

@@ -1,6 +1,6 @@
 import { QueryView } from '../components/ui';
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { Mail, Send, Eye, Settings2 } from 'lucide-react';
@@ -57,6 +57,8 @@ export function MailPage() {
   });
   const messages = useQuery({
     queryKey: ['mail-messages', me.activeOrganizationId, page],
+    // Keep the current rows on screen while the next page or filter result loads.
+    placeholderData: keepPreviousData,
     queryFn: () => api<Page<MailMessage>>(`/mail/messages?page=${page}`),
     refetchInterval: 5000,
   });

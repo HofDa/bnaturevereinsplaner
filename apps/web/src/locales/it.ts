@@ -219,6 +219,8 @@ const it: Record<keyof typeof de, string> = {
   later: 'Più tardi',
   install: 'Installa app',
   skip: 'Vai al contenuto',
+  moreNavigation: 'Altro',
+  moreNavigationTitle: 'Tutte le sezioni',
   forbidden: 'Non hai l’autorizzazione per questa pagina.',
   sessionExpired: 'La sessione è scaduta. Accedi di nuovo.',
   serverError: 'Richiesta non riuscita. Riprova.',

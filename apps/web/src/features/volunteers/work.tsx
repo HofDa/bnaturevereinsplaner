@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Plus, Download } from 'lucide-react';
 import type {
@@ -56,6 +56,8 @@ export function VolunteerAssignments() {
     [error, setError] = useState('');
   const query = useQuery({
     queryKey: ['volunteer-assignments', me.activeOrganizationId, status, page],
+    // Keep the current rows on screen while the next page or filter result loads.
+    placeholderData: keepPreviousData,
     queryFn: () =>
       api<Page<VolunteerAssignment>>(
         `/volunteer-assignments?page=${page}${status ? `&status=${status}` : ''}`,
@@ -369,6 +371,8 @@ export function VolunteerHours() {
   const filters = `${status ? `&status=${status}` : ''}${engagement ? `&engagementId=${engagement}` : ''}`;
   const query = useQuery({
     queryKey: ['volunteer-time', me.activeOrganizationId, filters, page],
+    // Keep the current rows on screen while the next page or filter result loads.
+    placeholderData: keepPreviousData,
     queryFn: () => api<TimePage>(`/volunteer-time-entries?page=${page}${filters}`),
   });
   const decide = async (

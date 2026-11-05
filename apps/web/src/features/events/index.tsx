@@ -104,6 +104,10 @@ export function Events() {
   }).toString();
   const query = useQuery({
     queryKey: ['event-list', me.activeOrganizationId, parameters, page, view],
+    // Keep the current rows on screen while the next page, filter or month loads — but never
+    // carry events over into a different view (e.g. “all” rows shown under “mine”).
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[4] === view ? previous : undefined,
     queryFn: () =>
       view === 'calendar'
         ? allPages<EventOccurrence>(`/events?${parameters}`).then((items) => ({

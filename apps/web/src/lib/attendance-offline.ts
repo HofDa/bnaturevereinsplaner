@@ -1,11 +1,10 @@
 import Dexie, { type EntityTable } from 'dexie';
-import {
-  attendanceSnapshotSchema,
-  type AttendanceSnapshot,
-  type AttendanceOperation,
-  type AttendanceResult,
-  type Me,
-  type AttendanceRecord,
+import type {
+  AttendanceSnapshot,
+  AttendanceOperation,
+  AttendanceResult,
+  Me,
+  AttendanceRecord,
 } from '@bnature/contracts';
 import { api, ApiError } from './api';
 
@@ -142,6 +141,9 @@ export async function savePreparedAttendance(
     snapshot.organizationId !== me.activeOrganizationId
   )
     throw new Error('eventOfflineLocked');
+  // Loaded on demand (outside the IndexedDB transaction): the contracts barrel pulls in zod,
+  // Temporal and rrule, which the startup bundle does not need.
+  const parsed = (await import('@bnature/contracts')).attendanceSnapshotSchema.parse(snapshot);
   await bindAttendanceUser(me);
   if (version !== generation) throw new Error('eventOfflineLocked');
   await attendanceDatabase.transaction(
@@ -169,7 +171,7 @@ export async function savePreparedAttendance(
         userId: me.user.id,
         organizationId: me.activeOrganizationId,
         expiresAt: snapshot.expiresAt,
-        data: await seal(attendanceSnapshotSchema.parse(snapshot)),
+        data: await seal(parsed),
       });
     },
   );

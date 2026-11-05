@@ -219,6 +219,8 @@ export default {
   later: 'Später',
   install: 'App installieren',
   skip: 'Zum Inhalt springen',
+  moreNavigation: 'Mehr',
+  moreNavigationTitle: 'Alle Bereiche',
   forbidden: 'Für diese Ansicht fehlt Ihnen die Berechtigung.',
   sessionExpired: 'Ihre Sitzung ist abgelaufen. Bitte erneut anmelden.',
   serverError: 'Die Anfrage ist fehlgeschlagen. Bitte versuchen Sie es erneut.',

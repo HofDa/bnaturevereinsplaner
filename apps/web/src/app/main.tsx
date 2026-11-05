@@ -1,5 +1,5 @@
 import { PwaProvider } from '../components/pwa';
-import React, { useEffect, useState, lazy, type ReactNode } from 'react';
+import React, { Suspense, useEffect, useState, lazy, type ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router';
@@ -10,7 +10,6 @@ import '../styles/global.css';
 import { api, ApiError, queryClient, setOrganization } from '../lib/api';
 import { Shell } from '../layouts/shell';
 import { SessionContext, useSession } from './session';
-import { Login } from '../features/login';
 import { Dashboard } from '../features/dashboard';
 import { Settings, applyTheme, type Theme } from '../features/settings';
 import { OfflineAttendanceHub, AttendanceSyncManager } from '../features/events/offline-attendance';
@@ -18,97 +17,83 @@ import { purgeAttendance, attendanceOwner } from '../lib/attendance-offline';
 import { Link } from 'react-router';
 import { Empty, ErrorState, Loading } from '../components/ui';
 import { shellDatabase } from '../lib/offline';
+import { pages } from './routes';
+
+// The sign-in form (react-hook-form + zod) stays out of the startup bundle.
+const Login = lazy(() => import('../features/login').then((module) => ({ default: module.Login })));
 
 const ScheduleDetailPage = lazy(() =>
-  import('../features/community-schedules').then((module) => ({
+  pages.schedules().then((module) => ({
     default: module.ScheduleDetailPage,
   })),
 );
-const Reports = lazy(() =>
-  import('../features/reports').then((module) => ({ default: module.Reports })),
-);
-const Members = lazy(() =>
-  import('../features/members').then((module) => ({ default: module.Members })),
-);
+const Reports = lazy(() => pages.reports().then((module) => ({ default: module.Reports })));
+const Members = lazy(() => pages.members().then((module) => ({ default: module.Members })));
 const MemberDetail = lazy(() =>
-  import('../features/members').then((module) => ({ default: module.MemberDetail })),
+  pages.members().then((module) => ({ default: module.MemberDetail })),
 );
-const Groups = lazy(() =>
-  import('../features/groups').then((module) => ({ default: module.Groups })),
-);
-const Board = lazy(() => import('../features/board').then((module) => ({ default: module.Board })));
+const Groups = lazy(() => pages.groups().then((module) => ({ default: module.Groups })));
+const Board = lazy(() => pages.board().then((module) => ({ default: module.Board })));
 const OrganizationPage = lazy(() =>
-  import('../features/organization').then((module) => ({ default: module.OrganizationPage })),
+  pages.organization().then((module) => ({ default: module.OrganizationPage })),
 );
-const UsersPage = lazy(() =>
-  import('../features/users').then((module) => ({ default: module.UsersPage })),
-);
-const Profile = lazy(() =>
-  import('../features/profile').then((module) => ({ default: module.Profile })),
-);
-const Audit = lazy(() => import('../features/audit').then((module) => ({ default: module.Audit })));
-const Finance = lazy(() =>
-  import('../features/finance').then((module) => ({ default: module.Finance })),
-);
-const Events = lazy(() =>
-  import('../features/events').then((module) => ({ default: module.Events })),
-);
+const UsersPage = lazy(() => pages.users().then((module) => ({ default: module.UsersPage })));
+const Profile = lazy(() => pages.profile().then((module) => ({ default: module.Profile })));
+const Audit = lazy(() => pages.audit().then((module) => ({ default: module.Audit })));
+const Finance = lazy(() => pages.finance().then((module) => ({ default: module.Finance })));
+const Events = lazy(() => pages.events().then((module) => ({ default: module.Events })));
 const EventDetails = lazy(() =>
-  import('../features/events').then((module) => ({ default: module.EventDetails })),
+  pages.events().then((module) => ({ default: module.EventDetails })),
 );
 const EventCategories = lazy(() =>
-  import('../features/events').then((module) => ({ default: module.EventCategories })),
+  pages.events().then((module) => ({ default: module.EventCategories })),
 );
 const EventAttendanceIndex = lazy(() =>
-  import('../features/events').then((module) => ({ default: module.EventAttendanceIndex })),
+  pages.events().then((module) => ({ default: module.EventAttendanceIndex })),
 );
-const Documents = lazy(() =>
-  import('../features/documents').then((module) => ({ default: module.Documents })),
-);
+const Documents = lazy(() => pages.documents().then((module) => ({ default: module.Documents })));
 const VolunteerOverview = lazy(() =>
-  import('../features/volunteers').then((module) => ({ default: module.VolunteerOverview })),
+  pages.volunteers().then((module) => ({ default: module.VolunteerOverview })),
 );
 const VolunteerList = lazy(() =>
-  import('../features/volunteers').then((module) => ({ default: module.VolunteerList })),
+  pages.volunteers().then((module) => ({ default: module.VolunteerList })),
 );
 const VolunteerDetailPage = lazy(() =>
-  import('../features/volunteers').then((module) => ({ default: module.VolunteerDetailPage })),
+  pages.volunteers().then((module) => ({ default: module.VolunteerDetailPage })),
 );
 const VolunteerAssignments = lazy(() =>
-  import('../features/volunteers/work').then((module) => ({
+  pages.volunteerWork().then((module) => ({
     default: module.VolunteerAssignments,
   })),
 );
 const VolunteerHours = lazy(() =>
-  import('../features/volunteers/work').then((module) => ({ default: module.VolunteerHours })),
+  pages.volunteerWork().then((module) => ({ default: module.VolunteerHours })),
 );
 const VolunteerInsurance = lazy(() =>
-  import('../features/volunteers/insurance').then((module) => ({
+  pages.volunteerInsurance().then((module) => ({
     default: module.VolunteerInsurance,
   })),
 );
 const VolunteerRegister = lazy(() =>
-  import('../features/volunteers/register').then((module) => ({
+  pages.volunteerRegister().then((module) => ({
     default: module.VolunteerRegister,
   })),
 );
 const Compliance = lazy(() =>
-  import('../features/compliance').then((module) => ({ default: module.Compliance })),
+  pages.compliance().then((module) => ({ default: module.Compliance })),
 );
-const MailPage = lazy(() =>
-  import('../features/mail').then((module) => ({ default: module.MailPage })),
-);
+const MailPage = lazy(() => pages.mail().then((module) => ({ default: module.MailPage })));
 const InventoryItems = lazy(() =>
-  import('../features/inventory').then((module) => ({ default: module.InventoryItems })),
+  pages.inventory().then((module) => ({ default: module.InventoryItems })),
 );
 const InventoryLoans = lazy(() =>
-  import('../features/inventory').then((module) => ({ default: module.InventoryLoans })),
+  pages.inventory().then((module) => ({ default: module.InventoryLoans })),
 );
 const CommunityIndex = lazy(() =>
-  import('../features/community').then((module) => ({ default: module.CommunityIndex })),
+  pages.community().then((module) => ({ default: module.CommunityIndex })),
 );
 const CommunityDetail = lazy(() =>
-  import('../features/community').then((module) => ({ default: module.CommunityDetail })),
+  pages.community().then((module) => ({ default: module.CommunityDetail })),
 );
 applyTheme((localStorage.getItem('bnature-theme') as Theme) || 'system');
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -180,7 +165,11 @@ function App() {
   };
   if (offlineRoute) return <OfflineAttendanceHub />;
   if (expired || (query.isError && query.error instanceof ApiError && query.error.status === 401))
-    return <Login onSuccess={refresh} />;
+    return (
+      <Suspense fallback={<Loading />}>
+        <Login onSuccess={refresh} />
+      </Suspense>
+    );
   if (query.isPending) return <Loading />;
   if (query.isError)
     return (

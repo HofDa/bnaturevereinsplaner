@@ -1,6 +1,6 @@
 import { useBusinessDate } from '../hooks/use-business-date';
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Plus, RefreshCw } from 'lucide-react';
 import { roles, type ComplianceDeadline, type ComplianceRule, type Page } from '@bnature/contracts';
@@ -564,6 +564,8 @@ export function Compliance() {
     [message, setMessage] = useState('');
   const query = useQuery({
     queryKey: ['compliance-deadlines', me.activeOrganizationId, status, kind, page],
+    // Keep the current rows on screen while the next page or filter result loads.
+    placeholderData: keepPreviousData,
     queryFn: () =>
       api<Page<ComplianceDeadline>>(
         `/compliance-deadlines?page=${page}${status ? `&status=${status}` : ''}${kind ? `&kind=${kind}` : ''}`,

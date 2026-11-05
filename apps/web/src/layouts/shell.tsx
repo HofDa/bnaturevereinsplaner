@@ -1,6 +1,7 @@
 import { Loading } from '../components/ui';
-import { Suspense, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router';
+import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
+import { useIsFetching, useIsMutating } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
@@ -24,6 +25,8 @@ import {
   Package,
   Newspaper,
   ChartColumn,
+  Ellipsis,
+  X,
 } from 'lucide-react';
 import type { Permission } from '@bnature/contracts';
 import { useSession } from '../app/session';
@@ -34,6 +37,11 @@ import { queryClient, setOrganization } from '../lib/api';
 import { Avatar, Notice } from '../components/ui';
 import { PwaStatus } from '../components/pwa';
 import { UnreadBadge, useAppBadge, useUnread } from '../features/community-unread';
+import { prefetchPage, prefetchWhenIdle } from '../app/routes';
+
+type NavItem = { to: string; key: string; icon: typeof Users; permission?: string };
+/** Destinations kept in the phone tab bar; everything else lives in the “More” sheet. */
+const TAB_COUNT = 4;
 export function Shell({ onLogout }: { onLogout: () => void }) {
   const { t, i18n } = useTranslation(),
     { me, switchOrganization } = useSession(),
@@ -52,6 +60,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
     { to: '/groups', key: 'groups', icon: Layers },
     { to: '/board', key: 'board', icon: ShieldCheck },
   ] as const;
+  const profileItem: NavItem = { to: '/profile', key: 'profile', icon: UserRound };
   const secondary = [
     { to: '/organization', key: 'organization', icon: Building2, permission: 'organization:read' },
     { to: '/reports', key: 'reportsTitle', icon: ChartColumn, permission: 'members:read' },
@@ -62,16 +71,48 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
     { to: '/audit', key: 'audit', icon: ScrollText, permission: 'audit:read' },
     { to: '/settings', key: 'settings', icon: Settings2 },
   ] as const;
-  const visible = (item: { to: string; permission?: string }) =>
+  const visible = (item: NavItem) =>
     !item.permission || me.permissions.includes(item.permission as Permission);
-  const link = (item: { to: string; key: string; icon: typeof Users }) => (
+  const primaryItems: NavItem[] = primary.filter(visible),
+    secondaryItems: NavItem[] = secondary.filter(visible);
+  const tabs = primaryItems.slice(0, TAB_COUNT),
+    overflow = [...primaryItems.slice(TAB_COUNT), ...secondaryItems];
+  const { pathname } = useLocation();
+  // The section the current page belongs to: the longest matching navigation prefix.
+  const current = [...primaryItems, ...secondaryItems, profileItem]
+    .filter((item) =>
+      item.to === '/'
+        ? pathname === '/'
+        : pathname === item.to || pathname.startsWith(`${item.to}/`),
+    )
+    .sort((a, b) => b.to.length - a.to.length)[0];
+  const section = current ? t(current.key) : t('association');
+  useEffect(() => {
+    document.title = `${section} · b*nature`;
+  }, [section]);
+  // Warm the code of the main sections once the first page has settled (skipped on data saver).
+  const prefetchKey = primaryItems.map((item) => item.to).join();
+  useEffect(() => {
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } })
+      .connection;
+    if (connection?.saveData) return;
+    return prefetchWhenIdle(prefetchKey.split(','));
+  }, [prefetchKey]);
+  const [moreOpen, setMoreOpen] = useState(false),
+    moreButton = useRef<HTMLButtonElement>(null);
+  const moreActive = !!current && overflow.some((item) => item.to === current.to);
+  const link = (item: NavItem, onNavigate?: () => void) => (
     <NavLink
       key={item.to}
       to={item.to}
       end={item.to === '/'}
       className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+      onPointerEnter={() => prefetchPage(item.to)}
+      onFocus={() => prefetchPage(item.to)}
+      onTouchStart={() => prefetchPage(item.to)}
+      onClick={onNavigate}
     >
-      <item.icon size={19} />
+      <item.icon size={19} aria-hidden="true" />
       <span>{t(item.key)}</span>
       {item.to === '/community' && <UnreadBadge count={unread} />}
     </NavLink>
@@ -113,9 +154,9 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
         </div>
         <nav aria-label={t('workspace')}>
           <p className="nav-label">{t('workspace')}</p>
-          {primary.filter((item) => visible(item)).map(link)}
+          {primaryItems.map((item) => link(item))}
           <p className="nav-label secondary-label">{t('management')}</p>
-          {secondary.filter((item) => visible(item)).map(link)}
+          {secondaryItems.map((item) => link(item))}
         </nav>
         <div className="sidebar-bottom">
           <div className="sidebar-note">
@@ -143,8 +184,8 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
         <header className="topbar">
           <div className="breadcrumb">
             <span>b*nature</span>
-            <span>/</span>
-            <strong>{t('association')}</strong>
+            <span aria-hidden="true">/</span>
+            <strong aria-current="page">{section}</strong>
           </div>
           <div className="topbar-actions">
             <button
@@ -184,6 +225,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
             </button>
           </div>
         </header>
+        <ActivityBar />
         <PwaStatus />
         <main id="main" className="main-content" tabIndex={-1}>
           {error && <Notice error>{error}</Notice>}
@@ -197,9 +239,83 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
         </footer>
       </div>
       <nav className="bottom-nav" aria-label={t('workspace')}>
-        {primary.filter((item) => visible(item)).map(link)}
-        {link({ to: '/settings', key: 'settings', icon: Settings2 })}
+        {tabs.map((item) => link(item))}
+        <button
+          ref={moreButton}
+          type="button"
+          className={`nav-link ${moreActive ? 'active' : ''}`}
+          aria-haspopup="dialog"
+          aria-expanded={moreOpen}
+          onClick={() => setMoreOpen(true)}
+        >
+          <Ellipsis size={19} aria-hidden="true" />
+          <span>{t('moreNavigation')}</span>
+        </button>
       </nav>
+      {moreOpen && (
+        <NavSheet
+          title={t('moreNavigationTitle')}
+          onClose={() => {
+            // Dismissed without choosing: hand focus back to the tab that opened the sheet.
+            setMoreOpen(false);
+            moreButton.current?.focus();
+          }}
+        >
+          {overflow.map((item) => link(item, () => setMoreOpen(false)))}
+          {link(profileItem, () => setMoreOpen(false))}
+        </NavSheet>
+      )}
     </div>
   );
+}
+
+/** Phone-only sheet listing every section that does not fit into the tab bar. */
+function NavSheet({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDialogElement>(null),
+    { t } = useTranslation();
+  useEffect(() => {
+    const dialog = ref.current;
+    dialog?.showModal();
+    return () => dialog?.close();
+  }, []);
+  // Close the modal first: while it is open, everything behind it (the opener too) is inert.
+  const dismiss = () => {
+    ref.current?.close();
+    onClose();
+  };
+  return (
+    <dialog
+      ref={ref}
+      className="nav-sheet"
+      aria-label={title}
+      onCancel={(event) => {
+        event.preventDefault();
+        dismiss();
+      }}
+      // A click on the backdrop lands on the dialog element itself.
+      onClick={(event) => event.target === event.currentTarget && dismiss()}
+    >
+      <header>
+        <h2>{title}</h2>
+        <button type="button" className="icon-button" aria-label={t('close')} onClick={dismiss}>
+          <X size={20} />
+        </button>
+      </header>
+      <nav aria-label={title}>{children}</nav>
+    </dialog>
+  );
+}
+
+/** A hairline progress bar while data loads or saves; it only appears after a short delay. */
+function ActivityBar() {
+  const busy = useIsFetching() + useIsMutating() > 0;
+  return <div className="activity-bar" data-active={busy} aria-hidden="true" />;
 }

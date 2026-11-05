@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, keepPreviousData } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Layers, Plus, Users, ArrowUpRight } from 'lucide-react';
 import { groupSchema, type Group, type Member, type Page } from '@bnature/contracts';
@@ -35,6 +35,8 @@ export function Groups() {
     write = me.permissions.includes('groups:write');
   const query = useQuery({
     queryKey: ['groups', me.activeOrganizationId, debounced, active, page],
+    // Keep the current rows on screen while the next page or filter result loads.
+    placeholderData: keepPreviousData,
     queryFn: () =>
       api<Page<Group>>(
         `/groups?${new URLSearchParams({ search: debounced, page: String(page), ...(active ? { active } : {}) })}`,

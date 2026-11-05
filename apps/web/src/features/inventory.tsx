@@ -1,7 +1,7 @@
 import { QueryView } from '../components/ui';
 import { useState } from 'react';
 import { NavLink } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   Plus,
@@ -718,6 +718,8 @@ export function InventoryLoans() {
   const debounced = useDebounced(search);
   const query = useQuery({
     queryKey: ['inventory', 'loans', me.activeOrganizationId, state, debounced, page],
+    // Keep the current rows on screen while the next page or filter result loads.
+    placeholderData: keepPreviousData,
     queryFn: () =>
       api<Page<InventoryLoan>>(
         `/inventory/loans?state=${state}&page=${page}&search=${encodeURIComponent(debounced)}`,

@@ -138,7 +138,7 @@ export function FinanceInitialize() {
     [pending, setPending] = useState(false);
   if (!me.permissions.includes('finance:write')) return null;
   return (
-    <section>
+    <section className="finance-initialize">
       <p>{t('s22InitializeHelp')}</p>
       {error && <Notice error>{error}</Notice>}
       <Button
