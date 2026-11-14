@@ -18,7 +18,7 @@ import {
   type MemberExtras,
   type MemberField,
 } from '@bnature/contracts';
-import { HttpError, type Access } from '../middleware/access';
+import { HttpError, lockAccess, type Access } from '../middleware/access';
 import { audit } from '../services/audit';
 import type { ModuleContext } from './context';
 import { businessDate } from './finance/service';
@@ -171,11 +171,7 @@ export function registerMemberExtrasRoutes({ server, db, access }: ModuleContext
     async (req, reply) => {
       const a = await access(req, 'organization:write');
       const row = await db.transaction(async (tx) => {
-        await tx
-          .select({ id: s.organizations.id })
-          .from(s.organizations)
-          .where(eq(s.organizations.id, a.organizationId))
-          .for('no key update');
+        await lockAccess(tx, a, 'organization:write');
         const [existing] = await tx
           .select({ n: count() })
           .from(f)
@@ -209,6 +205,7 @@ export function registerMemberExtrasRoutes({ server, db, access }: ModuleContext
     async (req) => {
       const a = await access(req, 'organization:write');
       return db.transaction(async (tx) => {
+        await lockAccess(tx, a, 'organization:write');
         const [current] = await tx
           .select()
           .from(f)
@@ -251,6 +248,7 @@ export function registerMemberExtrasRoutes({ server, db, access }: ModuleContext
     async (req) => {
       const a = await access(req, 'members:write');
       await db.transaction(async (tx) => {
+        await lockAccess(tx, a, 'members:write');
         const person = await personOf(tx, a.organizationId, req.params.id);
         const ids = Object.keys(req.body.values);
         if (!ids.length) return;
@@ -290,6 +288,7 @@ export function registerMemberExtrasRoutes({ server, db, access }: ModuleContext
     async (req, reply) => {
       const a = await access(req, 'members:write');
       const id = await db.transaction(async (tx) => {
+        await lockAccess(tx, a, 'members:write');
         const person = await personOf(tx, a.organizationId, req.params.id);
         if (req.body.decidedOn > (await businessDate(tx, a.organizationId)))
           throw new HttpError(422, 'CONSENT_FUTURE_DATE', 'Das Datum liegt in der Zukunft.');
@@ -321,6 +320,7 @@ export function registerMemberExtrasRoutes({ server, db, access }: ModuleContext
     async (req, reply) => {
       const a = await access(req, 'members:write');
       const row = await db.transaction(async (tx) => {
+        await lockAccess(tx, a, 'members:write');
         const person = await personOf(tx, a.organizationId, req.params.id);
         const [existing] = await tx
           .select({ n: count() })
@@ -351,6 +351,7 @@ export function registerMemberExtrasRoutes({ server, db, access }: ModuleContext
     async (req) => {
       const a = await access(req, 'members:write');
       return db.transaction(async (tx) => {
+        await lockAccess(tx, a, 'members:write');
         const person = await personOf(tx, a.organizationId, req.params.id);
         const [row] = await tx
           .update(g)
@@ -375,6 +376,7 @@ export function registerMemberExtrasRoutes({ server, db, access }: ModuleContext
     async (req, reply) => {
       const a = await access(req, 'members:write');
       await db.transaction(async (tx) => {
+        await lockAccess(tx, a, 'members:write');
         const person = await personOf(tx, a.organizationId, req.params.id);
         const [row] = await tx
           .delete(g)

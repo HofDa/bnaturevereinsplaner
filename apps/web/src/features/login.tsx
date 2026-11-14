@@ -15,7 +15,7 @@ export function Login({ onSuccess }: { onSuccess: () => void }) {
   return (
     <div className="login-layout">
       <div className="login-story">
-        <a href="/" className="brand">
+        <a href={import.meta.env.BASE_URL} className="brand">
           b<span>*</span>nature<small>{t('app')}</small>
         </a>
         <div className="login-copy">

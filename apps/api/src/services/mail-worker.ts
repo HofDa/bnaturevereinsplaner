@@ -1,4 +1,4 @@
-import { and, eq, lt, sql } from 'drizzle-orm';
+import { and, eq, lt, sql, or, isNull } from 'drizzle-orm';
 import { schema as s, type Database } from '@bnature/db';
 import type { Config } from '../plugins/config';
 import { audit } from './audit';
@@ -28,7 +28,15 @@ export async function deliverMail(db: Database, config: Config, sender: MailSend
       const [queued] = await tx
         .select()
         .from(s.mailMessages)
-        .where(eq(s.mailMessages.state, 'queued'))
+        .where(
+          and(
+            eq(s.mailMessages.state, 'queued'),
+            or(
+              isNull(s.mailMessages.attemptedAt),
+              lt(s.mailMessages.attemptedAt, new Date(Date.now() - 60_000)),
+            ),
+          ),
+        )
         .orderBy(s.mailMessages.createdAt, s.mailMessages.id)
         .limit(1)
         .for('update', { skipLocked: true });
@@ -46,79 +54,108 @@ export async function deliverMail(db: Database, config: Config, sender: MailSend
     });
     if (!row) return;
     // Keep the organization lock through SMTP handoff so concurrent payment/role changes serialize.
-    await db.transaction(async (tx) => {
-      await tx
-        .select()
-        .from(s.organizations)
-        .where(eq(s.organizations.id, row.organizationId))
-        .for('no key update');
-      const digest = row.kind === 'community_digest';
-      const reminder = row.kind === 'deadline_reminder' || row.kind === 'loan_reminder';
-      if (!digest && !reminder && !isSupportedMailKind(row.kind)) {
+    let handedOff = false;
+    try {
+      await db.transaction(async (tx) => {
+        await tx
+          .select()
+          .from(s.organizations)
+          .where(eq(s.organizations.id, row.organizationId))
+          .for('no key update');
+        const digest = row.kind === 'community_digest';
+        const reminder = row.kind === 'deadline_reminder' || row.kind === 'loan_reminder';
+        if (!digest && !reminder && !isSupportedMailKind(row.kind)) {
+          await tx
+            .update(s.mailMessages)
+            .set({ state: 'failed', errorCode: 'MAIL_KIND_UNAVAILABLE' })
+            .where(eq(s.mailMessages.id, row.id));
+          await audit(
+            tx,
+            { organizationId: row.organizationId, userId: row.actorUserId },
+            'failed',
+            'mail_message',
+            row.id,
+            ['state'],
+          );
+          return;
+        }
+        const valid = digest
+          ? await revalidateDigest(tx, row)
+          : reminder
+            ? await revalidateReminder(tx, row)
+            : await revalidateMail(tx, row, config);
+        if (!valid) {
+          await tx
+            .update(s.mailMessages)
+            .set({ state: 'cancelled', errorCode: 'SOURCE_CHANGED' })
+            .where(eq(s.mailMessages.id, row.id));
+          await audit(
+            tx,
+            { organizationId: row.organizationId, userId: row.actorUserId },
+            'cancel',
+            'mail_message',
+            row.id,
+            ['state'],
+          );
+          return;
+        }
+        let state: 'sent' | 'uncertain' | 'failed' = 'sent';
+        let errorCode: string | null = null;
+        try {
+          handedOff = true;
+          await sender.send({
+            id: row.id,
+            recipient: row.recipient,
+            subject: row.subject,
+            text: row.body,
+          });
+        } catch (error) {
+          state = error instanceof MailDeliveryError && !error.uncertain ? 'failed' : 'uncertain';
+          errorCode = state === 'failed' ? 'SMTP_REJECTED' : 'SMTP_UNCERTAIN';
+        }
         await tx
           .update(s.mailMessages)
-          .set({ state: 'failed', errorCode: 'MAIL_KIND_UNAVAILABLE' })
+          .set({ state, errorCode, sentAt: state === 'sent' ? new Date() : null })
           .where(eq(s.mailMessages.id, row.id));
         await audit(
           tx,
           { organizationId: row.organizationId, userId: row.actorUserId },
-          'failed',
+          state,
           'mail_message',
           row.id,
           ['state'],
         );
-        return;
-      }
-      const valid = digest
-        ? await revalidateDigest(tx, row)
-        : reminder
-          ? await revalidateReminder(tx, row)
-          : await revalidateMail(tx, row, config);
-      if (!valid) {
-        await tx
+      });
+    } catch (error) {
+      if (!handedOff) {
+        await db
           .update(s.mailMessages)
-          .set({ state: 'cancelled', errorCode: 'SOURCE_CHANGED' })
-          .where(eq(s.mailMessages.id, row.id));
-        await audit(
-          tx,
-          { organizationId: row.organizationId, userId: row.actorUserId },
-          'cancel',
-          'mail_message',
-          row.id,
-          ['state'],
-        );
-        return;
+          .set({
+            state: row.attempts < 5 ? 'queued' : 'failed',
+            errorCode: 'PRE_SEND_FAILURE',
+          })
+          .where(and(eq(s.mailMessages.id, row.id), eq(s.mailMessages.state, 'sending')));
       }
-      let state: 'sent' | 'uncertain' | 'failed' = 'sent';
-      let errorCode: string | null = null;
-      try {
-        await sender.send({
-          id: row.id,
-          recipient: row.recipient,
-          subject: row.subject,
-          text: row.body,
-        });
-      } catch (error) {
-        state = error instanceof MailDeliveryError && !error.uncertain ? 'failed' : 'uncertain';
-        errorCode = state === 'failed' ? 'SMTP_REJECTED' : 'SMTP_UNCERTAIN';
-      }
-      await tx
-        .update(s.mailMessages)
-        .set({ state, errorCode, sentAt: state === 'sent' ? new Date() : null })
-        .where(eq(s.mailMessages.id, row.id));
-      await audit(
-        tx,
-        { organizationId: row.organizationId, userId: row.actorUserId },
-        state,
-        'mail_message',
-        row.id,
-        ['state'],
-      );
-    });
+      throw new MailWorkerError(row.id, handedOff ? 'handoff' : 'validation', error);
+    }
   }
 }
 
-export function startMailWorker(db: Database, config: Config, onError: () => void) {
+export class MailWorkerError extends Error {
+  constructor(
+    public messageId: string,
+    public stage: string,
+    cause: unknown,
+  ) {
+    super('Mail worker failed', { cause });
+  }
+}
+
+export function startMailWorker(
+  db: Database,
+  config: Config,
+  onError: (context: { stage: string; messageId?: string }) => void,
+) {
   if (config.EMAIL_MODE === 'disabled') return async () => {};
   const sender = createMailSender(config);
   let stopped = false;
@@ -129,7 +166,7 @@ export function startMailWorker(db: Database, config: Config, onError: () => voi
       try {
         await enqueueAutomaticMail(db, config);
       } catch {
-        onError();
+        onError({ stage: 'fee-enqueue' });
       }
       for (const enqueue of [
         enqueueCommunityDigests,
@@ -139,12 +176,16 @@ export function startMailWorker(db: Database, config: Config, onError: () => voi
         try {
           await enqueue(db, config);
         } catch {
-          onError();
+          onError({ stage: enqueue.name });
         }
       try {
         await deliverMail(db, config, sender);
-      } catch {
-        onError();
+      } catch (error) {
+        onError(
+          error instanceof MailWorkerError
+            ? { stage: error.stage, messageId: error.messageId }
+            : { stage: 'delivery' },
+        );
       }
     })().finally(() => {
       running = undefined;

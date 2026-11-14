@@ -4,6 +4,8 @@ export const roles = ['admin', 'board', 'treasurer', 'project_lead', 'member'] a
 export const roleSchema = z.enum(roles);
 export type Role = z.infer<typeof roleSchema>;
 export const permissions = [
+  'planning:read',
+  'planning:write',
   'events:read',
   'events:write',
   'events:register',
@@ -51,6 +53,8 @@ export type Permission = (typeof permissions)[number];
 const grants: Record<Role, readonly Permission[]> = {
   admin: permissions,
   board: [
+    'planning:read',
+    'planning:write',
     'inventory:read',
     'inventory:write',
     'inventory:lend',
@@ -90,6 +94,8 @@ const grants: Record<Role, readonly Permission[]> = {
     'evidence:download',
   ],
   treasurer: [
+    'planning:read',
+    'planning:write',
     'inventory:read',
     'community:chat',
     'community:read',
@@ -110,6 +116,8 @@ const grants: Record<Role, readonly Permission[]> = {
     'compliance:read',
   ],
   project_lead: [
+    'planning:read',
+    'planning:write',
     'inventory:read',
     'inventory:lend',
     'community:chat',

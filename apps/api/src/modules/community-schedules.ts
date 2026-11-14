@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, count, eq, inArray, sql } from 'drizzle-orm';
 import { schema as s, type Database, type Executor } from '@bnature/db';
 import {
   bestSlots,
@@ -98,14 +98,28 @@ function projection(db: Executor) {
     );
 }
 
-export function listSchedules(db: Database, access: Access, state: 'open' | 'closed') {
+export function listSchedules(
+  db: Database,
+  access: Access,
+  state: 'open' | 'closed',
+  page = 1,
+  pageSize = 50,
+  groupId?: string,
+) {
   return readSnapshot(db, async (tx) => {
     const a = await currentAccess(tx, access);
+    const where = and(
+      visible(a),
+      state === 'open' ? eq(sc.state, 'open') : sql`${sc.state}<>'open'`,
+      groupId ? eq(sc.groupId, groupId) : undefined,
+    );
+    const [total] = await tx.select({ n: count() }).from(sc).where(where);
     const rows = await projection(tx)
-      .where(and(visible(a), state === 'open' ? eq(sc.state, 'open') : sql`${sc.state}<>'open'`))
+      .where(where)
       .orderBy(desc(sc.createdAt), asc(sc.id))
-      .limit(50);
-    return { items: await summaries(tx, a, rows) };
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+    return { items: await summaries(tx, a, rows), total: total!.n, page, pageSize };
   });
 }
 

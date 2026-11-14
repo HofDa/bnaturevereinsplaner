@@ -1,4 +1,5 @@
 import { QueryView } from '../components/ui';
+import { LinkedText } from '../components/safe-links';
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -585,6 +586,16 @@ export function CommunityIndex() {
   );
 }
 
+function usePageVisible() {
+  const [visible, setVisible] = useState(() => typeof document === 'undefined' || !document.hidden);
+  useEffect(() => {
+    const onChange = () => setVisible(!document.hidden);
+    document.addEventListener('visibilitychange', onChange);
+    return () => document.removeEventListener('visibilitychange', onChange);
+  }, []);
+  return visible;
+}
+
 function CommunityChat({ groupId }: { groupId: string | null }) {
   const { t, i18n } = useTranslation();
   const { me } = useSession();
@@ -621,10 +632,11 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
   const listboxId = `mentions-${groupId ?? 'club'}`;
   const canManage = me.permissions.includes('community:manage');
   const q = new URLSearchParams({ ...(groupId ? { groupId } : {}), ...(before ? { before } : {}) });
+  const visible = usePageVisible();
   const query = useQuery({
     queryKey: ['community', 'chat', me.activeOrganizationId, groupId, before],
     queryFn: () => api<{ items: ChatMessage[]; nextBefore: string | null }>(`/community/chat?${q}`),
-    refetchInterval: before ? false : 5000,
+    refetchInterval: before || !visible ? false : 5000,
   });
   const lastId = query.data?.items.at(-1)?.id;
   useMarkRead('chat', groupId, before ? null : query.data?.items.at(-1)?.createdAt);
@@ -771,7 +783,11 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
                     </header>
                     {message.replyTo && <ReplyQuote reply={message.replyTo} />}
                     <p className={message.removedAt ? 'community-chat-removed' : ''}>
-                      {message.removedAt ? t('commChatRemoved') : message.body}
+                      {message.removedAt ? (
+                        t('commChatRemoved')
+                      ) : (
+                        <LinkedText text={message.body} />
+                      )}
                     </p>
                     {message.attachment && <AttachmentCard attachment={message.attachment} />}
                     {!message.removedAt && (
@@ -1154,7 +1170,9 @@ export function CommunityDetail() {
                     </div>
                   )}
                   {!!post.bodyI18n[lang(i18n.language)] && (
-                    <div className="community-body">{post.bodyI18n[lang(i18n.language)]}</div>
+                    <div className="community-body">
+                      <LinkedText text={post.bodyI18n[lang(i18n.language)]} />
+                    </div>
                   )}
                   {post.kind === 'poll' && (
                     <PollBallot

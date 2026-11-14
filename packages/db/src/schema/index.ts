@@ -9,3 +9,4 @@ export * from './mail';
 export * from './inventory';
 export * from './community';
 export * from './member-extras';
+export * from './planning';

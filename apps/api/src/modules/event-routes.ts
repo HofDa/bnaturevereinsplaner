@@ -63,7 +63,7 @@ import {
   attendanceHistory,
 } from './event-attendance';
 import { registerDocumentRoutes } from './document-routes';
-import { attendanceExport, calendarExport } from './event-exports';
+import { attendanceExport, calendarExport, eventsIcs } from './event-exports';
 const registrationParams = z.object({ id: idSchema, registrationId: idSchema });
 export function registerEventRoutes(context: ModuleContext) {
   const { server, db, access } = context;
@@ -206,6 +206,25 @@ export function registerEventRoutes(context: ModuleContext) {
         ),
         201,
       ),
+  );
+  app.get(
+    `${p}/events/:id/calendar.ics`,
+    {
+      schema: {
+        tags,
+        params: idParams,
+        querystring: z.object({ language: languageSchema.default('de') }),
+        response: { 200: z.string() },
+      },
+    },
+    async (req, reply) => {
+      const a = await access(req, 'events:read');
+      const event = await getEvent(db, a, req.params.id);
+      return reply
+        .type('text/calendar; charset=utf-8')
+        .header('Content-Disposition', attachment(`event-${event.id}.ics`))
+        .send(eventsIcs([event], req.query.language));
+    },
   );
   app.get(
     `${p}/events/:id`,

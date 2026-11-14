@@ -1,5 +1,7 @@
 import type de from './mail-de';
 const it: Record<keyof typeof de, string> = {
+  mailError_PRE_SEND_FAILURE:
+    'Non è stato possibile verificare il messaggio per l’invio. La verifica verrà ripetuta automaticamente; dopo più tentativi sarà necessaria una verifica manuale.',
   mailKindUnavailable: 'Questo tipo di messaggio non è ancora configurato per l’invio.',
   mailError_MAIL_KIND_UNAVAILABLE:
     'L’invio di questo tipo di messaggio non è ancora configurato. Nessuna e-mail è stata inviata.',

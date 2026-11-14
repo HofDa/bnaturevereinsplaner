@@ -14,6 +14,7 @@ import { registerBoardRoutes } from './board';
 import { registerAuditLogRoutes } from './audit-log';
 import { registerDashboardRoutes } from './dashboard';
 import { registerProfileRoutes } from './profile';
+import { registerMemberSelfRoutes } from './member-self';
 import { registerUsersRoutes } from './users';
 import { registerFinanceRoutes } from './finance/routes';
 import { registerLedgerRoutes } from './finance/ledger-routes';
@@ -23,6 +24,7 @@ import { registerVolunteerRoutes } from './volunteers/routes';
 import { registerMailRoutes } from './mail-routes';
 import { registerInventoryRoutes } from './inventory-routes';
 import { registerCommunityRoutes } from './community-routes';
+import { registerPlanningRoutes } from './planning';
 export async function registerRoutes(
   server: FastifyInstance,
   db: Database,
@@ -41,6 +43,7 @@ export async function registerRoutes(
   registerAuditLogRoutes(context);
   registerDashboardRoutes(context);
   registerProfileRoutes(context);
+  registerMemberSelfRoutes(context);
   registerUsersRoutes(context);
   registerFinanceRoutes(context);
   registerLedgerRoutes(context);
@@ -50,4 +53,5 @@ export async function registerRoutes(
   registerMailRoutes(context);
   registerInventoryRoutes(context);
   registerCommunityRoutes(context);
+  registerPlanningRoutes(context);
 }

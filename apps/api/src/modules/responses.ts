@@ -26,7 +26,9 @@ export const memberResponse = memberInputSchema.safeExtend({
 export const pageOf = (item: z.ZodType) =>
   z.object({ items: z.array(item), total: z.number(), page: z.number(), pageSize: z.number() });
 export const orgResponse = organizationSchema.extend({ id: idSchema, slug: z.string() }).strip();
-export const groupResponse = groupSchema.extend({ id: idSchema, memberCount: z.number() }).strip();
+export const groupResponse = groupSchema
+  .extend({ id: idSchema, memberCount: z.number(), isMember: z.boolean().optional() })
+  .strip();
 export const boardResponse = boardSchema.safeExtend({
   id: idSchema,
   firstName: z.string(),

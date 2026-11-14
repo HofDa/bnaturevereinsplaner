@@ -18,8 +18,8 @@ process.on('SIGTERM', () => void close());
 process.on('SIGINT', () => void close());
 try {
   await app.listen({ port: config.PORT, host: config.HOST });
-  stopMail = startMailWorker(db, config, () =>
-    app.log.error('Email worker failed; inspect queue status.'),
+  stopMail = startMailWorker(db, config, (context) =>
+    app.log.error(context, 'Email worker failed; inspect queue status.'),
   );
 } catch {
   app.log.error('Server could not start.');

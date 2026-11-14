@@ -206,10 +206,18 @@ export function registerCommunityRoutes({ server, db, access, config }: ModuleCo
       schema: {
         tags,
         querystring: scheduleQuerySchema,
-        response: { 200: z.object({ items: z.array(scheduleSummarySchema) }) },
+        response: { 200: pageOf(scheduleSummarySchema) },
       },
     },
-    async (req) => listSchedules(db, await access(req, 'community:read'), req.query.state),
+    async (req) =>
+      listSchedules(
+        db,
+        await access(req, 'community:read'),
+        req.query.state,
+        req.query.page,
+        req.query.pageSize,
+        req.query.groupId,
+      ),
   );
   app.get(
     '/api/v1/community/schedules/:id',

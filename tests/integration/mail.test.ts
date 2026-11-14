@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, afterEach, afterAll, describe, it, expect } from 'vitest';
+import { beforeAll, beforeEach, afterEach, afterAll, describe, it, expect, vi } from 'vitest';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { eq, sql } from 'drizzle-orm';
 import { createDatabase, schema as s } from '../../packages/db/src';
@@ -722,5 +722,57 @@ describe('newsletter', () => {
     expect(withdrawn.status).toBe('withdrawn');
     const listed = await ok<{ items: { id: string }[] }>(await get('/mail/newsletters', 'board'));
     expect(listed.items.map((x) => x.id)).not.toContain(draft.id);
+  });
+});
+
+describe('queue recovery and newsletter history', () => {
+  it('retries known pre-handoff failures after a delay', async () => {
+    const p = await ok<MailPreview>(await preview());
+    await ok(await queue(p), 202);
+    const original = db.transaction.bind(db);
+    const spy = vi.spyOn(db, 'transaction');
+    let calls = 0;
+    spy.mockImplementation((...args: Parameters<typeof db.transaction>) => {
+      if (++calls === 2) return Promise.reject(new Error('validation unavailable'));
+      return original(...args);
+    });
+    try {
+      await expect(deliverMail(db, config, sender, 1)).rejects.toThrow('Mail worker failed');
+    } finally {
+      spy.mockRestore();
+    }
+    expect(sent).toHaveLength(0);
+    const waiting = (await rows()).find((r) => r.errorCode === 'PRE_SEND_FAILURE')!;
+    expect(waiting.state).toBe('queued');
+    await db
+      .update(s.mailMessages)
+      .set({ attemptedAt: new Date(Date.now() - 61_000) })
+      .where(eq(s.mailMessages.id, waiting.id));
+    await deliverMail(db, config, sender);
+    expect(sent.length).toBeGreaterThan(0);
+  });
+  it('pages through newsletter history without losing an older draft', async () => {
+    const inserted = await db
+      .insert(s.mailNewsletters)
+      .values(
+        Array.from({ length: 51 }, (_, i) => ({
+          organizationId: org,
+          subjectI18n: { de: `News ${i}`, it: `News ${i}` },
+          bodyI18n: { de: 'Body', it: 'Body' },
+          createdBy: users.admin!.id,
+          status: i === 0 ? ('draft' as const) : ('sent' as const),
+          sentAt: i === 0 ? null : new Date(2026, 0, i + 1),
+          createdAt: new Date(2026, 0, i + 1),
+        })),
+      )
+      .returning();
+    const first = await ok<{ items: { id: string }[]; total: number }>(
+      await get('/mail/newsletters?pageSize=50'),
+    );
+    const second = await ok<{ items: { id: string }[] }>(
+      await get('/mail/newsletters?pageSize=50&page=2'),
+    );
+    expect(first.total).toBe(51);
+    expect(second.items.map((x) => x.id)).toContain(inserted[0]!.id);
   });
 });

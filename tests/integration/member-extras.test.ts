@@ -310,3 +310,21 @@ describe('member list with consents and custom fields', () => {
     expect(detail.customFields[field!.id]).toBe(true);
   });
 });
+
+describe('concurrent guardian limit', () => {
+  it('allows only one concurrent request for the fifth guardian', async () => {
+    for (let i = 0; i < 4; i++) {
+      const response = await call('POST', `/members/${adult.id}/guardians`, admin, {
+        name: `Guardian ${i}`,
+      });
+      expect(response.statusCode, response.body).toBe(201);
+    }
+    const responses = await Promise.all(
+      [0, 1].map((i) =>
+        call('POST', `/members/${adult.id}/guardians`, admin, { name: `Concurrent ${i}` }),
+      ),
+    );
+    expect(responses.map((r) => r.statusCode).sort()).toEqual([201, 409]);
+    expect((await extras(adult)).guardians).toHaveLength(5);
+  });
+});

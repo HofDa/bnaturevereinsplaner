@@ -12,6 +12,7 @@ import { MyLoans } from './inventory';
 import { DigestSettings } from './community-unread';
 import { NewsletterSubscription } from './mail-newsletter';
 import { OwnVolunteeringPanel } from './volunteers/self';
+import { OwnFeesPanel, OwnMembershipPanel } from './profile-self';
 const profileSchema = personSchema.pick({
   phone: true,
   street: true,
@@ -32,6 +33,7 @@ export function Profile() {
     <>
       <PageHeading title={t('profile')} description={t('profileIntro')} />
       {saved && <Notice>{saved}</Notice>}
+      <OwnMembershipPanel />
       <div className="detail-grid">
         <section className="panel form-panel">
           <h2>{t('account')}</h2>
@@ -115,6 +117,7 @@ export function Profile() {
         <DigestSettings />
         <NewsletterSubscription />
       </div>
+      <OwnFeesPanel />
       <OwnVolunteeringPanel />
       <MyLoans />
     </>

@@ -105,6 +105,15 @@ export function OwnVolunteeringPanel() {
   );
 }
 
+function localAssignmentParts(iso: string) {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return {
+    day: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+}
+
 function ReportHours({
   data,
   onClose,
@@ -169,7 +178,24 @@ function ReportHours({
         )}
         {past.length > 0 && (
           <Field label={t('ownVolAssignment')}>
-            <select value={assignmentId} onChange={(e) => setAssignmentId(e.target.value)}>
+            <select
+              value={assignmentId}
+              onChange={(e) => {
+                const nextId = e.target.value;
+                setAssignmentId(nextId);
+                const selected = past.find((item) => item.id === nextId);
+                if (selected) {
+                  const startLocal = localAssignmentParts(selected.plannedStart);
+                  const endLocal = localAssignmentParts(selected.plannedEnd);
+                  setDay(startLocal.day);
+                  setStart(startLocal.time);
+                  if (endLocal.day === startLocal.day) setEnd(endLocal.time);
+                  if (!description.trim()) {
+                    setDescription(selected.eventTitle ? selected.eventTitle[lang] : selected.task);
+                  }
+                }
+              }}
+            >
               <option value="">{t('ownVolNoAssignment')}</option>
               {past.map((a) => (
                 <option key={a.id} value={a.id}>

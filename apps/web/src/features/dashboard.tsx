@@ -14,11 +14,307 @@ import {
   Cake,
   Award,
   PartyPopper,
+  CalendarDays,
+  Wallet,
+  Newspaper,
+  Package,
+  HandHeart,
+  CreditCard,
 } from 'lucide-react';
-import type { Dashboard as DashboardData, Occasion } from '@bnature/contracts';
+import {
+  eventLocal,
+  formatMoney,
+  type Dashboard as DashboardData,
+  type MemberDashboard,
+  type Occasion,
+} from '@bnature/contracts';
 import { api } from '../lib/api';
 import { useSession } from '../app/session';
-import { Avatar, Badge, Empty, PageHeading, formatDate } from '../components/ui';
+import { Avatar, Badge, Empty, Notice, PageHeading, formatDate } from '../components/ui';
+
+function MemberHome() {
+  const { t, i18n } = useTranslation();
+  const { me } = useSession();
+  const language = i18n.language === 'it' ? 'it' : 'de';
+  const query = useQuery({
+    queryKey: ['member-dashboard', me.activeOrganizationId],
+    queryFn: () => api<MemberDashboard>('/dashboard/member'),
+  });
+
+  return (
+    <QueryView query={query}>
+      {(data) => {
+        const displayName = data.personName ?? me.user.name;
+        const totalUnread =
+          data.community.unreadNews + data.community.unreadPolls + data.community.unreadChat;
+        const showEvents = me.permissions.includes('events:read');
+        const showCommunity = me.permissions.includes('community:read');
+
+        return (
+          <div className="member-dashboard">
+            <PageHeading
+              title={t('memberDashboardWelcome', { name: displayName })}
+              description={t('memberHomeIntro')}
+              actions={
+                <>
+                  <Link className="button button-secondary" to="/profile">
+                    <CreditCard size={16} />
+                    {t('profile')}
+                  </Link>
+                  {showCommunity && (
+                    <Link className="button button-primary" to="/community">
+                      <Newspaper size={16} />
+                      {t('commTitle')}
+                    </Link>
+                  )}
+                </>
+              }
+            />
+
+            {!data.linked && <Notice>{t('profileUnlinked')}</Notice>}
+
+            <section className="panel member-home-banner">
+              <div className="member-home-banner-main">
+                <span className="member-home-emblem" aria-hidden="true">
+                  <Sprout size={26} />
+                </span>
+                <div>
+                  <small className="muted">{data.organization.name}</small>
+                  <h2>
+                    {data.membership
+                      ? `${t('memberCardTitle')} · ${data.membership.membershipNumber}`
+                      : displayName}
+                  </h2>
+                  {data.membership && (
+                    <p className="muted">
+                      {t(data.membership.membershipType)} · {t('memberSince')}{' '}
+                      {formatDate(data.membership.joinedAt, language)}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {data.membership && <Badge status={data.membership.status} />}
+            </section>
+
+            <div className="member-summary-grid">
+              {showCommunity && (
+                <article className="panel member-summary-card">
+                  <div className="member-summary-head">
+                    <h2>{t('commTitle')}</h2>
+                    <span className="quick-icon" aria-hidden="true">
+                      <Newspaper size={17} />
+                    </span>
+                  </div>
+                  <div className="member-summary-body">
+                    {data.community.openUnansweredPolls > 0 ||
+                    data.community.openUnansweredSchedules > 0 ||
+                    totalUnread > 0 ? (
+                      <ul className="member-summary-list">
+                        {data.community.openUnansweredPolls > 0 && (
+                          <li>
+                            <Link to="/community?kind=poll">
+                              {t('memberOpenPolls', {
+                                count: data.community.openUnansweredPolls,
+                              })}
+                            </Link>
+                          </li>
+                        )}
+                        {data.community.openUnansweredSchedules > 0 && (
+                          <li>
+                            <Link to="/community?kind=schedule">
+                              {t('memberOpenSchedules', {
+                                count: data.community.openUnansweredSchedules,
+                              })}
+                            </Link>
+                          </li>
+                        )}
+                        {totalUnread > 0 && (
+                          <li>
+                            <Link to="/community">
+                              {t('memberUnreadCommunity', { count: totalUnread })}
+                            </Link>
+                          </li>
+                        )}
+                      </ul>
+                    ) : (
+                      <p className="muted">{t('memberCommunityUpToDate')}</p>
+                    )}
+                  </div>
+                  <Link className="text-link" to="/community">
+                    {t('commTitle')}
+                    <ArrowRight size={15} />
+                  </Link>
+                </article>
+              )}
+
+              {data.membership && (
+                <article className="panel member-summary-card">
+                  <div className="member-summary-head">
+                    <h2>{t('memberFeesSummaryOpen')}</h2>
+                    <span className="quick-icon" aria-hidden="true">
+                      <Wallet size={17} />
+                    </span>
+                  </div>
+                  <div className="member-summary-body">
+                    {data.fees.openCount > 0 ? (
+                      <>
+                        <strong className="member-summary-metric">
+                          {formatMoney(data.fees.openCents, i18n.language)}
+                        </strong>
+                        {data.fees.overdueCount > 0 && (
+                          <p>
+                            <span className="badge badge-resigned">
+                              <span />
+                              {t('memberFeesOverdueHint', { count: data.fees.overdueCount })}
+                            </span>
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="muted">{t('memberFeesUpToDate')}</p>
+                    )}
+                  </div>
+                  <Link className="text-link" to="/profile">
+                    {t('memberMyFeesTitle')}
+                    <ArrowRight size={15} />
+                  </Link>
+                </article>
+              )}
+
+              <article className="panel member-summary-card">
+                <div className="member-summary-head">
+                  <h2>{t('memberMyGroups')}</h2>
+                  <span className="quick-icon" aria-hidden="true">
+                    <Layers size={17} />
+                  </span>
+                </div>
+                <div className="member-summary-body">
+                  {data.myGroupCount > 0 ? (
+                    <strong className="member-summary-metric">{data.myGroupCount}</strong>
+                  ) : (
+                    <p className="muted">{t('memberGroupsNone')}</p>
+                  )}
+                </div>
+                <Link className="text-link" to="/groups">
+                  {t('groups')}
+                  <ArrowRight size={15} />
+                </Link>
+              </article>
+
+              {(data.activeLoanCount > 0 || data.nextAssignment) && (
+                <article className="panel member-summary-card">
+                  <div className="member-summary-head">
+                    <h2>{data.nextAssignment ? t('memberNextShift') : t('memberLoansActive')}</h2>
+                    <span className="quick-icon" aria-hidden="true">
+                      {data.nextAssignment ? <HandHeart size={17} /> : <Package size={17} />}
+                    </span>
+                  </div>
+                  <div className="member-summary-body">
+                    {data.nextAssignment && (
+                      <p>
+                        <strong>
+                          {data.nextAssignment.eventTitle
+                            ? data.nextAssignment.eventTitle[language]
+                            : data.nextAssignment.task}
+                        </strong>
+                        <small className="finance-cell-note">
+                          {new Intl.DateTimeFormat(i18n.language, {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          }).format(new Date(data.nextAssignment.plannedStart))}
+                        </small>
+                      </p>
+                    )}
+                    {data.activeLoanCount > 0 && (
+                      <p className="muted">
+                        {t('memberLoansActive')}: {data.activeLoanCount}
+                        {data.overdueLoanCount > 0 && (
+                          <>
+                            {' · '}
+                            <span className="badge badge-resigned">
+                              <span />
+                              {t('memberLoansOverdue', { count: data.overdueLoanCount })}
+                            </span>
+                          </>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                  <Link className="text-link" to="/profile">
+                    {t('profile')}
+                    <ArrowRight size={15} />
+                  </Link>
+                </article>
+              )}
+            </div>
+
+            {showEvents && (
+              <section className="panel member-events-panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>{t('memberUpcomingEvents')}</h2>
+                    <p>{t('eventIntro')}</p>
+                  </div>
+                  <div className="heading-actions">
+                    <Link className="button button-secondary" to="/events?view=mine">
+                      {t('memberMyEvents')}
+                    </Link>
+                    <Link className="text-link" to="/events?view=list">
+                      {t('memberAllEvents')}
+                      <ArrowRight size={15} />
+                    </Link>
+                  </div>
+                </div>
+                {data.upcomingEvents.length ? (
+                  <ul className="member-event-list">
+                    {data.upcomingEvents.map((ev) => (
+                      <li key={ev.id} className="member-event-row">
+                        <div className="member-event-date">
+                          <CalendarDays size={16} aria-hidden="true" />
+                          <span>{eventLocal(ev.startAt, ev.timezone).replace('T', ' ')}</span>
+                        </div>
+                        <div className="member-event-info">
+                          <Link className="member-event-title" to={`/events/${ev.id}`}>
+                            {ev.titleI18n[language]}
+                          </Link>
+                          <p className="muted">
+                            {ev.categoryNameI18n[language]}
+                            {ev.location ? ` · ${ev.location}` : ''}
+                          </p>
+                        </div>
+                        <div className="member-event-status">
+                          {ev.myRegistrationStatus ? (
+                            <span
+                              className={`badge ${
+                                ev.myRegistrationStatus === 'registered'
+                                  ? 'badge-active'
+                                  : 'badge-pending'
+                              }`}
+                            >
+                              <span />
+                              {t(`eventRegistration_${ev.myRegistrationStatus}`)}
+                            </span>
+                          ) : (
+                            <Link className="button button-secondary" to={`/events/${ev.id}`}>
+                              {t('details')}
+                            </Link>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <Empty description={t('memberNoUpcomingEvents')} />
+                )}
+              </section>
+            )}
+          </div>
+        );
+      }}
+    </QueryView>
+  );
+}
+
 export function Dashboard() {
   const { t, i18n } = useTranslation(),
     { me } = useSession();
@@ -28,30 +324,7 @@ export function Dashboard() {
     queryFn: () => api<DashboardData>('/dashboard'),
     enabled: allowed,
   });
-  if (!allowed)
-    return (
-      <>
-        <PageHeading title={t('welcomeMember')} description={t('memberHomeIntro')} />
-        <div className="member-home">
-          <Sprout size={40} />
-          <h2>b*nature</h2>
-          <p>{t('welcome')}</p>
-          <div className="heading-actions">
-            <Link className="button button-primary" to="/community">
-              {t('commTitle')}
-              <ArrowRight size={16} />
-            </Link>
-            <Link className="button button-primary" to="/profile">
-              {t('profile')}
-              <ArrowRight size={16} />
-            </Link>
-            <Link className="button button-secondary" to="/groups">
-              {t('groups')}
-            </Link>
-          </div>
-        </div>
-      </>
-    );
+  if (!allowed) return <MemberHome />;
   return (
     <>
       <div className="date-line">

@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Download, MapPin } from 'lucide-react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -60,15 +61,22 @@ function useCategories() {
   });
 }
 function EventNavigation() {
-  const { t } = useTranslation();
+  const { t } = useTranslation(),
+    { me } = useSession();
   return (
     <nav className="event-navigation" aria-label={t('events')}>
       <Link to="/events">{t('eventCalendar')}</Link>
       <Link to="/events?view=list">{t('eventAll')}</Link>
       <Link to="/events?view=mine">{t('eventMine')}</Link>
-      <Link to="/events/attendance">{t('eventAttendanceNav')}</Link>
-      <Link to="/offline-attendance">{t('eventOfflineAttendance')}</Link>
-      <Link to="/events/categories">{t('eventCategories')}</Link>
+      {me.permissions.includes('events:write') && (
+        <Link to="/events/attendance">{t('eventAttendanceNav')}</Link>
+      )}
+      {me.permissions.includes('attendance:write') && (
+        <Link to="/offline-attendance">{t('eventOfflineAttendance')}</Link>
+      )}
+      {me.permissions.includes('events:categories') && (
+        <Link to="/events/categories">{t('eventCategories')}</Link>
+      )}
     </nav>
   );
 }
@@ -76,13 +84,15 @@ export function Events() {
   const { t, i18n } = useTranslation(),
     { me } = useSession(),
     navigate = useNavigate(),
+    [searchParams] = useSearchParams(),
     categories = useCategories(),
     write = useEventWrite();
-  const initial = new URLSearchParams(location.search).get('view') ?? 'calendar';
+  const initial = searchParams.get('view') ?? 'calendar';
   const [view, setView] = useState(initial),
     [search, setSearch] = useState(''),
     [category, setCategory] = useState(''),
     [status, setStatus] = useState(''),
+    [timeScope, setTimeScope] = useState<'upcoming' | 'all' | 'past'>('upcoming'),
     [project, setProject] = useState(''),
     [page, setPage] = useState(1),
     [range, setRange] = useState({
@@ -91,17 +101,31 @@ export function Events() {
     }),
     [editor, setEditor] = useState<{ date?: string } | null>(null),
     [error, setError] = useState('');
+  useEffect(() => {
+    setView(searchParams.get('view') ?? 'calendar');
+    setPage(1);
+  }, [searchParams]);
   const debounced = useDebounced(search),
     debouncedProject = useDebounced(project),
-    language = i18n.language === 'it' ? 'it' : 'de';
-  const parameters = new URLSearchParams({
-    search: debounced,
-    ...(category ? { categoryId: category } : {}),
-    ...(status ? { status } : {}),
-    ...(debouncedProject ? { project: debouncedProject } : {}),
-    ...(view === 'calendar' ? range : {}),
-    ...(view === 'mine' ? { mine: 'true' } : {}),
-  }).toString();
+    language = i18n.language === 'it' ? 'it' : 'de',
+    canWriteEvents = me.permissions.includes('events:write');
+  const parameters = useMemo(() => {
+    const scopeInstant = timeScope === 'all' ? '' : new Date().toISOString();
+    return new URLSearchParams({
+      search: debounced,
+      ...(category ? { categoryId: category } : {}),
+      ...(status ? { status } : {}),
+      ...(debouncedProject ? { project: debouncedProject } : {}),
+      ...(view === 'calendar'
+        ? range
+        : timeScope === 'upcoming'
+          ? { from: scopeInstant }
+          : timeScope === 'past'
+            ? { to: scopeInstant }
+            : {}),
+      ...(view === 'mine' ? { mine: 'true' } : {}),
+    }).toString();
+  }, [category, debounced, debouncedProject, range, status, timeScope, view]);
   const query = useQuery({
     queryKey: ['event-list', me.activeOrganizationId, parameters, page, view],
     queryFn: () =>
@@ -121,7 +145,12 @@ export function Events() {
         title: e.titleI18n[language],
         start: e.startAt,
         end: e.endAt,
-        classNames: [`event-calendar-${e.status}`],
+        classNames: [
+          `event-calendar-${e.status}`,
+          ...(e.myRegistrationStatus && e.myRegistrationStatus !== 'cancelled'
+            ? [`event-calendar-${e.myRegistrationStatus}`]
+            : []),
+        ],
       })) ?? [],
     [query.data, language],
   );
@@ -211,13 +240,33 @@ export function Events() {
               }}
             >
               <option value="">{t('eventAllStatuses')}</option>
-              {['draft', 'published', 'cancelled', 'completed'].map((s) => (
+              {(canWriteEvents
+                ? ['draft', 'published', 'cancelled', 'completed']
+                : ['published', 'cancelled', 'completed']
+              ).map((s) => (
                 <option key={s} value={s}>
                   {t(`eventStatus_${s}`)}
                 </option>
               ))}
             </select>
           </Field>
+          {view !== 'calendar' && (
+            <Field label={t('eventScope')}>
+              <select
+                value={timeScope}
+                onChange={(e) => {
+                  setTimeScope(e.target.value as 'upcoming' | 'all' | 'past');
+                  setPage(1);
+                }}
+              >
+                {(['upcoming', 'all', 'past'] as const).map((scope) => (
+                  <option key={scope} value={scope}>
+                    {t(`eventScope_${scope}`)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <Field label={t('eventProject')}>
             <input
               value={project}
@@ -307,7 +356,23 @@ export function Events() {
                         <small className="finance-cell-note">{e.timezone}</small>
                       </td>
                       <td>{e.location}</td>
-                      <td>{t(`eventStatus_${e.status}`)}</td>
+                      <td>
+                        <span>{t(`eventStatus_${e.status}`)}</span>
+                        {e.myRegistrationStatus && e.myRegistrationStatus !== 'cancelled' && (
+                          <div className="finance-cell-note">
+                            <span
+                              className={`badge ${
+                                e.myRegistrationStatus === 'registered'
+                                  ? 'badge-active'
+                                  : 'badge-pending'
+                              }`}
+                            >
+                              <span />
+                              {t(`eventRegistration_${e.myRegistrationStatus}`)}
+                            </span>
+                          </div>
+                        )}
+                      </td>
                       <td>
                         {e.registeredCount}
                         {e.capacity !== null ? ` / ${e.capacity}` : ''}
@@ -368,24 +433,43 @@ export function EventDetails() {
         title={event.titleI18n[language]}
         description={`${eventLocal(event.startAt, event.timezone).replace('T', ' ')} – ${eventLocal(event.endAt, event.timezone).replace('T', ' ')} · ${event.timezone}`}
         actions={
-          event.canManage && (
-            <>
-              <Button
-                variant="secondary"
-                disabled={event.status === 'cancelled'}
-                onClick={() => setEditor('edit')}
-              >
-                {t('edit')}
-              </Button>
-              <Button
-                variant="secondary"
-                disabled={event.status === 'cancelled' || event.status === 'completed'}
-                onClick={() => setEditor('cancel')}
-              >
-                {t('eventCancel')}
-              </Button>
-            </>
-          )
+          <>
+            <Button
+              variant="secondary"
+              onClick={async () => {
+                setError('');
+                try {
+                  await downloadPrivateFile(
+                    `/events/${event.id}/calendar.ics?language=${language}`,
+                    `event-${event.id}.ics`,
+                  );
+                } catch (e) {
+                  setError(errorMessage(e));
+                }
+              }}
+            >
+              <Download size={15} />
+              {t('eventSingleIcs')}
+            </Button>
+            {event.canManage && (
+              <>
+                <Button
+                  variant="secondary"
+                  disabled={event.status === 'cancelled'}
+                  onClick={() => setEditor('edit')}
+                >
+                  {t('edit')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={event.status === 'cancelled' || event.status === 'completed'}
+                  onClick={() => setEditor('cancel')}
+                >
+                  {t('eventCancel')}
+                </Button>
+              </>
+            )}
+          </>
         }
       />
       <EventNavigation />
@@ -411,34 +495,69 @@ export function EventDetails() {
         </div>
         {tab === 'info' ? (
           <div className="event-description">
-            <span className="badge">{t(`eventStatus_${event.status}`)}</span>
+            <div className="event-info-badges">
+              <span className="badge">{t(`eventStatus_${event.status}`)}</span>
+              {event.myRegistrationStatus && event.myRegistrationStatus !== 'cancelled' && (
+                <span
+                  className={`badge ${
+                    event.myRegistrationStatus === 'registered' ? 'badge-active' : 'badge-pending'
+                  }`}
+                >
+                  <span />
+                  {t(`eventRegistration_${event.myRegistrationStatus}`)}
+                </span>
+              )}
+              {event.status === 'published' && !event.canManage && (
+                <Button variant="secondary" onClick={() => setTab('participants')}>
+                  {t('eventTab_participants')}
+                </Button>
+              )}
+            </div>
             {event.cancellationReason && <Notice>{event.cancellationReason}</Notice>}
             <p className="event-preserve-lines">{event.descriptionI18n[language]}</p>
             <dl className="event-facts">
-              {[
-                [t('eventCategory'), event.categoryNameI18n[language]],
-                [t('eventLocation'), event.location || '—'],
-                [t('eventOrganizer'), event.organizerName],
-                [t('eventProject'), event.project || '—'],
-                [t('eventVisibility'), t(`eventVisibility_${event.visibility}`)],
+              {(
                 [
-                  t('eventParticipants'),
-                  `${event.registeredCount}${event.capacity !== null ? ` / ${event.capacity}` : ''}`,
-                ],
-                [
-                  t('eventAvailableSeats'),
-                  event.capacity === null
-                    ? t('eventUnlimitedSeats')
-                    : String(Math.max(0, event.capacity - event.registeredCount)),
-                ],
-                [t('eventWaitlist'), String(event.waitlistedCount)],
-                [
-                  t('eventDeadline'),
-                  event.registrationDeadline
-                    ? formatDate(event.registrationDeadline, language)
-                    : '—',
-                ],
-              ].map(([label, value]) => (
+                  [t('eventCategory'), event.categoryNameI18n[language]],
+                  [
+                    t('eventLocation'),
+                    <span key="loc" className="event-location-fact">
+                      <span>{event.location || '—'}</span>
+                      {event.latitude !== null && event.longitude !== null && (
+                        <a
+                          className="text-link"
+                          href={`https://www.openstreetmap.org/?mlat=${event.latitude}&mlon=${event.longitude}#map=16/${event.latitude}/${event.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <MapPin size={14} aria-hidden="true" />
+                          {t('eventOpenMap')}
+                        </a>
+                      )}
+                    </span>,
+                  ],
+                  [t('eventOrganizer'), event.organizerName],
+                  [t('eventProject'), event.project || '—'],
+                  [t('eventVisibility'), t(`eventVisibility_${event.visibility}`)],
+                  [
+                    t('eventParticipants'),
+                    `${event.registeredCount}${event.capacity !== null ? ` / ${event.capacity}` : ''}`,
+                  ],
+                  [
+                    t('eventAvailableSeats'),
+                    event.capacity === null
+                      ? t('eventUnlimitedSeats')
+                      : String(Math.max(0, event.capacity - event.registeredCount)),
+                  ],
+                  [t('eventWaitlist'), String(event.waitlistedCount)],
+                  [
+                    t('eventDeadline'),
+                    event.registrationDeadline
+                      ? formatDate(event.registrationDeadline, language)
+                      : '—',
+                  ],
+                ] as Array<[string, ReactNode]>
+              ).map(([label, value]) => (
                 <div key={label}>
                   <dt>{label}</dt>
                   <dd>{value}</dd>
@@ -571,25 +690,46 @@ function Registrations({ event }: { event: EventOccurrence }) {
             {t('eventAddParticipant')}
           </Button>
         ) : (
-          <Button
-            disabled={
-              event.status !== 'published' ||
-              query.data?.items.some((r) => r.status !== 'cancelled')
-            }
-            onClick={async () => {
-              try {
-                await write(`/events/${event.id}/registrations`, {});
-                setNotice(t('eventRegistrationConfirmed'));
-                refreshEvents();
-              } catch (e) {
-                setError(errorMessage(e));
-              }
-            }}
-          >
-            {t('eventRegisterSelf')}
-          </Button>
+          (() => {
+            const deadlinePassed = Boolean(
+              event.registrationDeadline && Date.parse(event.registrationDeadline) <= Date.now(),
+            );
+            const isFull = event.capacity !== null && event.registeredCount >= event.capacity;
+            const hasActive = query.data?.items.some((r) => r.status !== 'cancelled') ?? false;
+            const label = deadlinePassed
+              ? t('eventDeadlinePassed')
+              : isFull && !event.waitlistEnabled
+                ? t('eventErrorFullShort')
+                : isFull && event.waitlistEnabled
+                  ? t('eventJoinWaitlist')
+                  : t('eventRegisterSelf');
+            return (
+              <Button
+                disabled={
+                  event.status !== 'published' ||
+                  hasActive ||
+                  deadlinePassed ||
+                  (isFull && !event.waitlistEnabled)
+                }
+                onClick={async () => {
+                  try {
+                    await write(`/events/${event.id}/registrations`, {});
+                    setNotice(t('eventRegistrationConfirmed'));
+                    refreshEvents();
+                  } catch (e) {
+                    setError(errorMessage(e));
+                  }
+                }}
+              >
+                {label}
+              </Button>
+            );
+          })()
         )}
       </div>
+      {!event.canManage && (!query.data || query.data.items.length === 0) && (
+        <p className="muted">{t('eventSelfRegistrationHint')}</p>
+      )}
       <QueryView query={query}>
         {(data) => (
           <ul className="finance-allocation-history">
@@ -743,7 +883,7 @@ function EventAttendance({ event }: { event: EventOccurrence }) {
                 `/events/${event.id}/attendance/prepare`,
               );
               await savePreparedAttendance(me, snapshot, generation);
-              location.assign(`/offline-attendance?event=${event.id}`);
+              location.assign(`${import.meta.env.BASE_URL}offline-attendance?event=${event.id}`);
             } catch (e) {
               setError(
                 e instanceof Error && e.message.startsWith('event')

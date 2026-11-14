@@ -21,6 +21,7 @@ import {
   Modal,
   Notice,
   PageHeading,
+  Pagination,
 } from '../components/ui';
 
 const lang = (language: string) => (language.startsWith('it') ? 'it' : 'de');
@@ -54,9 +55,14 @@ function slotLabel(startAt: string, endAt: string, language: string) {
 export function ScheduleList({ state, groupId }: { state: 'open' | 'closed'; groupId: string }) {
   const { t, i18n } = useTranslation();
   const { me } = useSession();
+  const [selection, setSelection] = useState({ state, groupId, page: 1 });
+  const page = selection.state === state && selection.groupId === groupId ? selection.page : 1;
   const query = useQuery({
-    queryKey: ['community', 'schedules', me.activeOrganizationId, state],
-    queryFn: () => api<{ items: ScheduleSummary[] }>(`/community/schedules?state=${state}`),
+    queryKey: ['community', 'schedules', me.activeOrganizationId, state, groupId, page],
+    queryFn: () =>
+      api<{ items: ScheduleSummary[]; total: number; pageSize: number }>(
+        `/community/schedules?state=${state}&page=${page}${groupId ? `&groupId=${groupId}` : ''}`,
+      ),
   });
   if (query.isPending) return <Loading />;
   if (query.isError) return <ErrorState error={query.error} />;
@@ -103,6 +109,12 @@ export function ScheduleList({ state, groupId }: { state: 'open' | 'closed'; gro
           </div>
         </article>
       ))}
+      <Pagination
+        page={page}
+        total={query.data.total}
+        pageSize={query.data.pageSize}
+        onChange={(page) => setSelection({ state, groupId, page })}
+      />
     </div>
   );
 }

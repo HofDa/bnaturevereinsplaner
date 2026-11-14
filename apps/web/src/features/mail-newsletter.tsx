@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import type { Newsletter } from '@bnature/contracts';
-import { api, errorMessage, queryClient } from '../lib/api';
+import { api, allPages, errorMessage, queryClient } from '../lib/api';
 import { useSession } from '../app/session';
 import { Button, ErrorState, Field, Loading, Modal, Notice } from '../components/ui';
 
@@ -13,7 +13,7 @@ export function useNewsletters() {
   const { me } = useSession();
   return useQuery({
     queryKey: ['newsletters', me.activeOrganizationId],
-    queryFn: () => api<{ items: Newsletter[] }>('/mail/newsletters'),
+    queryFn: async () => ({ items: await allPages<Newsletter>('/mail/newsletters') }),
   });
 }
 

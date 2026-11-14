@@ -1,5 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+// Includes account provisioning, two sign-ins and a full-profile accessibility scan.
+test.setTimeout(90_000);
 async function login(page: Page, email = 'e2e@example.test') {
   await page.goto('/');
   await page.getByLabel('E-Mail', { exact: true }).fill(email);

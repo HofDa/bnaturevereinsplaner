@@ -49,7 +49,29 @@ export async function createApp(db: Database, config: Config) {
       },
     },
   });
-  await app.register(rateLimit, { max: 150, timeWindow: '1 minute' });
+  const auth = createAuth(db, config);
+  await app.register(rateLimit, {
+    hook: 'preHandler',
+    max: 150,
+    timeWindow: '1 minute',
+    keyGenerator: async (req) => {
+      if (!req.url.startsWith('/api/v1/')) return req.ip;
+      const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
+      return session ? `user:${session.user.id}` : `ip:${req.ip}`;
+    },
+  });
+  const ipLimit = app.createRateLimit({
+    max: 3000,
+    timeWindow: '1 minute',
+    keyGenerator: (req) => req.ip,
+  });
+  app.addHook('onRequest', async (req, reply) => {
+    const result = await ipLimit(req);
+    if (!result.isAllowed && result.isExceeded) {
+      reply.header('Retry-After', result.ttlInSeconds);
+      throw new HttpError(429, 'RATE_LIMITED', 'Zu viele Anfragen. Bitte später erneut versuchen.');
+    }
+  });
   app.addHook('onRoute', (route) => {
     if (route.url.startsWith('/api/v1'))
       route.schema = {
@@ -193,7 +215,6 @@ export async function createApp(db: Database, config: Config) {
   app.setNotFoundHandler(() => {
     throw new HttpError(404, 'NOT_FOUND', 'Endpunkt nicht gefunden.');
   });
-  const auth = createAuth(db, config);
   const authPaths = new Set([
     '/api/auth/sign-in/email',
     '/api/auth/sign-out',

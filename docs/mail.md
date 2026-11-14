@@ -59,7 +59,7 @@ Mitglieder können im Profil eine tägliche oder wöchentliche Zusammenfassung u
 
 Migration `0012` ergänzt `mail_settings` und `mail_messages`, ohne bestehende Fachdaten umzubauen. Mandantengebundene Fremdschlüssel verhindern fremde Personen-, Veranstaltungs- und Forderungsbezüge. Idempotente Bestätigungen mit demselben Schlüssel erzeugen genau einen Auftragssatz. Versand, Abbruch und Einstellungen werden ohne Nachrichtentext oder Adressen im Audit protokolliert.
 
-Vor jeder Übergabe werden Berechtigung, Empfängeradresse und Fachstand erneut geprüft. Inzwischen bezahlte Beiträge, veränderte Beträge, geänderte Veranstaltungsdaten, neue Anmeldungen oder entzogene Rechte brechen den veralteten Auftrag ab. Der Organisationslock serialisiert die Übergabe mit Finanz- und Rechteänderungen.
+Vor jeder Übergabe werden Berechtigung, Empfängeradresse und Fachstand erneut geprüft. Inzwischen bezahlte Beiträge, veränderte Beträge, geänderte Veranstaltungsdaten, neue Anmeldungen oder entzogene Rechte brechen den veralteten Auftrag ab. Der Organisationslock serialisiert die Übergabe mit Finanz- und Rechteänderungen. Bekannte Fehler vor der SMTP-Übergabe werden mit mindestens einer Minute Abstand höchstens fünfmal versucht; danach ist eine manuelle Prüfung erforderlich. Sobald die Übergabe begonnen hat, bleibt ein unklarer Ausgang von automatischen Wiederholungen ausgeschlossen. Worker-Fehlerprotokolle enthalten Phase und gegebenenfalls Nachrichten-ID, keine Adressen oder Inhalte.
 
 | Status                    | Bedeutung                                                                          |
 | ------------------------- | ---------------------------------------------------------------------------------- |

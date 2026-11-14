@@ -1,4 +1,6 @@
 export default {
+  mailError_PRE_SEND_FAILURE:
+    'Die Nachricht konnte noch nicht für den Versand geprüft werden. Die Prüfung wird automatisch wiederholt; nach mehreren Fehlversuchen ist eine manuelle Prüfung erforderlich.',
   mailKindUnavailable: 'Diese Nachrichtenart ist noch nicht für den Versand eingerichtet.',
   mailError_MAIL_KIND_UNAVAILABLE:
     'Diese Nachrichtenart hat noch keinen eingerichteten Versand. Es wurde keine E-Mail verschickt.',

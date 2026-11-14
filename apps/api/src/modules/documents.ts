@@ -393,6 +393,9 @@ export function createDocument(
         await insertVersion(tx, access, row!.id, 1, filename, file, storageKey);
         return getDocument(tx, access.organizationId, role, row!.id, access.userId);
       },
+      (tx, current, stored) =>
+        getDocument(tx, current.organizationId, current.role, stored.id, current.userId),
+      (data) => ({ id: data.id }),
     ),
   );
 }
@@ -440,6 +443,9 @@ export function addDocumentVersion(
           .where(and(eq(d.organizationId, access.organizationId), eq(d.id, documentId)));
         return getDocument(tx, access.organizationId, role, documentId, access.userId);
       },
+      (tx, current) =>
+        getDocument(tx, current.organizationId, current.role, documentId, current.userId),
+      (data) => ({ id: data.id }),
     ),
   );
 }
@@ -484,6 +490,8 @@ export function updateDocument(
       await audit(tx, access, 'update', 'document', id, Object.keys(patch));
       return getDocument(tx, access.organizationId, role, id, access.userId);
     },
+    (tx, current) => getDocument(tx, current.organizationId, current.role, id, current.userId),
+    (data) => ({ id: data.id }),
   );
 }
 export async function readDocumentVersion(

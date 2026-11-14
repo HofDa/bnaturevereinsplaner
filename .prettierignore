@@ -1,6 +1,7 @@
 bun.lock
 node_modules
 dist
+dist-demo
 coverage
 test-results
 playwright-report

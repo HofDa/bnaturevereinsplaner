@@ -13,21 +13,25 @@ const suites = [
   'community',
   'community-chat',
   'member-extras',
+  'member-experience',
   'volunteer-self',
   'reports',
   'chat-poll',
   'schedule',
   'newsletter',
+  'planning',
 ];
 // Suites whose layout differs on phones (navigation, tabs, wide tables, charts, dialogs).
 // CI runs only these on mobile for pull requests; the nightly run covers all of them.
 const mobileSuites = [
+  'planning',
   'platform',
   'community',
   'community-chat',
   'schedule',
   'reports',
   'member-extras',
+  'member-experience',
 ];
 const args = process.argv.slice(2);
 const flag = (name: string) => args.find((a) => a === name || a.startsWith(`${name}=`));

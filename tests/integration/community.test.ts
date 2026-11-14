@@ -1086,3 +1086,43 @@ describe('rate limits', () => {
     for (let i = 0; i < 100; i++) expect((await call('/community/audiences')).statusCode).toBe(200);
   });
 });
+
+describe('schedule pagination', () => {
+  it('keeps all schedules reachable across pages', async () => {
+    const inserted = await db
+      .insert(s.communitySchedules)
+      .values(
+        Array.from({ length: 51 }, (_, i) => ({
+          organizationId: org,
+          titleI18n: { de: `Page ${i}`, it: `Pagina ${i}` },
+          descriptionI18n: { de: '', it: '' },
+          createdBy: users.admin!.id,
+        })),
+      )
+      .returning();
+    const first = await ok<{ items: { id: string }[]; total: number }>(
+      await get('/community/schedules?page=1&pageSize=50'),
+    );
+    const second = await ok<{ items: { id: string }[] }>(
+      await get('/community/schedules?page=2&pageSize=50'),
+    );
+    expect(first.total).toBe(51);
+    expect(new Set([...first.items, ...second.items].map((x) => x.id))).toEqual(
+      new Set(inserted.map((x) => x.id)),
+    );
+  });
+});
+
+describe('shared network polling', () => {
+  it('gives authenticated accounts separate budgets on the same IP', async () => {
+    const call = (role: string) =>
+      app.inject({
+        url: '/api/v1/community/audiences',
+        headers: headers(role),
+        remoteAddress: '203.0.113.50',
+      });
+    for (let i = 0; i < 150; i++) expect((await call('member')).statusCode).toBe(200);
+    expect((await call('member')).statusCode).toBe(429);
+    expect((await call('other')).statusCode).toBe(200);
+  });
+});

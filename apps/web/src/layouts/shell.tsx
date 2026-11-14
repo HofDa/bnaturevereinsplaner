@@ -24,6 +24,7 @@ import {
   Package,
   Newspaper,
   ChartColumn,
+  ClipboardList,
 } from 'lucide-react';
 import type { Permission } from '@bnature/contracts';
 import { useSession } from '../app/session';
@@ -45,6 +46,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
     { to: '/', key: 'overview', icon: LayoutDashboard },
     { to: '/community', key: 'commTitle', icon: Newspaper, permission: 'community:read' },
     { to: '/members', key: 'members', icon: Users, permission: 'members:read' },
+    { to: '/planning', key: 'costNavTitle', icon: ClipboardList, permission: 'planning:read' },
     { to: '/events', key: 'events', icon: CalendarDays, permission: 'events:read' },
     { to: '/volunteers', key: 'volunteers', icon: HandHeart, permission: 'volunteers:read' },
     { to: '/finance', key: 'finance', icon: Wallet, permission: 'finance:read' },
@@ -82,7 +84,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
         {t('skip')}
       </a>
       <aside className="sidebar">
-        <a href="/" className="brand">
+        <a href={import.meta.env.BASE_URL} className="brand">
           b<span>*</span>nature<small>{t('app')}</small>
         </a>
         <div className="organization-switch">
@@ -198,6 +200,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
       </div>
       <nav className="bottom-nav" aria-label={t('workspace')}>
         {primary.filter((item) => visible(item)).map(link)}
+        {link({ to: '/profile', key: 'profile', icon: UserRound })}
         {link({ to: '/settings', key: 'settings', icon: Settings2 })}
       </nav>
     </div>

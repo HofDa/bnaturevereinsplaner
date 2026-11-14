@@ -54,6 +54,9 @@ export const scheduleEventInputSchema = z
   .strict();
 export const scheduleQuerySchema = z.object({
   state: z.enum(['open', 'closed']).default('open'),
+  page: z.coerce.number().int().min(1).max(100000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  groupId: z.uuid().optional(),
 });
 
 export const scheduleSlotSchema = z.object({

@@ -14,7 +14,7 @@ import { Login } from '../features/login';
 import { Dashboard } from '../features/dashboard';
 import { Settings, applyTheme, type Theme } from '../features/settings';
 import { OfflineAttendanceHub, AttendanceSyncManager } from '../features/events/offline-attendance';
-import { purgeAttendance, attendanceOwner } from '../lib/attendance-offline';
+import { purgeAttendance, attendanceOwner, preparedAttendance } from '../lib/attendance-offline';
 import { Link } from 'react-router';
 import { Empty, ErrorState, Loading } from '../components/ui';
 import { shellDatabase } from '../lib/offline';
@@ -23,6 +23,9 @@ const ScheduleDetailPage = lazy(() =>
   import('../features/community-schedules').then((module) => ({
     default: module.ScheduleDetailPage,
   })),
+);
+const Planning = lazy(() =>
+  import('../features/planning').then((module) => ({ default: module.Planning })),
 );
 const Reports = lazy(() =>
   import('../features/reports').then((module) => ({ default: module.Reports })),
@@ -120,12 +123,39 @@ function Guard({ permission, children }: { permission: Permission; children: Rea
     { t } = useTranslation();
   return me.permissions.includes(permission) ? children : <Empty title={t('forbidden')} />;
 }
+function OfflineMeFallback({ error, retry }: { error: Error; retry: () => void }) {
+  const { t } = useTranslation();
+  const [hasPrepared, setHasPrepared] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void preparedAttendance()
+      .then((copies) => {
+        if (active) setHasPrepared(copies.length > 0);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+  return (
+    <>
+      <ErrorState error={error} retry={retry} />
+      {hasPrepared && (
+        <div className="offline-attendance-page">
+          <Link className="button button-secondary" to="/offline-attendance">
+            {t('eventOpenOffline')}
+          </Link>
+        </div>
+      )}
+    </>
+  );
+}
 function App() {
   const [epoch, setEpoch] = useState(0),
     [org, setOrg] = useState<string | undefined>(),
     [expired, setExpired] = useState(false);
-  const { t } = useTranslation(),
-    location = useLocation();
+  const location = useLocation();
+  const { t } = useTranslation();
   const offlineRoute = location.pathname === '/offline-attendance';
   const query = useQuery({
     queryKey: ['me', epoch, org],
@@ -183,16 +213,7 @@ function App() {
     return <Login onSuccess={refresh} />;
   if (query.isPending) return <Loading />;
   if (query.isError)
-    return (
-      <>
-        <ErrorState error={query.error} retry={() => void query.refetch()} />
-        <div className="offline-attendance-page">
-          <Link className="button button-secondary" to="/offline-attendance">
-            {t('eventOpenOffline')}
-          </Link>
-        </div>
-      </>
-    );
+    return <OfflineMeFallback error={query.error} retry={() => void query.refetch()} />;
   return (
     <SessionContext.Provider
       value={{
@@ -254,6 +275,14 @@ function App() {
             element={
               <Guard permission="members:read">
                 <MemberDetail />
+              </Guard>
+            }
+          />
+          <Route
+            path="planning"
+            element={
+              <Guard permission="planning:read">
+                <Planning key={query.data.activeOrganizationId} />
               </Guard>
             }
           />
@@ -421,11 +450,13 @@ function App() {
     </SessionContext.Provider>
   );
 }
+const routerBase =
+  import.meta.env.BASE_URL === '/' ? undefined : import.meta.env.BASE_URL.replace(/\/$/, '');
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <PwaProvider>
-        <BrowserRouter>
+        <BrowserRouter basename={routerBase}>
           <App />
         </BrowserRouter>
       </PwaProvider>

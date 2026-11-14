@@ -121,7 +121,11 @@ export const groupSchema = z
     active: z.boolean().default(true),
   })
   .strict();
-export type Group = z.infer<typeof groupSchema> & { id: string; memberCount: number };
+export type Group = z.infer<typeof groupSchema> & {
+  id: string;
+  memberCount: number;
+  isMember?: boolean;
+};
 export const boardSchema = z
   .object({
     personId: idSchema,
@@ -193,3 +197,5 @@ export * from './occasions';
 export * from './member-extras';
 export * from './reports';
 export * from './schedules';
+export * from './planning';
+export * from './member-self';

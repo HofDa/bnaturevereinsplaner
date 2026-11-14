@@ -9,3 +9,4 @@ playwright-report/
 *.log
 *.tsbuildinfo
 .local/
+apps/web/dist-demo/

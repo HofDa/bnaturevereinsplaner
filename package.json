@@ -29,7 +29,11 @@
     "openapi": "bun scripts/openapi.ts",
     "setup": "bun scripts/setup.ts",
     "icons": "bun scripts/icons.ts",
-    "test:node": "bun scripts/node-smoke.ts"
+    "test:node": "bun scripts/node-smoke.ts",
+    "demo:seed": "bun --env-file=.env.test scripts/demo/seed.ts",
+    "demo:record": "bun --env-file=.env.test scripts/demo/record.ts",
+    "demo:build": "cd apps/web && VITE_DEMO=1 NODE_ENV=production bunx vite build --outDir dist-demo",
+    "demo:check": "bun scripts/demo/check.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

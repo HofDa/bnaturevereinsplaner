@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { Download, WifiOff } from 'lucide-react';
+import { Download, Share2, WifiOff, X } from 'lucide-react';
 import { Button } from './ui';
 type InstallEvent = Event & {
   prompt: () => Promise<void>;
@@ -61,12 +61,33 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     </PwaContext.Provider>
   );
 }
+const IOS_DISMISSED_KEY = 'bnature-ios-install-dismissed';
+
+function isIosSafariBrowser() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  const ios = /iPad|iPhone|iPod/.test(ua);
+  const safari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+  const standalone =
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    Boolean((navigator as { standalone?: boolean }).standalone);
+  return ios && safari && !standalone;
+}
+
 export function PwaStatus() {
   const { t } = useTranslation();
   const context = useContext(PwaContext);
   if (!context) throw new Error('PWA provider missing');
   const { offline, install, needRefresh, setNeedRefresh, updateServiceWorker, clearInstall } =
     context;
+  const [iosDismissed, setIosDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(IOS_DISMISSED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const showIosHint = !install && !iosDismissed && isIosSafariBrowser();
   return (
     <>
       {offline && (
@@ -97,6 +118,29 @@ export function PwaStatus() {
           <Download size={16} />
           {t('install')}
         </Button>
+      )}
+      {showIosHint && (
+        <aside className="ios-install-hint" aria-label={t('pwaIosHintTitle')}>
+          <Share2 size={16} aria-hidden="true" />
+          <div>
+            <strong>{t('pwaIosHintTitle')}</strong>
+            <p>{t('pwaIosHintBody')}</p>
+          </div>
+          <Button
+            variant="ghost"
+            aria-label={t('pwaDismiss')}
+            onClick={() => {
+              setIosDismissed(true);
+              try {
+                localStorage.setItem(IOS_DISMISSED_KEY, '1');
+              } catch {
+                // Ignore private-mode storage failures.
+              }
+            }}
+          >
+            <X size={16} />
+          </Button>
+        </aside>
       )}
     </>
   );

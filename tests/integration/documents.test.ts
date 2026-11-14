@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import { sql } from 'drizzle-orm';
+import { sql, eq } from 'drizzle-orm';
 import { createDatabase, schema as s } from '../../packages/db/src';
 import { createApp } from '../../apps/api/src/app';
 import { bootstrap } from '../../apps/api/src/services/bootstrap';
@@ -123,13 +123,13 @@ beforeAll(async () => {
   admin = await login('documents-admin@example.test');
   foreignAdmin = await login('documents-foreign@example.test');
   for (const [role, email] of [
-    ['treasurer', 'documents-treasurer@example.test'],
+    ['treasurer', 'treasurer@example.test'],
     ['board', 'documents-board@example.test'],
     ['member', 'documents-member@example.test'],
     ['project_lead', 'documents-lead@example.test'],
   ] as const)
     await ok(await json('POST', '/users', { name: role, email, password, role }), 201);
-  treasurer = await login('documents-treasurer@example.test');
+  treasurer = await login('treasurer@example.test');
   board = await login('documents-board@example.test');
   member = await login('documents-member@example.test');
   lead = await login('documents-lead@example.test');
@@ -402,5 +402,36 @@ describe('private documents', () => {
     const response = await get(`/documents/${statute.id}/versions/${row!.id}/content`, board);
     expect(response.statusCode).toBe(500);
     expect(response.json().error.code).toBe('DOCUMENT_STORAGE_ERROR');
+  });
+});
+
+describe('document retry authorization', () => {
+  it('does not replay financial metadata after finance access is lost', async () => {
+    const key = crypto.randomUUID(),
+      body = pdf('Private');
+    const input = meta({ title: 'Private', category: 'receipt', cashbookEntryId: entry.id });
+    expect((await upload(input, body, treasurer, { key })).statusCode).toBe(201);
+    const [user] = await db.select().from(s.user).where(eq(s.user.email, 'treasurer@example.test'));
+    expect(user).toBeDefined();
+    await db
+      .update(s.organizationUserRoles)
+      .set({ role: 'board' })
+      .where(eq(s.organizationUserRoles.userId, user!.id));
+    try {
+      expect((await upload(input, body, treasurer, { key })).statusCode).toBe(404);
+    } finally {
+      await db
+        .update(s.organizationUserRoles)
+        .set({ role: 'treasurer' })
+        .where(eq(s.organizationUserRoles.userId, user!.id));
+    }
+  });
+  it('rejects a retry key belonging to a different actor', async () => {
+    const key = crypto.randomUUID(),
+      body = pdf('Shared');
+    expect((await upload(meta(), body, board, { key })).statusCode).toBe(201);
+    const response = await upload(meta(), body, admin, { key });
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe('IDEMPOTENCY_MISMATCH');
   });
 });

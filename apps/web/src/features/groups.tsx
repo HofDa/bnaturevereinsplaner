@@ -1,8 +1,16 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Layers, Plus, Users, ArrowUpRight } from 'lucide-react';
+import {
+  Layers,
+  Plus,
+  Users,
+  ArrowUpRight,
+  Newspaper,
+  ChartColumn,
+  MessagesSquare,
+} from 'lucide-react';
 import { groupSchema, type Group, type Member, type Page } from '@bnature/contracts';
 import { api, allPages, queryClient, errorMessage } from '../lib/api';
 import { useSession } from '../app/session';
@@ -93,7 +101,15 @@ export function Groups() {
                       <span className="group-symbol">
                         <Layers size={24} />
                       </span>
-                      <Badge status={group.active ? 'active' : 'inactive'} />
+                      <div className="group-card-badges">
+                        {group.isMember && (
+                          <span className="badge badge-active">
+                            <span />
+                            {t('groupMineBadge')}
+                          </span>
+                        )}
+                        <Badge status={group.active ? 'active' : 'inactive'} />
+                      </div>
                     </div>
                     <h2>{group.name}</h2>
                     <p>{group.description || '—'}</p>
@@ -155,10 +171,16 @@ function GroupEditor({ id, onDone }: { id: string; onDone: () => void }) {
   const { t } = useTranslation(),
     { me } = useSession();
   const canMembers = me.permissions.includes('members:read'),
+    canCommunity = me.permissions.includes('community:read'),
     write = me.permissions.includes('groups:write');
   const query = useQuery({
     queryKey: ['group', me.activeOrganizationId, id],
     queryFn: () => api<GroupDetail>(`/groups/${id}`),
+  });
+  const audiences = useQuery({
+    queryKey: ['community', 'audiences', me.activeOrganizationId],
+    queryFn: () => api<{ groups: { id: string; name: string }[] }>('/community/audiences'),
+    enabled: canCommunity,
   });
   const members = useQuery({
     queryKey: ['member-options', me.activeOrganizationId],
@@ -232,7 +254,38 @@ function GroupEditor({ id, onDone }: { id: string; onDone: () => void }) {
           )}
         </QueryView>
       ) : (
-        <p className="muted">{t('groupAccess')}</p>
+        <div className="group-member-access">
+          {canCommunity &&
+            (query.data.isMember || audiences.data?.groups.some((g) => g.id === query.data.id)) && (
+              <div className="heading-actions">
+                <Link
+                  className="button button-primary"
+                  to={`/community?kind=chat&groupId=${query.data.id}`}
+                  onClick={onDone}
+                >
+                  <MessagesSquare size={15} />
+                  {t('groupOpenChat')}
+                </Link>
+                <Link
+                  className="button button-secondary"
+                  to={`/community?kind=news&groupId=${query.data.id}`}
+                  onClick={onDone}
+                >
+                  <Newspaper size={15} />
+                  {t('groupOpenNews')}
+                </Link>
+                <Link
+                  className="button button-secondary"
+                  to={`/community?kind=poll&groupId=${query.data.id}`}
+                  onClick={onDone}
+                >
+                  <ChartColumn size={15} />
+                  {t('groupOpenPolls')}
+                </Link>
+              </div>
+            )}
+          <p className="muted">{t('groupMemberAccessNote')}</p>
+        </div>
       )}
     </>
   );

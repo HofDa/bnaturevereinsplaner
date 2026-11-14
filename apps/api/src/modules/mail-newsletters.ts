@@ -1,17 +1,20 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, count } from 'drizzle-orm';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { schema as s, type Executor } from '@bnature/db';
 import {
   idParams,
+  listQuerySchema,
   newsletterInputSchema,
   newsletterSchema,
   newsletterUpdateSchema,
   type NewsletterInput,
 } from '@bnature/contracts';
-import { HttpError, type Access } from '../middleware/access';
+import { HttpError, lockAccess, type Access } from '../middleware/access';
 import { audit } from '../services/audit';
 import type { ModuleContext } from './context';
+import { pageOf } from './responses';
+import { readSnapshot } from './finance/operations';
 import { ownPerson } from './events';
 
 const n = s.mailNewsletters;
@@ -70,16 +73,29 @@ export function registerNewsletterRoutes({ server, db, access }: ModuleContext) 
 
   app.get(
     `${p}/mail/newsletters`,
-    { schema: { tags, response: { 200: z.object({ items: z.array(newsletterSchema) }) } } },
+    { schema: { tags, querystring: listQuerySchema, response: { 200: pageOf(newsletterSchema) } } },
     async (req) => {
       const a = await access(req, 'mail:invite');
-      const rows = await db
-        .select()
-        .from(n)
-        .where(and(eq(n.organizationId, a.organizationId), inArray(n.status, ['draft', 'sent'])))
-        .orderBy(desc(n.createdAt))
-        .limit(50);
-      return { items: rows.map(view) };
+      return readSnapshot(db, async (tx) => {
+        const where = and(
+          eq(n.organizationId, a.organizationId),
+          inArray(n.status, ['draft', 'sent']),
+        );
+        const [total] = await tx.select({ n: count() }).from(n).where(where);
+        const rows = await tx
+          .select()
+          .from(n)
+          .where(where)
+          .orderBy(desc(n.createdAt), desc(n.id))
+          .limit(req.query.pageSize)
+          .offset((req.query.page - 1) * req.query.pageSize);
+        return {
+          items: rows.map(view),
+          total: total!.n,
+          page: req.query.page,
+          pageSize: req.query.pageSize,
+        };
+      });
     },
   );
   app.post(
@@ -88,6 +104,7 @@ export function registerNewsletterRoutes({ server, db, access }: ModuleContext) 
     async (req, reply) => {
       const a = await access(req, 'mail:invite');
       const row = await db.transaction(async (tx) => {
+        await lockAccess(tx, a, 'mail:invite');
         const groupIds = await checkGroups(tx, a, req.body);
         const [created] = await tx
           .insert(n)
@@ -116,6 +133,7 @@ export function registerNewsletterRoutes({ server, db, access }: ModuleContext) 
     async (req) => {
       const a = await access(req, 'mail:invite');
       return db.transaction(async (tx) => {
+        await lockAccess(tx, a, 'mail:invite');
         const current = await draft(tx, a, req.params.id);
         if (current.version !== req.body.version)
           throw new HttpError(409, 'CONFLICT', 'Der Entwurf wurde inzwischen geändert.');
@@ -141,6 +159,7 @@ export function registerNewsletterRoutes({ server, db, access }: ModuleContext) 
     async (req) => {
       const a = await access(req, 'mail:invite');
       return db.transaction(async (tx) => {
+        await lockAccess(tx, a, 'mail:invite');
         const current = await draft(tx, a, req.params.id);
         const [row] = await tx
           .update(n)
@@ -180,6 +199,7 @@ export function registerNewsletterRoutes({ server, db, access }: ModuleContext) 
     async (req) => {
       const a = await access(req, 'organization:read');
       return db.transaction(async (tx) => {
+        await lockAccess(tx, a, 'organization:read');
         const personId = await ownPerson(tx, a);
         if (!personId)
           throw new HttpError(
@@ -210,6 +230,7 @@ export function registerNewsletterRoutes({ server, db, access }: ModuleContext) 
     async (req) => {
       const a = await access(req, 'members:write');
       return db.transaction(async (tx) => {
+        await lockAccess(tx, a, 'members:write');
         const [member] = await tx
           .select({ personId: s.memberships.personId })
           .from(s.memberships)

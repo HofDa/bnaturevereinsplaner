@@ -13,6 +13,7 @@ import {
 } from '@bnature/contracts';
 import { HttpError, lockAccess } from '../middleware/access';
 import { audit } from '../services/audit';
+import { ownPerson } from './events';
 import { escapeLike } from './members';
 import { pageOf, groupResponse } from './responses';
 export function registerGroupsRoutes({ server, db, access }: ModuleContext) {
@@ -29,7 +30,8 @@ export function registerGroupsRoutes({ server, db, access }: ModuleContext) {
     },
     async (req) => {
       const a = await access(req, 'groups:read'),
-        q = req.query;
+        q = req.query,
+        personId = await ownPerson(db, a);
       const where = and(
         eq(s.groups.organizationId, a.organizationId),
         q.search ? ilike(s.groups.name, `%${escapeLike(q.search)}%`) : undefined,
@@ -41,7 +43,10 @@ export function registerGroupsRoutes({ server, db, access }: ModuleContext) {
           name: s.groups.name,
           description: s.groups.description,
           active: s.groups.active,
-          memberCount: sql<number>`cast((select count(*) from ${s.groupMembers} where ${s.groupMembers.groupId} = ${s.groups.id} and ${s.groupMembers.organizationId} = ${s.groups.organizationId}) as int)`,
+          memberCount: sql<number>`cast((select count(*) from group_members gm where gm.group_id = groups.id and gm.organization_id = groups.organization_id) as int)`,
+          isMember: personId
+            ? sql<boolean>`exists(select 1 from group_members gm where gm.group_id = groups.id and gm.organization_id = groups.organization_id and gm.person_id = ${personId})`
+            : sql<boolean>`false`,
         })
         .from(s.groups)
         .where(where)
@@ -110,7 +115,21 @@ export function registerGroupsRoutes({ server, db, access }: ModuleContext) {
           )
           .orderBy(asc(s.persons.lastName))
       : [];
-    return { ...g, memberCount: total?.n ?? 0, members };
+    const personId = await ownPerson(db, a);
+    const [ownMembership] = personId
+      ? await db
+          .select({ id: s.groupMembers.id })
+          .from(s.groupMembers)
+          .where(
+            and(
+              eq(s.groupMembers.organizationId, a.organizationId),
+              eq(s.groupMembers.groupId, g.id),
+              eq(s.groupMembers.personId, personId),
+            ),
+          )
+          .limit(1)
+      : [];
+    return { ...g, memberCount: total?.n ?? 0, isMember: Boolean(ownMembership), members };
   });
   app.patch(
     `${p}/groups/:id`,

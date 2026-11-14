@@ -613,73 +613,92 @@ describe('groups, board and roles', () => {
 });
 
 describe('production and abuse controls', () => {
-  it('refuses an administrative write queued before the caller was demoted', async () => {
-    const [secondAdmin] = await db
-      .insert(s.user)
-      .values({ name: 'Concurrent administrator', email: 'concurrent-admin@example.test' })
-      .returning();
-    await db
-      .insert(s.organizationUserRoles)
-      .values({ organizationId: orgA, userId: secondAdmin!.id, role: 'admin' });
-    const blocker = await pool.connect();
-    let pending: Promise<Awaited<ReturnType<typeof app.inject>>> | undefined;
-    try {
-      await blocker.query('BEGIN');
-      const {
-        rows: [{ pid }],
-      } = await blocker.query('select pg_backend_pid() pid');
-      await blocker.query('select id from organizations where id=$1 for update', [orgA]);
-      pending = Promise.resolve(
-        app.inject({
-          method: 'PATCH',
-          url: `/api/v1/users/${userA}/role`,
-          headers: headers(cookieA),
-          payload: { role: 'admin' },
-        }),
-      );
-      await expect
-        .poll(
-          async () =>
-            (
-              await pool.query(
-                'select count(*)::int n from pg_stat_activity where $1=any(pg_blocking_pids(pid))',
-                [pid],
-              )
-            ).rows[0].n,
-          { timeout: 10_000 },
-        )
-        .toBeGreaterThan(0);
-      await blocker.query(
-        "update organization_user_roles set role='member' where organization_id=$1 and user_id=$2",
-        [orgA, userA],
-      );
-      await blocker.query('COMMIT');
-      expect((await pending).statusCode).toBe(403);
-      const [row] = await db
-        .select()
-        .from(s.organizationUserRoles)
-        .where(
-          and(
-            eq(s.organizationUserRoles.organizationId, orgA),
-            eq(s.organizationUserRoles.userId, userA),
-          ),
-        );
-      expect(row?.role).toBe('member');
-    } finally {
-      await blocker.query('ROLLBACK');
-      blocker.release();
-      await pending;
+  it.each(['role', 'field', 'newsletter'] as const)(
+    'refuses a %s write queued before demotion',
+    async (kind) => {
+      const [secondAdmin] = await db
+        .insert(s.user)
+        .values({
+          name: 'Concurrent administrator',
+          email: `concurrent-admin-${kind}@example.test`,
+        })
+        .returning();
       await db
-        .update(s.organizationUserRoles)
-        .set({ role: 'admin' })
-        .where(
-          and(
-            eq(s.organizationUserRoles.organizationId, orgA),
-            eq(s.organizationUserRoles.userId, userA),
-          ),
+        .insert(s.organizationUserRoles)
+        .values({ organizationId: orgA, userId: secondAdmin!.id, role: 'admin' });
+      const blocker = await pool.connect();
+      let pending: Promise<Awaited<ReturnType<typeof app.inject>>> | undefined;
+      try {
+        await blocker.query('BEGIN');
+        const {
+          rows: [{ pid }],
+        } = await blocker.query('select pg_backend_pid() pid');
+        await blocker.query('select id from organizations where id=$1 for update', [orgA]);
+        pending = Promise.resolve(
+          app.inject({
+            method: kind === 'role' ? 'PATCH' : 'POST',
+            url:
+              kind === 'role'
+                ? `/api/v1/users/${userA}/role`
+                : kind === 'field'
+                  ? '/api/v1/member-fields'
+                  : '/api/v1/mail/newsletters',
+            headers: headers(cookieA),
+            payload:
+              kind === 'role'
+                ? { role: 'admin' }
+                : kind === 'field'
+                  ? { labelI18n: { de: 'Queued', it: 'Queued' }, type: 'text' }
+                  : {
+                      subjectI18n: { de: 'Queued', it: 'Queued' },
+                      bodyI18n: { de: 'Body', it: 'Body' },
+                    },
+          }),
         );
-    }
-  });
+        await expect
+          .poll(
+            async () =>
+              (
+                await pool.query(
+                  'select count(*)::int n from pg_stat_activity where $1=any(pg_blocking_pids(pid))',
+                  [pid],
+                )
+              ).rows[0].n,
+            { timeout: 10_000 },
+          )
+          .toBeGreaterThan(0);
+        await blocker.query(
+          "update organization_user_roles set role='member' where organization_id=$1 and user_id=$2",
+          [orgA, userA],
+        );
+        await blocker.query('COMMIT');
+        expect((await pending).statusCode).toBe(403);
+        const [row] = await db
+          .select()
+          .from(s.organizationUserRoles)
+          .where(
+            and(
+              eq(s.organizationUserRoles.organizationId, orgA),
+              eq(s.organizationUserRoles.userId, userA),
+            ),
+          );
+        expect(row?.role).toBe('member');
+      } finally {
+        await blocker.query('ROLLBACK');
+        blocker.release();
+        await pending;
+        await db
+          .update(s.organizationUserRoles)
+          .set({ role: 'admin' })
+          .where(
+            and(
+              eq(s.organizationUserRoles.organizationId, orgA),
+              eq(s.organizationUserRoles.userId, userA),
+            ),
+          );
+      }
+    },
+  );
   it('sets Secure cookies in production without exposing development documentation', async () => {
     const production = await createApp(db, {
       ...config,

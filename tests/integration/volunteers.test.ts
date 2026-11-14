@@ -824,6 +824,11 @@ describe('assignments and hours', () => {
     expect(pdf.rawPayload.subarray(0, 4).toString()).toBe('%PDF');
   });
   it('13: attendance creates only an unconfirmed draft, never counted hours', async () => {
+    const eventDay = new Date(
+      Math.min(Date.now() + 2 * 86_400_000, Date.parse('2026-12-30T12:00:00Z')),
+    )
+      .toISOString()
+      .slice(0, 10);
     const [category] = (
       await ok<{ items: EventCategory[] }>(await post('/event-categories/initialize', {}))
     ).items;
@@ -832,8 +837,8 @@ describe('assignments and hours', () => {
         titleI18n: { de: 'Heckenpflege', it: 'Cura delle siepi' },
         descriptionI18n: { de: '', it: '' },
         categoryId: category!.id,
-        startLocal: '2026-11-14T09:00',
-        endLocal: '2026-11-14T12:00',
+        startLocal: `${eventDay}T09:00`,
+        endLocal: `${eventDay}T12:00`,
         timezone: 'Europe/Rome',
         status: 'published',
         visibility: 'members',
@@ -853,8 +858,8 @@ describe('assignments and hours', () => {
           eventOccurrenceId: event.id,
           role: 'lead',
           task: 'Gruppe anleiten',
-          plannedStart: '2026-11-14T08:00:00.000Z',
-          plannedEnd: '2026-11-14T11:00:00.000Z',
+          plannedStart: `${eventDay}T08:00:00.000Z`,
+          plannedEnd: `${eventDay}T11:00:00.000Z`,
           responsibleUserId: leadId,
           project: 'Hecken',
         },
@@ -867,8 +872,8 @@ describe('assignments and hours', () => {
       engagementId: regular.id,
       eventOccurrenceId: event.id,
       task: 'Doppelt',
-      plannedStart: '2026-11-14T12:00:00.000Z',
-      plannedEnd: '2026-11-14T13:00:00.000Z',
+      plannedStart: `${eventDay}T12:00:00.000Z`,
+      plannedEnd: `${eventDay}T13:00:00.000Z`,
     });
     expect(duplicate.json().error.code).toBe('ASSIGNMENT_EXISTS');
     expect(
@@ -1186,7 +1191,7 @@ describe('compliance', () => {
       await post('/compliance-deadlines', {
         kind: 'internal',
         titleI18n: { de: 'Mitgliederversammlung einberufen', it: 'Convocare l’assemblea' },
-        dueDate: '2026-11-15',
+        dueDate: new Date(Date.now() + 15 * 86_400_000).toISOString().slice(0, 10),
         responsibleRole: 'board',
       }),
       201,
