@@ -58,7 +58,11 @@ for (const role of ['admin', 'member'] as const) {
       as.map((a) => a.getAttribute('href')!),
     )) {
       const href =
-        basePath && rawHref.startsWith(`${basePath}/`) ? rawHref.slice(basePath.length) : rawHref;
+        basePath && rawHref === basePath
+          ? '/'
+          : basePath && rawHref.startsWith(`${basePath}/`)
+            ? rawHref.slice(basePath.length)
+            : rawHref;
       if (
         !seen.has(href) &&
         !href.startsWith('/api') &&

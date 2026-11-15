@@ -17,7 +17,7 @@ Statische Demo der Weboberfläche zum Ausprobieren und Testen: **ohne Datenbank,
 bun run demo:build          # → apps/web/dist-demo
 ```
 
-`apps/web/dist-demo` auf einen statischen Host laden, z. B. Netlify (Ordner per Drag-and-drop auf https://app.netlify.com/drop) oder Cloudflare Pages. `_redirects` für die SPA-Navigation wird mitgebaut; die Seite ist mit `noindex` markiert.
+Der Workflow `.github/workflows/pages.yml` baut die statische Demo-PWA bei jedem Push auf `master` mit `VITE_BASE=/bnaturevereinsplaner/` (inklusive `404.html` für SPA-Navigation) und veröffentlicht sie auf GitHub Pages. Alternativ lässt sich `apps/web/dist-demo` auf jeden statischen Host laden (z. B. Netlify Drop oder Cloudflare Pages); `_redirects` für die SPA-Navigation wird mitgebaut, und die Seite ist mit `noindex` markiert.
 
 ## Fixtures neu aufzeichnen
 

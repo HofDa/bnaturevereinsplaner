@@ -286,8 +286,8 @@ function auth(path: string, body: Record<string, unknown>): Response {
   return json({ status: true, user: me?.user ?? null });
 }
 
-const download = (path: string) => {
-  const csv = /csv|export/.test(path);
+const download = (path: string, format: string | null) => {
+  const csv = format === 'csv' || format === 'xlsx' || (!format && /csv|export/.test(path));
   const body = csv
     ? 'Demo;Keine echten Daten\n'
     : path.endsWith('.ics')
@@ -317,8 +317,15 @@ async function handle(url: URL, method: string, init?: RequestInit): Promise<Res
   const role = currentRole();
   if (!role) return error(401, 'UNAUTHENTICATED');
   const path = url.pathname.replace(/^\/api\/v1/, '');
-  if (method === 'GET' && /\/(pdf|csv|content|export|receipt|calendar\.ics)$|\/files\//.test(path))
-    return download(path);
+  const format = url.searchParams.get('format');
+  if (
+    method === 'GET' &&
+    (/\/(pdf|csv|content|export|receipt|calendar\.ics)$|\/files\//.test(path) ||
+      format === 'csv' ||
+      format === 'pdf' ||
+      format === 'xlsx')
+  )
+    return download(path, format);
   const data = store(role);
   if (method === 'GET' || method === 'HEAD') return read(data, path, url.searchParams);
   const response = write(data, method, path, body);
