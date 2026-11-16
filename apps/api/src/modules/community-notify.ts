@@ -19,7 +19,7 @@ type Text = { de: string; it: string };
  * to through its linked person. Board members may open other groups but are not nagged by them.
  */
 type Who = Pick<Access, 'organizationId' | 'userId'>;
-async function memberGroups(db: Executor, a: Who) {
+export async function memberGroups(db: Executor, a: Who) {
   return db
     .select({ id: s.groups.id, name: s.groups.name })
     .from(s.groups)

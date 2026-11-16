@@ -40,6 +40,7 @@ import { ErrorBoundary } from '../components/error-boundary';
 import { UnreadBadge, useAppBadge, useUnread } from '../features/community-unread';
 import { usePushSync } from '../features/push';
 import { releasePush } from '../lib/push';
+import { useLiveUpdates } from '../lib/live';
 type NavItem = {
   to: string;
   key: string;
@@ -106,6 +107,10 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   const unread = useUnread().data?.total;
   useAppBadge(unread);
   usePushSync();
+  useLiveUpdates(
+    me.activeOrganizationId,
+    me.permissions.includes('community:read') && import.meta.env.VITE_DEMO !== '1',
+  );
   const primary = [
     { to: '/', key: 'overview', icon: LayoutDashboard },
     {

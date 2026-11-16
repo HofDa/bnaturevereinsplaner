@@ -4,6 +4,7 @@ import type { Auth } from '../auth';
 import type { Config } from '../plugins/config';
 import type { PushSender } from '../services/push';
 import type { ErrorAlert } from '../services/error-reports';
+import type { LiveHub } from '../services/live';
 import { registerErrorReportRoutes } from './error-reports';
 import { accessControl } from '../middleware/access';
 import { registerSystemRoutes } from './system';
@@ -35,8 +36,17 @@ export async function registerRoutes(
   config: Config,
   push: PushSender | null,
   errorAlert: ErrorAlert | null,
+  live: LiveHub,
 ) {
-  const context = { server, db, access: accessControl(db, auth), config, push, errorAlert };
+  const context = {
+    server,
+    db,
+    access: accessControl(db, auth),
+    config,
+    push,
+    errorAlert,
+    live,
+  };
   registerSystemRoutes(context);
   registerOrganizationRoutes(context);
   registerMemberRoutesRoutes(context);

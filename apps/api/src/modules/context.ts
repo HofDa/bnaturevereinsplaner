@@ -4,6 +4,7 @@ import type { accessControl } from '../middleware/access';
 import type { Config } from '../plugins/config';
 import type { PushSender } from '../services/push';
 import type { ErrorAlert } from '../services/error-reports';
+import type { LiveHub } from '../services/live';
 export type ModuleContext = {
   server: FastifyInstance;
   db: Database;
@@ -13,4 +14,5 @@ export type ModuleContext = {
   push: PushSender | null;
   /** Null when no operator address is configured. */
   errorAlert: ErrorAlert | null;
+  live: LiveHub;
 };

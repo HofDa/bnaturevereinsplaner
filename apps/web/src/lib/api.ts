@@ -164,6 +164,10 @@ export async function allPages<T>(path: string): Promise<T[]> {
   }
   return items;
 }
+/** A response whose body is read as a stream (server-sent events). */
+export function apiStream(path: string, signal: AbortSignal): Promise<Response> {
+  return apiResponse(path, { signal, headers: { Accept: 'text/event-stream' } });
+}
 /** For endpoints answering 204 No Content. */
 export async function apiSend(path: string, options: RequestInit = {}): Promise<void> {
   await apiResponse(path, options);

@@ -1353,3 +1353,125 @@ describe('push notifications', () => {
     expect(await stored()).toHaveLength(0);
   });
 });
+
+describe('live updates', () => {
+  let base = '';
+  const open: AbortController[] = [];
+  beforeEach(async () => {
+    base = await app.listen({ port: 0, host: '127.0.0.1' });
+  });
+  afterEach(() => {
+    for (const controller of open.splice(0)) controller.abort();
+  });
+  /** Opens a stream and collects the events it delivers. */
+  async function stream(role: string, organization = org) {
+    const controller = new AbortController();
+    open.push(controller);
+    const response = await fetch(`${base}/api/v1/community/stream`, {
+      headers: { cookie: users[role]!.cookie, 'x-organization-id': organization },
+      signal: controller.signal,
+    });
+    const events: unknown[] = [];
+    let raw = '';
+    const done = (async () => {
+      if (!response.ok || !response.body) return;
+      const decoder = new TextDecoder();
+      try {
+        const reader = response.body.getReader();
+        for (;;) {
+          const { done: ended, value: chunk } = await reader.read();
+          if (ended) break;
+          raw += decoder.decode(chunk, { stream: true });
+          let end: number;
+          while ((end = raw.indexOf('\n\n')) >= 0) {
+            const block = raw.slice(0, end);
+            raw = raw.slice(end + 2);
+            if (block.startsWith('event: busy')) events.push('busy');
+            else if (block.startsWith('data: ')) events.push(JSON.parse(block.slice(6)));
+          }
+        }
+      } catch {
+        // Aborted by the test.
+      }
+    })();
+    return { response, events, done };
+  }
+  const quiet = () => new Promise((resolve) => setTimeout(resolve, 150));
+
+  it('needs a session and club access and answers as an event stream', async () => {
+    const anonymous = await fetch(`${base}/api/v1/community/stream`);
+    expect(anonymous.status).toBe(401);
+    expect((await stream('foreign')).response.status).toBe(403);
+    const member = await stream('member');
+    expect(member.response.status).toBe(200);
+    expect(member.response.headers.get('content-type')).toContain('text/event-stream');
+    expect(member.response.headers.get('cache-control')).toContain('no-store');
+  });
+  it('signals chat changes to the channel only, without any content', async () => {
+    const member = await stream('member');
+    const other = await stream('other');
+    const board = await stream('board');
+    const foreign = await stream('foreign', foreignOrg);
+    const sent = await ok<{ id: string }>(
+      await write('POST', '/community/chat', { body: 'Nur für die Waldgruppe', groupId }, 'board'),
+      201,
+    );
+    await vi.waitFor(() => expect(member.events).toEqual([{ type: 'chat', groupId }]));
+    await vi.waitFor(() => expect(board.events).toEqual([{ type: 'chat', groupId }]));
+    await quiet();
+    expect(other.events).toEqual([]);
+    await ok(
+      await write('POST', '/community/chat', { body: 'Hallo alle', groupId: null }, 'member'),
+      201,
+    );
+    await vi.waitFor(() => expect(other.events).toEqual([{ type: 'chat', groupId: null }]));
+    await vi.waitFor(() => expect(member.events).toHaveLength(2));
+    // Reactions change what the channel shows as well.
+    await ok(
+      await write(
+        'PUT',
+        `/community/chat/${sent.id}/reactions`,
+        { emoji: '👍', active: true },
+        'member',
+      ),
+    );
+    await vi.waitFor(() => expect(member.events).toHaveLength(3));
+    await quiet();
+    expect(other.events).toHaveLength(1);
+    expect(foreign.events).toEqual([]);
+    expect(JSON.stringify([member.events, other.events])).not.toMatch(/Waldgruppe|Hallo/);
+  });
+  it('signals published posts to their audience and read markers to the same account', async () => {
+    const member = await stream('member');
+    const memberPhone = await stream('member');
+    const other = await stream('other');
+    const draft = await create(news({ groupId }));
+    await quiet();
+    expect(member.events).toEqual([]);
+    await action(draft, 'publish');
+    await vi.waitFor(() => expect(member.events).toEqual([{ type: 'posts', groupId }]));
+    await quiet();
+    expect(other.events).toEqual([]);
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/community/read',
+      headers: headers('member'),
+      payload: { channel: 'news', until: new Date().toISOString() },
+    });
+    expect(res.statusCode, res.body).toBe(204);
+    await vi.waitFor(() => expect(memberPhone.events).toContainEqual({ type: 'read' }));
+    await quiet();
+    expect(other.events).toEqual([]);
+  });
+  it('limits streams per account and ends them when the server stops', async () => {
+    const streams = [];
+    for (let i = 0; i < 6; i++) streams.push(await stream('member'));
+    const seventh = await stream('member');
+    await seventh.done;
+    expect(seventh.events).toEqual(['busy']);
+    // Another account is not affected by the first one's limit.
+    expect((await stream('other')).response.status).toBe(200);
+    await app.close();
+    await Promise.all(streams.map((s) => s.done));
+  });
+});

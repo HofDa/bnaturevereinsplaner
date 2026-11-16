@@ -18,6 +18,7 @@ import { registerRoutes } from './modules/routes';
 import type { Config } from './plugins/config';
 import { createPushSender, type PushSender } from './services/push';
 import { createErrorAlert, recordError, type ErrorAlert } from './services/error-reports';
+import { LiveHub } from './services/live';
 
 export async function createApp(
   db: Database,
@@ -278,6 +279,9 @@ export async function createApp(
       return reply.send(await response.text());
     },
   });
-  await registerRoutes(app, db, auth, config, push, alert);
+  const live = new LiveHub();
+  // Open event streams would keep the server from shutting down.
+  app.addHook('preClose', async () => live.closeAll());
+  await registerRoutes(app, db, auth, config, push, alert, live);
   return app;
 }

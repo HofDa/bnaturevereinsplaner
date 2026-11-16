@@ -5,14 +5,16 @@ import type { NotificationSettings, Unread } from '@bnature/contracts';
 import { apiSend, api, errorMessage, queryClient } from '../lib/api';
 import { ErrorState, Loading, Notice } from '../components/ui';
 import { useSession } from '../app/session';
+import { liveInterval, useLiveConnected } from '../lib/live';
 
 export function useUnread() {
   const { me } = useSession();
+  const live = useLiveConnected();
   return useQuery({
     queryKey: ['community', 'unread', me.activeOrganizationId],
     queryFn: () => api<Unread>('/community/unread'),
     enabled: me.permissions.includes('community:read'),
-    refetchInterval: 30_000,
+    refetchInterval: liveInterval(live, 30_000, 120_000),
     refetchOnWindowFocus: true,
   });
 }

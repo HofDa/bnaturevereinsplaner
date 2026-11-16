@@ -59,9 +59,13 @@ import {
   createEventFromSchedule,
 } from './community-schedules';
 import { readSnapshot } from './finance/operations';
+import { can } from '@bnature/contracts';
+import { schema as s } from '@bnature/db';
+import { and, eq } from 'drizzle-orm';
 import {
   communityUnread,
   markCommunityRead,
+  memberGroups,
   getNotificationSettings,
   updateNotificationSettings,
 } from './community-notify';
@@ -71,14 +75,40 @@ import {
   notifyPostPublished,
   notifyChatMessage,
 } from './community-push';
-export function registerCommunityRoutes({ server, db, access, config, push }: ModuleContext) {
+export function registerCommunityRoutes({ server, db, access, config, push, live }: ModuleContext) {
   const app = server.withTypeProvider<ZodTypeProvider>();
+  // A post changed (published, edited, closed, archived, voted on): tell its audience.
+  const postChanged = async (organizationId: string, postId: string) => {
+    const [post] = await db
+      .select({ groupId: s.communityPosts.groupId })
+      .from(s.communityPosts)
+      .where(
+        and(eq(s.communityPosts.organizationId, organizationId), eq(s.communityPosts.id, postId)),
+      );
+    if (post)
+      live.publish(
+        { type: 'posts', groupId: post.groupId },
+        { organizationId, groupId: post.groupId },
+      );
+  };
+  const chatChanged = async (organizationId: string, messageId: string) => {
+    const m = s.communityChatMessages;
+    const [message] = await db
+      .select({ groupId: m.groupId })
+      .from(m)
+      .where(and(eq(m.organizationId, organizationId), eq(m.id, messageId)));
+    if (message)
+      live.publish(
+        { type: 'chat', groupId: message.groupId },
+        { organizationId, groupId: message.groupId, needsChat: true },
+      );
+  };
   // Pushes go out after the write is committed and never delay or fail the request.
   const afterCommit = (work: Promise<unknown>) =>
     void work.catch((error: unknown) =>
       server.log.error(
         { reason: error instanceof Error ? error.name : 'unknown' },
-        'Push notification failed.',
+        'Notification after a community change failed.',
       ),
     );
   const tags = ['Community'];
@@ -127,6 +157,11 @@ export function registerCommunityRoutes({ server, db, access, config, push }: Mo
       const a = await access(req, 'community:chat');
       const r = await sendCommunityChat(db, a, req.headers['idempotency-key'], req.body);
       if (push && !r.replayed) afterCommit(notifyChatMessage(db, push, a, r.data.id));
+      if (!r.replayed)
+        live.publish(
+          { type: 'chat', groupId: req.body.groupId ?? null },
+          { organizationId: a.organizationId, groupId: req.body.groupId ?? null, needsChat: true },
+        );
       return replay(reply, r, 201);
     },
   );
@@ -142,13 +177,15 @@ export function registerCommunityRoutes({ server, db, access, config, push }: Mo
       },
     },
     async (req, reply) => {
+      const a = await access(req, 'community:chat');
       const r = await removeCommunityChat(
         db,
-        await access(req, 'community:chat'),
+        a,
         req.headers['idempotency-key'],
         req.params.id,
         req.body.version,
       );
+      if (!r.replayed) afterCommit(chatChanged(a.organizationId, req.params.id));
       return replay(reply, r);
     },
   );
@@ -165,13 +202,15 @@ export function registerCommunityRoutes({ server, db, access, config, push }: Mo
       config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
     },
     async (req, reply) => {
+      const a = await access(req, 'community:chat');
       const r = await reactCommunityChat(
         db,
-        await access(req, 'community:chat'),
+        a,
         req.headers['idempotency-key'],
         req.params.id,
         req.body,
       );
+      if (!r.replayed) afterCommit(chatChanged(a.organizationId, req.params.id));
       return reply.header('Idempotency-Replayed', String(r.replayed)).send(r.data);
     },
   );
@@ -192,7 +231,10 @@ export function registerCommunityRoutes({ server, db, access, config, push }: Mo
       config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
     },
     async (req, reply) => {
-      await markCommunityRead(db, await access(req, 'community:read'), req.body);
+      const a = await access(req, 'community:read');
+      await markCommunityRead(db, a, req.body);
+      // The account's other tabs and devices drop their badge too.
+      live.publish({ type: 'read' }, { organizationId: a.organizationId, onlyUserId: a.userId });
       return reply.code(204).send();
     },
   );
@@ -212,6 +254,35 @@ export function registerCommunityRoutes({ server, db, access, config, push }: Mo
     },
     async (req) =>
       updateNotificationSettings(db, await access(req, 'community:read'), config, req.body.digest),
+  );
+  app.get(
+    '/api/v1/community/stream',
+    {
+      schema: { tags, hide: true },
+      // Reconnects after sleep or network changes come in bursts.
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    },
+    async (req, reply) => {
+      const a = await access(req, 'community:read');
+      const groups = await memberGroups(db, a);
+      reply.hijack();
+      const response = reply.raw;
+      response.writeHead(200, {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-store, no-transform',
+        'X-Accel-Buffering': 'no',
+        'X-Content-Type-Options': 'nosniff',
+      });
+      const opened = live.open(response, {
+        organizationId: a.organizationId,
+        userId: a.userId,
+        groups: new Set(groups.map((g) => g.id)),
+        moderator: can(a.role, 'community:manage'),
+        chat: can(a.role, 'community:chat'),
+      });
+      // Too many streams: end cleanly; the browser falls back to polling and retries later.
+      if (!opened) response.end('event: busy\ndata: {}\n\n');
+    },
   );
   app.put(
     '/api/v1/community/push-subscriptions',
@@ -398,14 +469,16 @@ export function registerCommunityRoutes({ server, db, access, config, push }: Mo
       },
     },
     async (req, reply) => {
+      const a = await access(req, 'community:manage');
       const r = await editCommunityPost(
         db,
-        await access(req, 'community:manage'),
+        a,
         req.headers['idempotency-key'],
         req.params.id,
         req.body.version,
         req.body.content,
       );
+      if (!r.replayed) afterCommit(postChanged(a.organizationId, req.params.id));
       return replay(reply, r);
     },
   );
@@ -433,6 +506,7 @@ export function registerCommunityRoutes({ server, db, access, config, push }: Mo
         );
         if (push && action === 'publish' && !r.replayed)
           afterCommit(notifyPostPublished(db, push, a, req.params.id));
+        if (!r.replayed) afterCommit(postChanged(a.organizationId, req.params.id));
         return replay(reply, r);
       },
     );
@@ -448,14 +522,16 @@ export function registerCommunityRoutes({ server, db, access, config, push }: Mo
       },
     },
     async (req, reply) => {
+      const a = await access(req, 'community:vote');
       const r = await voteCommunityPoll(
         db,
-        await access(req, 'community:vote'),
+        a,
         req.headers['idempotency-key'],
         req.params.id,
         req.body.version,
         req.body.optionId,
       );
+      if (!r.replayed) afterCommit(postChanged(a.organizationId, req.params.id));
       return replay(reply, r);
     },
   );

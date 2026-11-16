@@ -28,6 +28,7 @@ import {
   type Page,
 } from '@bnature/contracts';
 import { api, errorMessage, queryClient } from '../lib/api';
+import { liveInterval, useLiveConnected } from '../lib/live';
 import { useSession } from '../app/session';
 import { useFinancialWrite } from './finance/client';
 import { ChatReactions, EmojiPicker } from './community-emoji';
@@ -633,10 +634,11 @@ function CommunityChat({ groupId }: { groupId: string | null }) {
   const canManage = me.permissions.includes('community:manage');
   const q = new URLSearchParams({ ...(groupId ? { groupId } : {}), ...(before ? { before } : {}) });
   const visible = usePageVisible();
+  const live = useLiveConnected();
   const query = useQuery({
     queryKey: ['community', 'chat', me.activeOrganizationId, groupId, before],
     queryFn: () => api<{ items: ChatMessage[]; nextBefore: string | null }>(`/community/chat?${q}`),
-    refetchInterval: before || !visible ? false : 5000,
+    refetchInterval: before || !visible ? false : liveInterval(live, 5000),
   });
   const lastId = query.data?.items.at(-1)?.id;
   useMarkRead('chat', groupId, before ? null : query.data?.items.at(-1)?.createdAt);
@@ -1081,10 +1083,11 @@ export function CommunityDetail() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const write = useFinancialWrite();
+  const live = useLiveConnected();
   const query = useQuery({
     queryKey: ['community', 'post', me.activeOrganizationId, id],
     queryFn: () => api<CommunityPost>(`/community/posts/${id}`),
-    refetchInterval: 15_000,
+    refetchInterval: liveInterval(live, 15_000),
   });
   const post = query.data;
   async function act() {

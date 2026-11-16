@@ -1,5 +1,13 @@
 # Prüfnachweise
 
+## Live-Aktualisierung statt Dauerabfrage – 16.11.2026
+
+Auf `feat/live-updates`, gestapelt auf `perf/bundle-and-error-visibility` (keine Migration):
+
+- Chat, Beiträge und Ungelesen-Zähler werden über eine Server-Sent-Events-Verbindung angestoßen; siehe [Vereinsleben](community.md#live-aktualisierung).
+- Neue Integrationstests (4) über eine echte Netzwerkverbindung: Anmeldung und Vereinszugang nötig; Chathinweise nur an den Kanal (Gruppenmitglieder und Moderation, nicht an andere Mitglieder oder fremde Vereine) und ohne Inhalte; Beitragshinweise nur an das Publikum, Lesemarken nur an dasselbe Konto; Obergrenze je Konto, Verbindungen enden beim Herunterfahren.
+- Offen: Verhalten hinter dem produktiven Reverse-Proxy (Caddy mit Kompression) und über Mobilfunk mit Verbindungswechseln ist nicht geprüft. Fällt die Verbindung aus, arbeitet die App mit den bisherigen Abfrageabständen weiter.
+
 ## Ladezeit und Fehlerberichte – 16.11.2026
 
 Auf `perf/bundle-and-error-visibility`, gestapelt auf `feat/push-notifications` (Migration `0027_error_reports`):
