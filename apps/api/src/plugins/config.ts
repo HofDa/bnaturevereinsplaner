@@ -20,6 +20,18 @@ const envSchema = z.object({
   SMTP_SECURE: z.enum(['false', 'true']).default('false'),
   SMTP_USER: optionalSecret,
   SMTP_PASSWORD: optionalSecret,
+  // Web Push (browser notifications). Without a key pair the feature is switched off.
+  // Generate once with: bunx web-push generate-vapid-keys
+  VAPID_PUBLIC_KEY: optionalSecret,
+  VAPID_PRIVATE_KEY: optionalSecret,
+  // Contact the push services may use for this server; defaults to mailto:EMAIL_FROM.
+  VAPID_SUBJECT: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z
+      .string()
+      .regex(/^(mailto:.+@.+|https:\/\/.+)$/)
+      .optional(),
+  ),
 });
 export type Config = z.infer<typeof envSchema>;
 export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -28,6 +40,8 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new Error('SMTP_HOST is required for EMAIL_MODE=smtp');
   if (!!config.SMTP_USER !== !!config.SMTP_PASSWORD)
     throw new Error('SMTP_USER and SMTP_PASSWORD must be configured together');
+  if (!!config.VAPID_PUBLIC_KEY !== !!config.VAPID_PRIVATE_KEY)
+    throw new Error('VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY must be configured together');
   if (config.NODE_ENV === 'production' && config.EMAIL_MODE === 'local')
     throw new Error('Local email capture is only available in development and tests');
   if (

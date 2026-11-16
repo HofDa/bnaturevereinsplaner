@@ -10,6 +10,7 @@ import { DataForm } from '../components/data-form';
 import { Notice, PageHeading, QueryView } from '../components/ui';
 import { MyLoans } from './inventory';
 import { DigestSettings } from './community-unread';
+import { PushSettings } from './push';
 import { NewsletterSubscription } from './mail-newsletter';
 import { OwnVolunteeringPanel } from './volunteers/self';
 import { OwnFeesPanel, OwnMembershipPanel } from './profile-self';
@@ -114,6 +115,7 @@ export function Profile() {
             }
           </QueryView>
         </section>
+        <PushSettings />
         <DigestSettings />
         <NewsletterSubscription />
       </div>

@@ -1277,6 +1277,28 @@ strong {
   color: var(--muted);
   margin-top: 0.15rem;
 }
+.push-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+}
+.push-toggle p {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  font-weight: 600;
+}
+.push-toggle p svg {
+  flex: none;
+  color: var(--muted);
+}
 .occasions-panel {
   grid-column: 1 / -1;
 }

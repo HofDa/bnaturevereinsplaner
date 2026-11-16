@@ -173,6 +173,7 @@ export function getNotificationSettings(
       digest: row?.digest ?? 'off',
       email: row?.email ?? '',
       emailEnabled: config.EMAIL_MODE !== 'disabled',
+      pushPublicKey: (config.VAPID_PRIVATE_KEY && config.VAPID_PUBLIC_KEY) || null,
     };
   });
 }

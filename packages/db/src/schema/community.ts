@@ -16,6 +16,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { organizations, groups, organizationUserRoles } from './core';
 import { user } from './auth';
+import { created, updated } from './columns';
 import { eventOccurrences } from './events';
 type Text = { de: string; it: string };
 export const communityPosts = pgTable(
@@ -244,6 +245,30 @@ export const communityNotificationSettings = pgTable(
       foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
     }).onDelete('cascade'),
     check('community_digest_mode', sql`${t.digest} in ('off','daily','weekly')`),
+  ],
+);
+
+// One row per browser/device that asked for Web Push, per club. `endpoint` is the push service
+// URL handed out by the browser; the keys encrypt payloads so the push service cannot read them.
+export const pushSubscriptions = pgTable(
+  'push_subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organizationId: uuid('organization_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    endpoint: text('endpoint').notNull(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    createdAt: created(),
+    updatedAt: updated(),
+  },
+  (t) => [
+    unique('push_subscriptions_endpoint').on(t.organizationId, t.endpoint),
+    index('push_subscriptions_user').on(t.organizationId, t.userId),
+    foreignKey({
+      columns: [t.organizationId, t.userId],
+      foreignColumns: [organizationUserRoles.organizationId, organizationUserRoles.userId],
+    }).onDelete('cascade'),
   ],
 );
 

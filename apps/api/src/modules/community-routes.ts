@@ -27,6 +27,8 @@ import {
   markReadSchema,
   notificationSettingsSchema,
   notificationSettingsInputSchema,
+  pushSubscriptionInputSchema,
+  pushSubscriptionRemoveSchema,
 } from '@bnature/contracts';
 import type { ModuleContext } from './context';
 import { pageOf } from './responses';
@@ -63,8 +65,22 @@ import {
   getNotificationSettings,
   updateNotificationSettings,
 } from './community-notify';
-export function registerCommunityRoutes({ server, db, access, config }: ModuleContext) {
+import {
+  savePushSubscription,
+  removePushSubscription,
+  notifyPostPublished,
+  notifyChatMessage,
+} from './community-push';
+export function registerCommunityRoutes({ server, db, access, config, push }: ModuleContext) {
   const app = server.withTypeProvider<ZodTypeProvider>();
+  // Pushes go out after the write is committed and never delay or fail the request.
+  const afterCommit = (work: Promise<unknown>) =>
+    void work.catch((error: unknown) =>
+      server.log.error(
+        { reason: error instanceof Error ? error.name : 'unknown' },
+        'Push notification failed.',
+      ),
+    );
   const tags = ['Community'];
   const result = z.object({ id: z.uuid() });
   app.get(
@@ -108,12 +124,9 @@ export function registerCommunityRoutes({ server, db, access, config }: ModuleCo
       config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
     },
     async (req, reply) => {
-      const r = await sendCommunityChat(
-        db,
-        await access(req, 'community:chat'),
-        req.headers['idempotency-key'],
-        req.body,
-      );
+      const a = await access(req, 'community:chat');
+      const r = await sendCommunityChat(db, a, req.headers['idempotency-key'], req.body);
+      if (push && !r.replayed) afterCommit(notifyChatMessage(db, push, a, r.data.id));
       return replay(reply, r, 201);
     },
   );
@@ -199,6 +212,28 @@ export function registerCommunityRoutes({ server, db, access, config }: ModuleCo
     },
     async (req) =>
       updateNotificationSettings(db, await access(req, 'community:read'), config, req.body.digest),
+  );
+  app.put(
+    '/api/v1/community/push-subscriptions',
+    {
+      schema: { tags, body: pushSubscriptionInputSchema },
+      config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
+    },
+    async (req, reply) => {
+      await savePushSubscription(db, await access(req, 'community:read'), push !== null, req.body);
+      return reply.code(204).send();
+    },
+  );
+  app.post(
+    '/api/v1/community/push-subscriptions/remove',
+    {
+      schema: { tags, body: pushSubscriptionRemoveSchema },
+      config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
+    },
+    async (req, reply) => {
+      await removePushSubscription(db, await access(req, 'community:read'), req.body.endpoint);
+      return reply.code(204).send();
+    },
   );
   app.get(
     '/api/v1/community/schedules',
@@ -387,14 +422,17 @@ export function registerCommunityRoutes({ server, db, access, config }: ModuleCo
         },
       },
       async (req, reply) => {
+        const a = await access(req, 'community:manage');
         const r = await transitionCommunityPost(
           db,
-          await access(req, 'community:manage'),
+          a,
           req.headers['idempotency-key'],
           req.params.id,
           req.body.version,
           action,
         );
+        if (push && action === 'publish' && !r.replayed)
+          afterCommit(notifyPostPublished(db, push, a, req.params.id));
         return replay(reply, r);
       },
     );

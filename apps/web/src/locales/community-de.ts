@@ -18,6 +18,22 @@ export default {
   commReactionWho: '{{emoji}} von {{names}}',
   commUnread_one: '{{count}} ungelesen',
   commUnread_other: '{{count}} ungelesen',
+  pushTitle: 'Push-Benachrichtigungen',
+  pushIntro:
+    'Hinweis auf diesem Gerät, sobald es Neuigkeiten, Umfragen oder Chatnachrichten gibt. Chattexte werden nicht mitgeschickt.',
+  pushOn: 'Auf diesem Gerät eingeschaltet',
+  pushOff: 'Auf diesem Gerät ausgeschaltet',
+  pushEnable: 'Einschalten',
+  pushDisable: 'Ausschalten',
+  pushDenied:
+    'Benachrichtigungen sind für diese Seite im Browser blockiert. Bitte in den Browser- oder Geräteeinstellungen erlauben.',
+  pushNotGranted: 'Die Erlaubnis für Benachrichtigungen wurde nicht erteilt.',
+  pushUnsupported: 'Dieser Browser unterstützt keine Push-Benachrichtigungen.',
+  pushUnsupportedIos:
+    'Auf iPhone und iPad funktionieren Push-Benachrichtigungen erst, wenn die App zum Home-Bildschirm hinzugefügt und von dort geöffnet wurde.',
+  pushServerOff: 'Push-Benachrichtigungen sind auf diesem Server nicht eingerichtet.',
+  pushFailed:
+    'Die Benachrichtigungen konnten nicht eingeschaltet werden. Bitte später erneut versuchen.',
   commDigestTitle: 'Zusammenfassung per E-Mail',
   commDigestIntro:
     'Erhalte neue News, Abstimmungen und Chatnachrichten aus deinen Bereichen gesammelt per E-Mail. Bereits gelesene Inhalte und Tage ohne Neuigkeiten werden übersprungen.',

@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, afterEach, afterAll, describe, it, expect } from 'vitest';
+import { beforeAll, beforeEach, afterEach, afterAll, describe, it, expect, vi } from 'vitest';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { and, eq, sql } from 'drizzle-orm';
 import { createDatabase, schema as s } from '../../packages/db/src';
@@ -6,7 +6,8 @@ import { createApp } from '../../apps/api/src/app';
 import { createAuth } from '../../apps/api/src/auth';
 import { bootstrap } from '../../apps/api/src/services/bootstrap';
 import { readConfig } from '../../apps/api/src/plugins/config';
-import type { CommunityPost, Unread } from '../../packages/contracts/src';
+import type { CommunityPost, PushPayload, Unread } from '../../packages/contracts/src';
+import type { PushSender, PushTarget } from '../../apps/api/src/services/push';
 import {
   enqueueCommunityDigests,
   revalidateDigest,
@@ -649,6 +650,7 @@ describe('unread markers and digests', () => {
       digest: 'off',
       email: 'community-member@example.test',
       emailEnabled: false,
+      pushPublicKey: null,
     });
     const put = (digest: string) =>
       app.inject({
@@ -1124,5 +1126,230 @@ describe('shared network polling', () => {
     for (let i = 0; i < 150; i++) expect((await call('member')).statusCode).toBe(200);
     expect((await call('member')).statusCode).toBe(429);
     expect((await call('other')).statusCode).toBe(200);
+  });
+});
+
+describe('push notifications', () => {
+  const pushConfig = {
+    ...config,
+    VAPID_PUBLIC_KEY: 'test-public-key',
+    VAPID_PRIVATE_KEY: 'test-private-key',
+  };
+  let sent: { target: PushTarget; payload: PushPayload }[] = [];
+  let outcome: (target: PushTarget) => 'sent' | 'gone' | Error = () => 'sent';
+  const sender: PushSender = async (target, payload) => {
+    sent.push({ target, payload });
+    const result = outcome(target);
+    if (result instanceof Error) throw result;
+    return result;
+  };
+  const endpoint = (name: string) => `https://fcm.googleapis.com/fcm/send/${name}`;
+  const device = (name: string) => ({
+    endpoint: endpoint(name),
+    keys: { p256dh: `p256dh-key-of-${name}-0123456789`, auth: `auth-key-of-${name}-0123` },
+  });
+  const subscribe = (role: string, name = role, payload: unknown = device(name)) =>
+    app.inject({
+      method: 'PUT',
+      url: '/api/v1/community/push-subscriptions',
+      headers: headers(role),
+      payload: payload as Record<string, unknown>,
+    });
+  const unsubscribe = (role: string, name = role) =>
+    app.inject({
+      method: 'POST',
+      url: '/api/v1/community/push-subscriptions/remove',
+      headers: headers(role),
+      payload: { endpoint: endpoint(name) },
+    });
+  const stored = () =>
+    db.select().from(s.pushSubscriptions).where(eq(s.pushSubscriptions.organizationId, org));
+  const receivers = () => sent.map((x) => x.target.endpoint.split('/').pop()).sort();
+  // Deliveries start after the response; give a late one the chance to show up.
+  const settled = async (count: number) => {
+    await vi.waitFor(() => expect(sent.length).toBeGreaterThanOrEqual(count));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(sent).toHaveLength(count);
+  };
+  beforeEach(async () => {
+    sent = [];
+    outcome = () => 'sent';
+    await app.close();
+    app = await createApp(db, pushConfig, sender);
+    await app.ready();
+  });
+
+  it('is switched off without server keys', async () => {
+    await app.close();
+    app = await createApp(db, config);
+    await app.ready();
+    const res = await subscribe('member');
+    expect(res.statusCode, res.body).toBe(409);
+    expect(res.json().error.code).toBe('PUSH_DISABLED');
+    expect(await stored()).toHaveLength(0);
+  });
+  it('announces the public key and stores one row per device', async () => {
+    const settings = await ok<{ pushPublicKey: string | null }>(
+      await get('/community/notifications', 'member'),
+    );
+    expect(settings.pushPublicKey).toBe('test-public-key');
+    expect((await subscribe('member')).statusCode).toBe(204);
+    expect((await subscribe('member')).statusCode).toBe(204);
+    expect((await subscribe('member', 'tablet')).statusCode).toBe(204);
+    const rows = await stored();
+    expect(rows.map((r) => r.endpoint).sort()).toEqual([endpoint('member'), endpoint('tablet')]);
+    expect(rows.every((r) => r.userId === users.member!.id)).toBe(true);
+  });
+  it('only accepts endpoints of known push services', async () => {
+    for (const bad of [
+      'https://internal.example.test/hook',
+      'http://fcm.googleapis.com/fcm/send/x',
+      'https://fcm.googleapis.com.evil.test/x',
+      'https://user:secret@fcm.googleapis.com/x',
+      'https://fcm.googleapis.com:8443/x',
+      'not a url',
+    ]) {
+      const res = await subscribe('member', 'x', { ...device('x'), endpoint: bad });
+      expect(res.statusCode, bad).toBe(422);
+    }
+    expect((await subscribe('member', 'x', { endpoint: endpoint('x') })).statusCode).toBe(422);
+    expect(await stored()).toHaveLength(0);
+    for (const good of [
+      'https://updates.push.services.mozilla.com/wpush/v2/abc',
+      'https://web.push.apple.com/abc',
+      'https://db5p.notify.windows.com/w/?token=abc',
+    ])
+      expect(
+        (await subscribe('member', 'x', { ...device('x'), endpoint: good })).statusCode,
+        good,
+      ).toBe(204);
+  });
+  it('hands a shared device to the account that signs in and keeps clubs apart', async () => {
+    await subscribe('member', 'shared');
+    await subscribe('other', 'shared');
+    const rows = await stored();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.userId).toBe(users.other!.id);
+    // The same device registered in another club is a separate row and is not touched here.
+    await db.insert(s.pushSubscriptions).values({
+      organizationId: foreignOrg,
+      userId: users.foreign!.id,
+      endpoint: endpoint('shared'),
+      p256dh: 'p',
+      auth: 'a',
+    });
+    expect((await unsubscribe('member', 'shared')).statusCode).toBe(204);
+    expect(await stored()).toHaveLength(1);
+    expect((await unsubscribe('other', 'shared')).statusCode).toBe(204);
+    expect(await stored()).toHaveLength(0);
+    const foreign = await db
+      .select()
+      .from(s.pushSubscriptions)
+      .where(eq(s.pushSubscriptions.organizationId, foreignOrg));
+    expect(foreign).toHaveLength(1);
+    await db.delete(s.pushSubscriptions).where(eq(s.pushSubscriptions.organizationId, foreignOrg));
+  });
+  it('notifies the club about published news once, in each language, never the publisher', async () => {
+    await db
+      .update(s.persons)
+      .set({ preferredLanguage: 'it' })
+      .where(eq(s.persons.organizationId, org));
+    for (const role of ['admin', 'member', 'other', 'board']) await subscribe(role);
+    const draft = await create(news());
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(sent).toHaveLength(0);
+    const key = crypto.randomUUID();
+    const publish = () =>
+      write(
+        'POST',
+        `/community/posts/${draft.id}/publish`,
+        { version: draft.version },
+        'admin',
+        key,
+      );
+    await ok(await publish());
+    await settled(3);
+    await ok(await publish());
+    await settled(3);
+    expect(receivers()).toEqual(['board', 'member', 'other']);
+    const of = (role: string) => sent.find((x) => x.target.endpoint === endpoint(role))!.payload;
+    expect(of('member')).toEqual({
+      title: 'Novità associative',
+      body: 'Novità · b*nature Community-Test',
+      url: `/community/${draft.id}`,
+      tag: `post:${draft.id}`,
+    });
+    expect(of('other').title).toBe('Neuigkeiten aus dem Verein');
+    expect(of('other').body).toBe('Neuigkeit · b*nature Community-Test');
+  });
+  it('limits group news and group chat to linked group members', async () => {
+    for (const role of ['admin', 'member', 'other', 'board']) await subscribe(role);
+    await action(await create(poll({ groupId })), 'publish');
+    await settled(1);
+    expect(receivers()).toEqual(['member']);
+    expect(sent[0]!.payload.body).toBe('Neue Umfrage · b*nature Community-Test');
+    sent = [];
+    await ok(
+      await write('POST', '/community/chat', { body: 'Geheimer Treffpunkt', groupId }, 'board'),
+      201,
+    );
+    await settled(1);
+    expect(receivers()).toEqual(['member']);
+    expect(sent[0]!.payload).toEqual({
+      title: 'Waldgruppe · b*nature Community-Test',
+      body: 'Neue Nachricht von board',
+      url: `/community?kind=chat&groupId=${groupId}`,
+      tag: `chat:${org}:${groupId}`,
+    });
+    expect(JSON.stringify(sent)).not.toContain('Geheimer Treffpunkt');
+  });
+  it('tells mentioned accounts apart, forgets dead devices and survives push failures', async () => {
+    for (const role of ['member', 'other', 'board']) await subscribe(role);
+    outcome = (target) =>
+      target.endpoint === endpoint('other')
+        ? 'gone'
+        : target.endpoint === endpoint('board')
+          ? new Error('push service unreachable')
+          : 'sent';
+    const key = crypto.randomUUID();
+    const send = () =>
+      write(
+        'POST',
+        '/community/chat',
+        { body: 'Hallo @member', groupId: null, mentionUserIds: [users.member!.id] },
+        'admin',
+        key,
+      );
+    await ok(await send(), 201);
+    await settled(3);
+    await ok(await send(), 201);
+    await settled(3);
+    const of = (role: string) => sent.find((x) => x.target.endpoint === endpoint(role))!.payload;
+    expect(of('member').body).toBe('Community Admin hat dich erwähnt');
+    expect(of('board').body).toBe('Neue Nachricht von Community Admin');
+    expect(of('member').title).toBe('Vereinschat · b*nature Community-Test');
+    expect(of('member').url).toBe('/community?kind=chat');
+    await vi.waitFor(async () =>
+      expect((await stored()).map((r) => r.endpoint).sort()).toEqual([
+        endpoint('board'),
+        endpoint('member'),
+      ]),
+    );
+  });
+  it('drops subscriptions with the club access and keeps at most ten devices', async () => {
+    for (let i = 0; i < 12; i++) await subscribe('member', `device-${i}`);
+    const rows = await stored();
+    expect(rows).toHaveLength(10);
+    expect(rows.map((r) => r.endpoint)).not.toContain(endpoint('device-0'));
+    expect(rows.map((r) => r.endpoint)).toContain(endpoint('device-11'));
+    await db
+      .delete(s.organizationUserRoles)
+      .where(
+        and(
+          eq(s.organizationUserRoles.organizationId, org),
+          eq(s.organizationUserRoles.userId, users.member!.id),
+        ),
+      );
+    expect(await stored()).toHaveLength(0);
   });
 });

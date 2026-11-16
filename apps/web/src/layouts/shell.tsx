@@ -37,6 +37,8 @@ import { queryClient, setOrganization } from '../lib/api';
 import { Avatar, Notice } from '../components/ui';
 import { PwaStatus } from '../components/pwa';
 import { UnreadBadge, useAppBadge, useUnread } from '../features/community-unread';
+import { usePushSync } from '../features/push';
+import { releasePush } from '../lib/push';
 type NavItem = {
   to: string;
   key: string;
@@ -102,6 +104,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const unread = useUnread().data?.total;
   useAppBadge(unread);
+  usePushSync();
   const primary = [
     { to: '/', key: 'overview', icon: LayoutDashboard },
     {
@@ -262,6 +265,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
                 setError('');
                 try {
                   await purgeAttendance();
+                  await releasePush();
                   const result = await authClient.signOut();
                   if (result.error) {
                     setError(t('logoutFailed'));

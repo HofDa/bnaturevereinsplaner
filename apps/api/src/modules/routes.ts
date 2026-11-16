@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Database } from '@bnature/db';
 import type { Auth } from '../auth';
 import type { Config } from '../plugins/config';
+import type { PushSender } from '../services/push';
 import { accessControl } from '../middleware/access';
 import { registerSystemRoutes } from './system';
 import { registerOrganizationRoutes } from './organization';
@@ -30,8 +31,9 @@ export async function registerRoutes(
   db: Database,
   auth: Auth,
   config: Config,
+  push: PushSender | null,
 ) {
-  const context = { server, db, access: accessControl(db, auth), config };
+  const context = { server, db, access: accessControl(db, auth), config, push };
   registerSystemRoutes(context);
   registerOrganizationRoutes(context);
   registerMemberRoutesRoutes(context);

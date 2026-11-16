@@ -1,5 +1,17 @@
 # Prüfnachweise
 
+## Push-Benachrichtigungen – 16.11.2026
+
+Auf `feat/push-notifications` (Migration `0026_push_subscriptions`, neue Abhängigkeit `web-push` 4.0.0):
+
+- Typecheck, ESLint, Prettier bestanden; OpenAPI neu erzeugt; die Migrationserzeugung enthielt nur die neue Tabelle.
+- **138/138 Unit-/UI-Tests** und **232/232 PostgreSQL-Integrationstests**. Neu (8): ohne Serverschlüssel ausgeschaltet (409); öffentlicher Schlüssel in den Einstellungen; eine Zeile je Gerät, wiederholte Anmeldung ohne Duplikat; nur Endpunkte bekannter Push-Dienste (sonst 422); gemeinsam genutztes Gerät folgt dem angemeldeten Konto, Vereine bleiben getrennt; News an den Verein genau einmal (auch bei wiederholter Anfrage), je Sprache, nie an die veröffentlichende Person; Gruppen-News und Gruppenchat nur an verknüpfte Gruppenmitglieder, kein Chattext im Hinweis; Erwähnungen, Löschen abgemeldeter Geräte, Fehler eines Push-Dienstes ohne Auswirkung auf die Anfrage; höchstens zehn Geräte, Löschen mit dem Vereinszugang.
+- Browserabläufe Desktop und Mobil: `member-experience`, `community`, `community-chat`, `platform` (inkl. Abmelden, Service Worker, Axe).
+- Versand gegen echte Push-Dienste geprüft: Google (FCM) und Mozilla nehmen die signierte, verschlüsselte Anfrage an und melden für eine erfundene Geräteanmeldung „nicht vorhanden“; der Server wertet das als abgemeldetes Gerät.
+- **Nicht geprüft (offen vor Freigabe):** Einschalten und Empfang auf echten Geräten. Headless-Browser verweigern die Benachrichtigungserlaubnis, deshalb sind die Erlaubnisabfrage, die Anzeige durch den Service Worker und das Öffnen per Klick nur durch Codeprüfung abgedeckt. Manuell zu prüfen: Chrome/Android, Firefox, Safari/macOS und die installierte PWA auf dem iPhone (iOS ≥ 16.4) – einschalten, News/Abstimmung/Chat empfangen, Klick öffnet die richtige Ansicht, ausschalten, ab- und wieder anmelden.
+- Offen: `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` für die Produktion erzeugen und sicher hinterlegen; datenschutzrechtliche Einordnung der Push-Dienste der Browserhersteller (Empfänger von Endpunkt und Zeitpunkt, Inhalte verschlüsselt) und Ergänzung der Datenschutzhinweise.
+- Kein Push ins Remote-Repository, kein Deployment; Migration nicht auf Produktionsdaten angewendet.
+
 ## CI-Laufzeit – 03.11.2026
 
 Die Browsertests belegten im CI rund 14 von 17 Minuten (17 Suiten auf Desktop und Mobil, je etwa 8 s Startaufwand). Seit `ci/faster-e2e` laufen Prüfungen und Browsertests als parallele Jobs, Desktop und Mobil auf getrennten Runnern. Mobil prüft bei Pushes und Pull Requests nur die layoutempfindlichen Suiten (`platform`, `community`, `community-chat`, `schedule`, `reports`, `member-extras`); der nächtliche Lauf (02:00 UTC) prüft alle Suiten auch mobil. Mobile Fehler in den übrigen Suiten fallen damit spätestens am Folgetag auf.

@@ -16,8 +16,14 @@ import { createAuth } from './auth';
 import { HttpError } from './middleware/access';
 import { registerRoutes } from './modules/routes';
 import type { Config } from './plugins/config';
+import { createPushSender, type PushSender } from './services/push';
 
-export async function createApp(db: Database, config: Config) {
+export async function createApp(
+  db: Database,
+  config: Config,
+  // Tests pass their own sender; by default pushes go out when VAPID keys are configured.
+  push: PushSender | null = createPushSender(config),
+) {
   const app = Fastify({
     logger:
       config.NODE_ENV === 'test'
@@ -251,6 +257,6 @@ export async function createApp(db: Database, config: Config) {
       return reply.send(await response.text());
     },
   });
-  await registerRoutes(app, db, auth, config);
+  await registerRoutes(app, db, auth, config, push);
   return app;
 }

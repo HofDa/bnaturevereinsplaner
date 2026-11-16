@@ -180,6 +180,51 @@ export const notificationSettingsSchema = z.object({
   digest: digestModeSchema,
   email: z.string(),
   emailEnabled: z.boolean(),
+  /** VAPID public key for Web Push; null when the server has no push keys configured. */
+  pushPublicKey: z.string().nullable(),
 });
 export type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
 export const notificationSettingsInputSchema = z.object({ digest: digestModeSchema }).strict();
+
+/**
+ * Push services the server is willing to deliver to. A subscription endpoint is a URL the
+ * server later calls, so anything else is rejected instead of being fetched.
+ */
+const pushServiceHosts = [
+  'fcm.googleapis.com',
+  'android.googleapis.com',
+  'updates.push.services.mozilla.com',
+  'web.push.apple.com',
+  'notify.windows.com',
+] as const;
+export function isPushServiceEndpoint(value: string) {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'https:' || url.username || url.password || url.port) return false;
+  return pushServiceHosts.some(
+    (host) => url.hostname === host || url.hostname.endsWith(`.${host}`),
+  );
+}
+const pushEndpointSchema = z
+  .string()
+  .max(2000)
+  .refine(isPushServiceEndpoint, { message: 'Unknown push service.' });
+const pushKeySchema = z
+  .string()
+  .min(16)
+  .max(200)
+  .regex(/^[A-Za-z0-9_-]+=*$/);
+export const pushSubscriptionInputSchema = z
+  .object({
+    endpoint: pushEndpointSchema,
+    keys: z.object({ p256dh: pushKeySchema, auth: pushKeySchema }).strict(),
+  })
+  .strict();
+export type PushSubscriptionInput = z.infer<typeof pushSubscriptionInputSchema>;
+export const pushSubscriptionRemoveSchema = z.object({ endpoint: z.string().max(2000) }).strict();
+/** What the service worker receives; texts are already in the recipient's language. */
+export type PushPayload = { title: string; body: string; url: string; tag: string };

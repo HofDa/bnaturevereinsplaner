@@ -19,6 +19,21 @@ const it: Record<keyof typeof de, string> = {
   commReactionWho: '{{emoji}} da {{names}}',
   commUnread_one: '{{count}} non letto',
   commUnread_other: '{{count}} non letti',
+  pushTitle: 'Notifiche push',
+  pushIntro:
+    'Avviso su questo dispositivo quando ci sono novità, sondaggi o messaggi in chat. I testi della chat non vengono inviati.',
+  pushOn: 'Attive su questo dispositivo',
+  pushOff: 'Disattivate su questo dispositivo',
+  pushEnable: 'Attiva',
+  pushDisable: 'Disattiva',
+  pushDenied:
+    'Le notifiche per questo sito sono bloccate nel browser. Consentile nelle impostazioni del browser o del dispositivo.',
+  pushNotGranted: 'Il permesso per le notifiche non è stato concesso.',
+  pushUnsupported: 'Questo browser non supporta le notifiche push.',
+  pushUnsupportedIos:
+    'Su iPhone e iPad le notifiche push funzionano solo dopo aver aggiunto l’app alla schermata Home e averla aperta da lì.',
+  pushServerOff: 'Le notifiche push non sono configurate su questo server.',
+  pushFailed: 'Non è stato possibile attivare le notifiche. Riprova più tardi.',
   commDigestTitle: 'Riepilogo via e-mail',
   commDigestIntro:
     'Ricevi via e-mail un riepilogo di nuove notizie, sondaggi e messaggi in chat dei tuoi ambiti. I contenuti già letti e i giorni senza novità vengono saltati.',
