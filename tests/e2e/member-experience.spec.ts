@@ -203,6 +203,9 @@ test('member self-service dashboard, digital card, receipt download, groups, eve
 
   // 2. Navigate to /profile (via mobile bottom nav on mobile viewport)
   if (info.project.name === 'mobile') {
+    // Profile sits in the bar when everything fits, otherwise in the "more" sheet.
+    const more = page.locator('.bottom-nav .nav-more');
+    if (await more.isVisible()) await more.click();
     await page.locator('.bottom-nav a[href="/profile"]').click();
   } else {
     await page.goto('/profile');

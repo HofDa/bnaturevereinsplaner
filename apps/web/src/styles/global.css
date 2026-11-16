@@ -1229,10 +1229,10 @@ strong {
 .community-tabs .unread-badge {
   margin-left: 0.15rem;
 }
-.bottom-nav .nav-link {
+.bottom-nav > .nav-link {
   position: relative;
 }
-.bottom-nav .unread-badge {
+.bottom-nav > .nav-link .unread-badge {
   position: absolute;
   top: 2px;
   left: calc(50% + 6px);
@@ -2403,7 +2403,10 @@ dd {
     padding: 0 17px 20px;
   }
   .bottom-nav {
-    display: flex;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 2px;
     position: fixed;
     bottom: 0;
     left: 0;
@@ -2411,30 +2414,43 @@ dd {
     background: var(--surface);
     border-top: 1px solid var(--border);
     z-index: 30;
-    justify-content: space-around;
-    padding: 7px 3px calc(7px + env(safe-area-inset-bottom));
+    padding: 6px max(6px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom))
+      max(6px, env(safe-area-inset-left));
     box-shadow: 0 -4px 20px #00000006;
   }
-  .bottom-nav .nav-link {
+  .bottom-nav > .nav-link {
     display: flex;
     flex-direction: column;
-    gap: 5px;
-    flex: 1;
+    justify-content: center;
+    gap: 4px;
     align-items: center;
     color: var(--muted);
-    font-size: 9px;
-    padding: 7px 2px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    padding: 6px 2px;
     margin: 0;
-    min-height: 50px;
-    border-radius: 6px;
+    min-width: 0;
+    min-height: 52px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
   }
-  .bottom-nav .nav-link.active {
+  .bottom-nav > .nav-link.active {
     color: var(--accent);
     background: var(--accent-soft);
   }
-  .bottom-nav .nav-link svg {
-    width: 20px;
-    height: 20px;
+  .bottom-nav > .nav-link svg {
+    width: 21px;
+    height: 21px;
+    flex: none;
+  }
+  .bottom-nav > .nav-link .nav-link-label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.3;
   }
   .workspace-footer {
     padding: 0 18px 18px;
@@ -2606,15 +2622,6 @@ dd {
   padding-top: 18px;
 }
 
-@media (max-width: 700px) {
-  .bottom-nav {
-    width: 100%;
-    max-width: 100vw;
-  }
-  .bottom-nav .nav-link {
-    min-width: 0;
-  }
-}
 @media (max-width: 700px) {
   .modal {
     inset: 4dvh auto auto 0;
@@ -2840,9 +2847,6 @@ dd {
     align-items: flex-start;
     flex-direction: column;
     gap: 8px;
-  }
-  .bottom-nav .nav-link span {
-    line-height: 1.3;
   }
 }
 /* Sprint 2.2 – cashbook, ledger setup and reports */
@@ -3203,12 +3207,6 @@ dd {
   }
   .event-navigation {
     gap: 4px 12px;
-  }
-  .bottom-nav {
-    overflow-x: auto;
-  }
-  .bottom-nav .nav-link {
-    min-width: 56px;
   }
 }
 .event-calendar .fc-day-other .fc-daygrid-day-top {
@@ -4683,4 +4681,103 @@ code {
   .member-fees-panel .muted {
     padding-inline: 16px;
   }
+}
+
+@media (max-width: 340px) {
+  .bottom-nav {
+    gap: 0;
+    padding-left: max(2px, env(safe-area-inset-left));
+    padding-right: max(2px, env(safe-area-inset-right));
+  }
+  .bottom-nav > .nav-link {
+    font-size: 10px;
+    letter-spacing: -0.02em;
+    padding: 6px 1px;
+  }
+}
+/* Mobile "more" sheet: every destination that does not fit in the bottom bar. */
+.nav-sheet {
+  position: fixed;
+  inset: auto 0 0;
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
+  max-height: min(82dvh, 640px);
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 -18px 60px #00000030;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+.nav-sheet[open] {
+  display: flex;
+  flex-direction: column;
+  animation: nav-sheet-in 0.2s ease-out;
+}
+.nav-sheet::backdrop {
+  background: #0000005e;
+}
+@keyframes nav-sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+.nav-sheet > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 10px 6px 20px;
+}
+.nav-sheet > header h2 {
+  font-size: 16px;
+}
+.nav-sheet-body {
+  overflow-y: auto;
+  padding: 0 10px calc(12px + env(safe-area-inset-bottom));
+}
+.nav-sheet-body section + section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.nav-sheet .nav-label {
+  color: var(--muted);
+  padding: 0 10px;
+  margin-bottom: 4px;
+  overflow-wrap: anywhere;
+}
+.nav-sheet .nav-link {
+  color: var(--text);
+  font-size: 15px;
+  gap: 14px;
+  padding: 10px;
+  margin: 0;
+  min-height: 48px;
+  border-radius: 8px;
+}
+.nav-sheet .nav-link svg {
+  flex: none;
+  color: var(--muted);
+}
+.nav-sheet .nav-link .nav-link-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.nav-sheet .nav-link:hover {
+  background: var(--surface-subtle);
+  color: var(--text);
+}
+.nav-sheet .nav-link.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.nav-sheet .nav-link.active svg {
+  color: var(--accent);
 }

@@ -1,6 +1,6 @@
 import { Loading } from '../components/ui';
-import { Suspense, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router';
+import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
@@ -25,6 +25,8 @@ import {
   Newspaper,
   ChartColumn,
   ClipboardList,
+  Ellipsis,
+  X,
 } from 'lucide-react';
 import type { Permission } from '@bnature/contracts';
 import { useSession } from '../app/session';
@@ -35,19 +37,89 @@ import { queryClient, setOrganization } from '../lib/api';
 import { Avatar, Notice } from '../components/ui';
 import { PwaStatus } from '../components/pwa';
 import { UnreadBadge, useAppBadge, useUnread } from '../features/community-unread';
+type NavItem = {
+  to: string;
+  key: string;
+  /** Shorter label for the mobile bar, where a slot is only about 60px wide. */
+  short?: string;
+  icon: typeof Users;
+  permission?: string;
+};
+/** How many destinations fit in the mobile bar next to each other without clipping labels. */
+const BAR_SLOTS = 5;
+/** Bottom sheet holding every destination that does not fit in the mobile bar. */
+function MoreSheet({
+  title,
+  closeLabel,
+  onClose,
+  children,
+}: {
+  title: string;
+  closeLabel: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = ref.current;
+    const previousOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    dialog?.showModal();
+    return () => {
+      dialog?.close();
+      document.documentElement.style.overflow = previousOverflow;
+    };
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      className="nav-sheet"
+      aria-label={title}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <header>
+        <h2>{title}</h2>
+        <button className="icon-button" aria-label={closeLabel} onClick={onClose}>
+          <X size={20} />
+        </button>
+      </header>
+      <div className="nav-sheet-body">{children}</div>
+    </dialog>
+  );
+}
 export function Shell({ onLogout }: { onLogout: () => void }) {
   const { t, i18n } = useTranslation(),
     { me, switchOrganization } = useSession(),
-    navigate = useNavigate();
+    navigate = useNavigate(),
+    { pathname } = useLocation();
   const [error, setError] = useState('');
+  const [moreOpen, setMoreOpen] = useState(false);
   const unread = useUnread().data?.total;
   useAppBadge(unread);
   const primary = [
     { to: '/', key: 'overview', icon: LayoutDashboard },
-    { to: '/community', key: 'commTitle', icon: Newspaper, permission: 'community:read' },
+    {
+      to: '/community',
+      key: 'commTitle',
+      short: 'navCommunityShort',
+      icon: Newspaper,
+      permission: 'community:read',
+    },
     { to: '/members', key: 'members', icon: Users, permission: 'members:read' },
     { to: '/planning', key: 'costNavTitle', icon: ClipboardList, permission: 'planning:read' },
-    { to: '/events', key: 'events', icon: CalendarDays, permission: 'events:read' },
+    {
+      to: '/events',
+      key: 'events',
+      short: 'navEventsShort',
+      icon: CalendarDays,
+      permission: 'events:read',
+    },
     { to: '/volunteers', key: 'volunteers', icon: HandHeart, permission: 'volunteers:read' },
     { to: '/finance', key: 'finance', icon: Wallet, permission: 'finance:read' },
     { to: '/inventory', key: 'inventory', icon: Package, permission: 'inventory:read' },
@@ -66,18 +138,41 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
   ] as const;
   const visible = (item: { to: string; permission?: string }) =>
     !item.permission || me.permissions.includes(item.permission as Permission);
-  const link = (item: { to: string; key: string; icon: typeof Users }) => (
+  const link = (item: NavItem, onClick?: () => void, compact = false) => (
     <NavLink
       key={item.to}
       to={item.to}
       end={item.to === '/'}
       className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+      onClick={onClick}
     >
       <item.icon size={19} />
-      <span>{t(item.key)}</span>
+      <span className="nav-link-label">{t(compact && item.short ? item.short : item.key)}</span>
       {item.to === '/community' && <UnreadBadge count={unread} />}
     </NavLink>
   );
+  // Mobile: the bar shows the first destinations, everything else moves into the "more" sheet.
+  const account: NavItem[] = [
+    { to: '/profile', key: 'profile', icon: UserRound },
+    { to: '/settings', key: 'settings', icon: Settings2 },
+  ];
+  const workspaceItems: NavItem[] = primary.filter((item) => visible(item));
+  const managementItems: NavItem[] = secondary.filter(
+    (item) => visible(item) && item.to !== '/settings',
+  );
+  const mobileItems = [...workspaceItems, ...managementItems, ...account];
+  const barItems =
+    mobileItems.length <= BAR_SLOTS ? mobileItems : mobileItems.slice(0, BAR_SLOTS - 1);
+  const inSheet = (item: NavItem) => !barItems.includes(item);
+  const sheetGroups = [
+    { label: t('workspace'), items: workspaceItems.filter(inSheet) },
+    { label: t('management'), items: managementItems.filter(inSheet) },
+    { label: me.user.name, items: account.filter(inSheet) },
+  ].filter((group) => group.items.length > 0);
+  const moreActive = sheetGroups.some((group) =>
+    group.items.some((item) => pathname === item.to || pathname.startsWith(`${item.to}/`)),
+  );
+  const closeMore = () => setMoreOpen(false);
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main">
@@ -115,9 +210,9 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
         </div>
         <nav aria-label={t('workspace')}>
           <p className="nav-label">{t('workspace')}</p>
-          {primary.filter((item) => visible(item)).map(link)}
+          {primary.filter((item) => visible(item)).map((item) => link(item))}
           <p className="nav-label secondary-label">{t('management')}</p>
-          {secondary.filter((item) => visible(item)).map(link)}
+          {secondary.filter((item) => visible(item)).map((item) => link(item))}
         </nav>
         <div className="sidebar-bottom">
           <div className="sidebar-note">
@@ -199,9 +294,29 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
         </footer>
       </div>
       <nav className="bottom-nav" aria-label={t('workspace')}>
-        {primary.filter((item) => visible(item)).map(link)}
-        {link({ to: '/profile', key: 'profile', icon: UserRound })}
-        {link({ to: '/settings', key: 'settings', icon: Settings2 })}
+        {barItems.map((item) => link(item, undefined, true))}
+        {sheetGroups.length > 0 && (
+          <button
+            type="button"
+            className={`nav-link nav-more ${moreActive ? 'active' : ''}`}
+            aria-haspopup="dialog"
+            aria-expanded={moreOpen}
+            onClick={() => setMoreOpen(true)}
+          >
+            <Ellipsis size={19} />
+            <span className="nav-link-label">{t('navMore')}</span>
+          </button>
+        )}
+        {moreOpen && (
+          <MoreSheet title={t('navMore')} closeLabel={t('close')} onClose={closeMore}>
+            {sheetGroups.map((group) => (
+              <section key={group.label}>
+                <p className="nav-label">{group.label}</p>
+                {group.items.map((item) => link(item, closeMore))}
+              </section>
+            ))}
+          </MoreSheet>
+        )}
       </nav>
     </div>
   );
