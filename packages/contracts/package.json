@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "exports": "./src/index.ts",
+  "sideEffects": false,
   "dependencies": {
     "@js-temporal/polyfill": "0.5.1",
     "rrule": "2.8.1",

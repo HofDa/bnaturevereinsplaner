@@ -1,6 +1,7 @@
 import { Temporal } from '@js-temporal/polyfill';
 import { RRule, rrulestr } from 'rrule';
 import type { EventInput } from './events';
+import { eventLocal } from './dates';
 export function localInstant(local: string, timezone: string) {
   const plain = Temporal.PlainDateTime.from(local);
   const zoned = plain.toZonedDateTime(timezone, { disambiguation: 'compatible' });
@@ -11,12 +12,6 @@ export function localInstant(local: string, timezone: string) {
 // Calendar date (YYYY-MM-DD) in the organization time zone; UTC slicing is off around midnight.
 export function localDate(at: Date | string | number = new Date(), timeZone = 'Europe/Rome') {
   return new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date(at));
-}
-export function eventLocal(instant: string, timezone: string) {
-  return Temporal.Instant.from(instant)
-    .toZonedDateTimeISO(timezone)
-    .toPlainDateTime()
-    .toString({ smallestUnit: 'minute' });
 }
 export function eventTimes(input: Pick<EventInput, 'startLocal' | 'endLocal' | 'timezone'>) {
   const startAt = localInstant(input.startLocal, input.timezone),

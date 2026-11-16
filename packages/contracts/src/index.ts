@@ -199,3 +199,4 @@ export * from './reports';
 export * from './schedules';
 export * from './planning';
 export * from './member-self';
+export * from './errors';

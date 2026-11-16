@@ -20,6 +20,11 @@ const envSchema = z.object({
   SMTP_SECURE: z.enum(['false', 'true']).default('false'),
   SMTP_USER: optionalSecret,
   SMTP_PASSWORD: optionalSecret,
+  // Operator address that is told about problems seen for the first time. Needs e-mail.
+  ERROR_ALERT_EMAIL: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.email().optional(),
+  ),
   // Web Push (browser notifications). Without a key pair the feature is switched off.
   // Generate once with: bunx web-push generate-vapid-keys
   VAPID_PUBLIC_KEY: optionalSecret,

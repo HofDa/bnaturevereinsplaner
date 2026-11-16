@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { useSession } from '../app/session';
 import { useDebounced } from '../hooks/use-debounced';
 import { Empty, PageHeading, Pagination, SearchInput, QueryView } from '../components/ui';
+import { ErrorReports } from './error-reports';
 export function Audit() {
   const { t, i18n } = useTranslation(),
     { me } = useSession();
@@ -81,6 +82,7 @@ export function Audit() {
           )}
         </QueryView>
       </section>
+      <ErrorReports />
     </>
   );
 }

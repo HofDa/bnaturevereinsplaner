@@ -77,3 +77,31 @@ describe('event time and recurrence', () => {
     expect(eventsIcs([], 'de')).toContain('VERSION:2.0\r\n');
   });
 });
+
+describe('eventLocal', () => {
+  it('matches Temporal across time zones, DST changes and day boundaries', async () => {
+    const { Temporal } =
+      await import('../../packages/contracts/node_modules/@js-temporal/polyfill');
+    const zones = ['Europe/Rome', 'UTC', 'America/New_York', 'Asia/Kolkata', 'Pacific/Auckland'];
+    const instants = [
+      '2026-03-29T00:59:59Z', // just before Europe switches to summer time
+      '2026-03-29T01:00:00Z',
+      '2026-10-25T00:30:00Z',
+      '2026-10-25T01:30:00Z', // repeated hour in Europe
+      '2026-12-31T23:59:59.999Z',
+      '2027-01-01T00:00:00Z',
+      '2024-02-29T22:15:30+02:00',
+      '2026-06-15T12:00:00-07:00',
+      '1999-12-31T23:00:00Z',
+    ];
+    for (const zone of zones)
+      for (const instant of instants)
+        expect(eventLocal(instant, zone), `${instant} in ${zone}`).toBe(
+          Temporal.Instant.from(instant)
+            .toZonedDateTimeISO(zone)
+            .toPlainDateTime()
+            .toString({ smallestUnit: 'minute' }),
+        );
+    expect(() => eventLocal('not a date', 'Europe/Rome')).toThrow(RangeError);
+  });
+});

@@ -30,12 +30,13 @@ import {
 } from 'lucide-react';
 import type { Permission } from '@bnature/contracts';
 import { useSession } from '../app/session';
-import { authClient } from '../lib/auth';
+import { setLanguage } from '../lib/i18n';
 import { purgeAttendance } from '../lib/attendance-offline';
 import { broadcastSessionChange } from '../lib/session-events';
 import { queryClient, setOrganization } from '../lib/api';
 import { Avatar, Notice } from '../components/ui';
 import { PwaStatus } from '../components/pwa';
+import { ErrorBoundary } from '../components/error-boundary';
 import { UnreadBadge, useAppBadge, useUnread } from '../features/community-unread';
 import { usePushSync } from '../features/push';
 import { releasePush } from '../lib/push';
@@ -250,7 +251,7 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
             <button
               className="language-switch"
               aria-label={`${t('language')}: ${i18n.language.toUpperCase()}`}
-              onClick={() => void i18n.changeLanguage(i18n.language === 'de' ? 'it' : 'de')}
+              onClick={() => void setLanguage(i18n.language === 'de' ? 'it' : 'de')}
             >
               <Globe2 size={16} />
               {i18n.language.toUpperCase()}
@@ -266,6 +267,8 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
                 try {
                   await purgeAttendance();
                   await releasePush();
+                  // The sign-in library is only needed here and on the login screen.
+                  const { authClient } = await import('../lib/auth');
                   const result = await authClient.signOut();
                   if (result.error) {
                     setError(t('logoutFailed'));
@@ -288,9 +291,12 @@ export function Shell({ onLogout }: { onLogout: () => void }) {
         <PwaStatus />
         <main id="main" className="main-content" tabIndex={-1}>
           {error && <Notice error>{error}</Notice>}
-          <Suspense fallback={<Loading />}>
-            <Outlet />
-          </Suspense>
+          {/* A page that fails keeps the navigation usable; moving on clears the failure. */}
+          <ErrorBoundary key={pathname}>
+            <Suspense fallback={<Loading />}>
+              <Outlet />
+            </Suspense>
+          </ErrorBoundary>
         </main>
         <footer className="workspace-footer">
           <span>b*nature</span>

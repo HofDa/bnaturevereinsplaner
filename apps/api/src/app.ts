@@ -17,12 +17,14 @@ import { HttpError } from './middleware/access';
 import { registerRoutes } from './modules/routes';
 import type { Config } from './plugins/config';
 import { createPushSender, type PushSender } from './services/push';
+import { createErrorAlert, recordError, type ErrorAlert } from './services/error-reports';
 
 export async function createApp(
   db: Database,
   config: Config,
   // Tests pass their own sender; by default pushes go out when VAPID keys are configured.
   push: PushSender | null = createPushSender(config),
+  errorAlert?: ErrorAlert | null,
 ) {
   const app = Fastify({
     logger:
@@ -56,6 +58,9 @@ export async function createApp(
     },
   });
   const auth = createAuth(db, config);
+  const ownAlert = errorAlert === undefined ? createErrorAlert(config) : null;
+  const alert = errorAlert === undefined ? ownAlert!.alert : errorAlert;
+  app.addHook('onClose', async () => ownAlert?.close());
   await app.register(rateLimit, {
     hook: 'preHandler',
     max: 150,
@@ -208,11 +213,27 @@ export async function createApp(
         status = 422;
         code = 'INVALID_RELATION';
         message = 'Die Zuordnung oder der Status ist ungültig.';
-      } else
+      } else {
         app.log.error(
           { requestId: req.id, code: typeof pgCode === 'string' ? pgCode : 'INTERNAL_ERROR' },
           'Request failed',
         );
+        // Keep what is needed to find the bug: error type, masked message, stack frames and
+        // the route pattern (never the concrete URL or the request body).
+        const failure = error instanceof Error ? error : new Error('Non-error thrown');
+        void recordError(
+          db,
+          {
+            source: 'api',
+            name: typeof pgCode === 'string' ? `${failure.name} (${pgCode})` : failure.name,
+            message: failure.message,
+            stack: failure.stack,
+            location: `${req.method} ${req.routeOptions?.url ?? 'unknown route'}`,
+            release: process.env.APP_RELEASE ?? '',
+          },
+          alert,
+        );
+      }
     }
     return reply
       .code(status)
@@ -257,6 +278,6 @@ export async function createApp(
       return reply.send(await response.text());
     },
   });
-  await registerRoutes(app, db, auth, config, push);
+  await registerRoutes(app, db, auth, config, push, alert);
   return app;
 }

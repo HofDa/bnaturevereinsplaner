@@ -9,8 +9,11 @@ import { VitePWA } from 'vite-plugin-pwa';
 const demo = process.env.VITE_DEMO === '1';
 const rawBase = process.env.VITE_BASE?.trim() || '/';
 const base = rawBase === '/' ? '/' : `/${rawBase.replace(/^\/+|\/+$/g, '')}/`;
+// Shown with error reports so a problem can be matched to a deployment.
+const release = process.env.APP_RELEASE?.trim() || new Date().toISOString().slice(0, 16);
 export default defineConfig({
   base,
+  define: { __APP_RELEASE__: JSON.stringify(release) },
   plugins: [
     demo && {
       name: 'bnature-demo-entry',
@@ -69,10 +72,6 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api(?:\/|$)/],
         runtimeCaching: [],
         cleanupOutdatedCaches: true,
-        // The app is still one bundle (1.7 MB production, 2.1 MB with the development React
-        // build used by the browser tests); above Workbox's 2 MiB default the build aborts.
-        // Follow-up: split routes into lazy chunks and lower this again.
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
     }),
   ],
@@ -90,5 +89,21 @@ export default defineConfig({
       '/api': { target: process.env.API_PROXY_URL ?? 'http://127.0.0.1:3000', changeOrigin: false },
     },
   },
-  build: { sourcemap: false },
+  build: {
+    sourcemap: false,
+    rolldownOptions: {
+      output: {
+        // Libraries change far less often than app code. In their own file they stay cached
+        // (browser and service worker) across releases instead of being downloaded again.
+        advancedChunks: {
+          groups: [
+            {
+              name: 'vendor',
+              test: /node_modules[\\/](?:\.bun[\\/][^\\/]+[\\/]node_modules[\\/])?(?:react|react-dom|react-router|scheduler|dexie)[\\/]/,
+            },
+          ],
+        },
+      },
+    },
+  },
 });

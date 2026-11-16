@@ -327,6 +327,8 @@ async function handle(url: URL, method: string, init?: RequestInit): Promise<Res
   )
     return download(path, format);
   const data = store(role);
+  // Not recorded: the demo has no server that could collect failures.
+  if (method === 'GET' && path === '/error-reports') return json({ items: [] });
   if (method === 'GET' || method === 'HEAD') return read(data, path, url.searchParams);
   const response = write(data, method, path, body);
   persist(role);

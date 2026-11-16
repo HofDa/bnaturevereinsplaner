@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { setLanguage } from '../lib/i18n';
 import {
   Monitor,
   Moon,
@@ -67,12 +68,12 @@ export function Settings() {
           <h2>{t('language')}</h2>
           <p>{t('languageIntro')}</p>
           <div className="language-options">
-            {['de', 'it'].map((language) => (
+            {(['de', 'it'] as const).map((language) => (
               <button
                 key={language}
                 className={i18n.language === language ? 'selected' : ''}
                 aria-pressed={i18n.language === language}
-                onClick={() => void i18n.changeLanguage(language)}
+                onClick={() => void setLanguage(language)}
               >
                 {language === 'de' ? 'Deutsch' : 'Italiano'}
               </button>

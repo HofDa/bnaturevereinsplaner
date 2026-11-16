@@ -3,6 +3,8 @@ import type { Database } from '@bnature/db';
 import type { Auth } from '../auth';
 import type { Config } from '../plugins/config';
 import type { PushSender } from '../services/push';
+import type { ErrorAlert } from '../services/error-reports';
+import { registerErrorReportRoutes } from './error-reports';
 import { accessControl } from '../middleware/access';
 import { registerSystemRoutes } from './system';
 import { registerOrganizationRoutes } from './organization';
@@ -32,8 +34,9 @@ export async function registerRoutes(
   auth: Auth,
   config: Config,
   push: PushSender | null,
+  errorAlert: ErrorAlert | null,
 ) {
-  const context = { server, db, access: accessControl(db, auth), config, push };
+  const context = { server, db, access: accessControl(db, auth), config, push, errorAlert };
   registerSystemRoutes(context);
   registerOrganizationRoutes(context);
   registerMemberRoutesRoutes(context);
@@ -43,6 +46,7 @@ export async function registerRoutes(
   registerGroupsRoutes(context);
   registerBoardRoutes(context);
   registerAuditLogRoutes(context);
+  registerErrorReportRoutes(context);
   registerDashboardRoutes(context);
   registerProfileRoutes(context);
   registerMemberSelfRoutes(context);

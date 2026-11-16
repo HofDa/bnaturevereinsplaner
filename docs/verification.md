@@ -1,5 +1,15 @@
 # Prüfnachweise
 
+## Ladezeit und Fehlerberichte – 16.11.2026
+
+Auf `perf/bundle-and-error-visibility`, gestapelt auf `feat/push-notifications` (Migration `0027_error_reports`):
+
+- **Erstaufruf:** JavaScript und CSS des ersten Seitenaufrufs von 1.167 KB auf 774 KB (gzip rund 345 → 231 KB), gemessen am Produktions-Build über die im HTML vorgeladenen Dateien. Ursachen und Maßnahmen: Das Vertragspaket ist als seiteneffektfrei markiert, sodass nur genutzte Module geladen werden; `eventLocal` nutzt `Intl` statt Temporal (Temporal und rrule laden nur noch mit Veranstaltungsformularen); Italienisch wird erst bei Nutzung geladen; Anmeldeseite samt Formular- und Anmeldebibliothek ist ein eigener Teil; React, Router und Dexie liegen in einer eigenen, zwischen Releases stabilen Datei. Die Sonderobergrenze für den Service-Worker-Cache (3 MB) ist entfernt; die größte Datei hat 361 KB.
+- Nicht umgesetzt: Dexie und zod bleiben im Erstaufruf, weil die Offline-Anwesenheit vor der ersten Serveranfrage den gespeicherten Besitzer prüft. Ein verzögertes Laden hätte dieses sicherheitsrelevante Verhalten verändert.
+- **Fehlerberichte:** siehe [Betrieb](operations.md#fehlerberichte). Neue Integrationstests (6): Maskierung und Aufrufverlauf, Meldung ohne Anmeldung mit Zähler und einmaliger Benachrichtigung, Abweisung übergroßer/unbekannter Felder, Serverfehler mit Routenmuster ohne Anfrageinhalt und ohne Installationspfad, Zugriff nur für Administratoren samt Erledigen, Obergrenze. Ein Test deckte auf, dass eine E-Mail-Adresse in der Meldungszeile als Aufrufstelle gespeichert worden wäre; der Filter wurde korrigiert.
+- Neue Unit-/UI-Tests: `eventLocal` gegen Temporal über Zeitzonen, Sommerzeitwechsel und Tagesgrenzen; Absturzanzeige, Hinweis bei veralteter Seite, Meldefilter.
+- Offen: Abgleich der Fehlerberichte mit den Datenschutzhinweisen (Browserkennung, Seitenpfade mit IDs); Benachrichtigungs-E-Mail nur gegen den Testversand geprüft.
+
 ## Push-Benachrichtigungen – 16.11.2026
 
 Auf `feat/push-notifications` (Migration `0026_push_subscriptions`, neue Abhängigkeit `web-push` 4.0.0):

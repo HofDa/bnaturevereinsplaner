@@ -4803,3 +4803,103 @@ code {
 .nav-sheet .nav-link.active svg {
   color: var(--accent);
 }
+
+/* Crash screen and error reports */
+.crash-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: min(70dvh, 520px);
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--text);
+}
+.crash-screen h1 {
+  font-size: 20px;
+}
+.crash-screen p {
+  max-width: 420px;
+  color: var(--muted);
+}
+.crash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.error-reports {
+  margin-top: 24px;
+}
+.error-reports-head {
+  padding: 20px 23px 4px;
+}
+.error-reports-head p {
+  margin-top: 6px;
+  max-width: 70ch;
+}
+.error-report-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 23px 20px;
+  display: grid;
+  gap: 12px;
+}
+.error-report-list li {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-width: 0;
+}
+.error-report-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+.error-report-source {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  font-size: 11px;
+  font-weight: 600;
+}
+.error-report-count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.error-report-message,
+.error-report-meta {
+  overflow-wrap: anywhere;
+}
+.error-report-list details {
+  width: 100%;
+  min-width: 0;
+}
+.error-report-list summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+}
+.error-report-list pre {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+@media (max-width: 700px) {
+  .error-reports-head {
+    padding: 16px 15px 4px;
+  }
+  .error-report-list {
+    padding: 8px 15px 16px;
+  }
+}

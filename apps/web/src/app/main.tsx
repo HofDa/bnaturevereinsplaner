@@ -1,16 +1,15 @@
 import { PwaProvider } from '../components/pwa';
-import React, { useEffect, useState, lazy, type ReactNode } from 'react';
+import React, { Suspense, useEffect, useState, lazy, type ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { Me, Permission } from '@bnature/contracts';
-import '../lib/i18n';
+import { languageReady } from '../lib/i18n';
 import '../styles/global.css';
 import { api, ApiError, queryClient, setOrganization } from '../lib/api';
 import { Shell } from '../layouts/shell';
 import { SessionContext, useSession } from './session';
-import { Login } from '../features/login';
 import { Dashboard } from '../features/dashboard';
 import { Settings, applyTheme, type Theme } from '../features/settings';
 import { OfflineAttendanceHub, AttendanceSyncManager } from '../features/events/offline-attendance';
@@ -18,7 +17,11 @@ import { purgeAttendance, attendanceOwner, preparedAttendance } from '../lib/att
 import { Link } from 'react-router';
 import { Empty, ErrorState, Loading } from '../components/ui';
 import { shellDatabase } from '../lib/offline';
+import { ErrorBoundary } from '../components/error-boundary';
+import { installErrorReporting } from '../lib/error-report';
 
+// Signed-in visitors never need the login form or its form and sign-in libraries.
+const Login = lazy(() => import('../features/login').then((module) => ({ default: module.Login })));
 const ScheduleDetailPage = lazy(() =>
   import('../features/community-schedules').then((module) => ({
     default: module.ScheduleDetailPage,
@@ -113,6 +116,7 @@ const CommunityIndex = lazy(() =>
 const CommunityDetail = lazy(() =>
   import('../features/community').then((module) => ({ default: module.CommunityDetail })),
 );
+installErrorReporting();
 applyTheme((localStorage.getItem('bnature-theme') as Theme) || 'system');
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   if (localStorage.getItem('bnature-theme') === 'system') applyTheme('system');
@@ -210,7 +214,11 @@ function App() {
   };
   if (offlineRoute) return <OfflineAttendanceHub />;
   if (expired || (query.isError && query.error instanceof ApiError && query.error.status === 401))
-    return <Login onSuccess={refresh} />;
+    return (
+      <Suspense fallback={<Loading />}>
+        <Login onSuccess={refresh} />
+      </Suspense>
+    );
   if (query.isPending) return <Loading />;
   if (query.isError)
     return <OfflineMeFallback error={query.error} retry={() => void query.refetch()} />;
@@ -452,14 +460,19 @@ function App() {
 }
 const routerBase =
   import.meta.env.BASE_URL === '/' ? undefined : import.meta.env.BASE_URL.replace(/\/$/, '');
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <PwaProvider>
-        <BrowserRouter basename={routerBase}>
-          <App />
-        </BrowserRouter>
-      </PwaProvider>
-    </QueryClientProvider>
-  </React.StrictMode>,
+const root = ReactDOM.createRoot(document.getElementById('root')!);
+void languageReady.then(() =>
+  root.render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <PwaProvider>
+            <BrowserRouter basename={routerBase}>
+              <App />
+            </BrowserRouter>
+          </PwaProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
+    </React.StrictMode>,
+  ),
 );

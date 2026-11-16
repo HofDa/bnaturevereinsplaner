@@ -7,6 +7,7 @@ import { ArrowRight, ShieldCheck, Globe2 } from 'lucide-react';
 import { Button, Field, Notice } from '../components/ui';
 import { authClient } from '../lib/auth';
 import { broadcastSessionChange } from '../lib/session-events';
+import { setLanguage } from '../lib/i18n';
 const schema = z.object({ email: z.email(), password: z.string().min(1) });
 export function Login({ onSuccess }: { onSuccess: () => void }) {
   const { t, i18n } = useTranslation();
@@ -33,7 +34,7 @@ export function Login({ onSuccess }: { onSuccess: () => void }) {
       <main className="login-main">
         <button
           className="language-switch"
-          onClick={() => void i18n.changeLanguage(i18n.language === 'de' ? 'it' : 'de')}
+          onClick={() => void setLanguage(i18n.language === 'de' ? 'it' : 'de')}
         >
           <Globe2 size={16} />
           {i18n.language === 'de' ? 'IT' : 'DE'}
