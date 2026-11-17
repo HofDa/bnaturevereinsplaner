@@ -126,7 +126,7 @@ export function Members() {
       />
       {error && <Notice error>{error}</Notice>}
       <section className="panel">
-        <div className="toolbar">
+        <div className="toolbar member-toolbar">
           <SearchInput
             value={search}
             onChange={(value) => {

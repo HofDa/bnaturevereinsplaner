@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { z } from 'zod';
 import { errorMessage } from '../lib/api';
@@ -33,6 +33,11 @@ export function DataForm({
   const [errors, setErrors] = useState<Record<string, string>>({}),
     [error, setError] = useState(''),
     [pending, setPending] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const firstInvalid = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    firstInvalid?.focus();
+  }, [errors]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
@@ -70,7 +75,7 @@ export function DataForm({
     }
   }
   return (
-    <form onSubmit={(event) => void submit(event)}>
+    <form ref={formRef} onSubmit={(event) => void submit(event)}>
       <div className="form-grid">
         {fields.map((field) => (
           <Field
@@ -94,6 +99,7 @@ export function DataForm({
               <textarea
                 name={field.name}
                 rows={4}
+                required={field.required}
                 defaultValue={String(defaults[field.name] ?? '')}
               />
             ) : field.type === 'checkbox' ? (

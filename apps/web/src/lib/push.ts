@@ -119,12 +119,20 @@ export async function releasePush() {
   try {
     const reg = await registration();
     const subscription = await reg?.pushManager.getSubscription();
+    // Clear notifications already displayed on a shared device, even without a subscription.
+    const notifications = await reg?.getNotifications().catch(() => []);
+    notifications?.forEach((notification) => notification.close());
     if (!subscription) return;
-    await apiSend('/community/push-subscriptions/remove', {
-      method: 'POST',
-      body: JSON.stringify({ endpoint: subscription.endpoint }),
-    });
-    await subscription.unsubscribe();
+    try {
+      await apiSend('/community/push-subscriptions/remove', {
+        method: 'POST',
+        body: JSON.stringify({ endpoint: subscription.endpoint }),
+        signal: AbortSignal.timeout(5000),
+      });
+    } finally {
+      // Browser cleanup must also happen when the session expired or the server is offline.
+      await subscription.unsubscribe();
+    }
   } catch {
     // Best effort: an unreachable server must not keep anyone signed in.
   }

@@ -4903,3 +4903,25 @@ code {
     padding: 8px 15px 16px;
   }
 }
+
+/* Member filters need enough width to show their selected values on phones. */
+@media (max-width: 700px) {
+  .member-toolbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .member-toolbar .search-input {
+    grid-column: 1 / -1;
+  }
+  .member-toolbar > label {
+    min-width: 0;
+  }
+  .member-toolbar select {
+    font-size: 13px;
+  }
+}
+@media (max-width: 480px) {
+  .member-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

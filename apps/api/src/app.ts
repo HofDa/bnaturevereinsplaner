@@ -43,6 +43,10 @@ export async function createApp(
     trustProxy: config.TRUST_PROXY === 'true',
     logController: new LogController({ disableRequestLogging: true }),
   });
+  // Include early rejections (including rate limits) in the private-response policy.
+  app.addHook('onRequest', async (_req, reply) => {
+    reply.header('Cache-Control', 'no-store').header('Pragma', 'no-cache');
+  });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   await app.register(helmet, {
@@ -149,8 +153,7 @@ export async function createApp(
     },
   });
   if (config.NODE_ENV !== 'production') await app.register(swaggerUI, { routePrefix: '/api/docs' });
-  app.addHook('onRequest', async (req, reply) => {
-    reply.header('Cache-Control', 'no-store').header('Pragma', 'no-cache');
+  app.addHook('onRequest', async (req) => {
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
       if (
         req.headers.origin !== new URL(config.APP_URL).origin ||

@@ -1,5 +1,5 @@
 import { sendNotification, WebPushError } from 'web-push';
-import type { PushPayload } from '@bnature/contracts';
+import { isPushServiceEndpoint, type PushPayload } from '@bnature/contracts';
 import type { Config } from '../plugins/config';
 
 export type PushTarget = { endpoint: string; p256dh: string; auth: string };
@@ -19,6 +19,8 @@ export function createPushSender(config: Config): PushSender | null {
   if (!publicKey || !privateKey) return null;
   const subject = config.VAPID_SUBJECT ?? `mailto:${config.EMAIL_FROM}`;
   return async (target, payload, ttlSeconds) => {
+    // Revalidate persisted subscriptions at the network boundary as well as on input.
+    if (!isPushServiceEndpoint(target.endpoint)) return 'gone';
     try {
       await sendNotification(
         { endpoint: target.endpoint, keys: { p256dh: target.p256dh, auth: target.auth } },

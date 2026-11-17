@@ -45,7 +45,17 @@ test('logs in, creates and edits a membership, searches, exports, changes langua
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'CSV exportieren' }).click();
   expect((await download).suggestedFilename()).toBe('bnature-mitglieder.csv');
-  await page.screenshot({ path: `test-results/members-${info.project.name}.png`, fullPage: true });
+  await expect(
+    page.getByRole('cell', { name: `E2E-${info.project.name}`, exact: true }),
+  ).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  if (info.project.name === 'mobile') {
+    const widths = await page
+      .locator('.member-toolbar select')
+      .evaluateAll((controls) => controls.map((control) => control.getBoundingClientRect().width));
+    expect(widths.every((width) => width >= 250)).toBe(true);
+  }
+  await page.screenshot({ path: `test-results/members-${info.project.name}.png`, fullPage: false });
   await page.goto('/settings');
   await page.getByRole('button', { name: 'Dunkel', exact: true }).click();
   await expect(page.locator('html')).toHaveClass(/dark/);
@@ -196,4 +206,47 @@ test('passes automated WCAG checks on core views in both themes', async ({ page 
   await check();
   await page.getByRole('button', { name: 'Italiano', exact: true }).click();
   await check();
+});
+
+test('keeps the session visible when the server rejects sign-out', async ({ page }) => {
+  await login(page);
+  await page.route('**/api/auth/sign-out', (route) =>
+    route.fulfill({
+      status: 500,
+      json: { error: { code: 'INTERNAL_ERROR', message: 'Test sign-out failure' } },
+    }),
+  );
+  await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Abmelden', exact: true })).toBeVisible();
+  await expect(
+    page.getByText(
+      'Die Abmeldung konnte nicht bestätigt werden. Bitte mit Verbindung erneut versuchen.',
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await page.unroute('**/api/auth/sign-out');
+  await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeVisible();
+});
+
+test('loads and changes preferences when browser storage is blocked', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.addInitScript(() => {
+    for (const method of ['getItem', 'setItem'])
+      Object.defineProperty(Storage.prototype, method, {
+        configurable: true,
+        value: () => {
+          throw new DOMException('Storage unavailable', 'SecurityError');
+        },
+      });
+  });
+  await login(page);
+  await page.goto('/settings');
+  await page.getByRole('button', { name: 'Dunkel', exact: true }).click();
+  await expect(page.locator('html')).toHaveClass(/dark/);
+  await page.getByRole('button', { name: 'Italiano', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Impostazioni', exact: true })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'it');
+  expect(errors).toEqual([]);
 });

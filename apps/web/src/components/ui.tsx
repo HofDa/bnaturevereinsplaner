@@ -6,6 +6,7 @@ import {
   useRef,
   type ReactNode,
   type ButtonHTMLAttributes,
+  type AriaAttributes,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { UseQueryResult } from '@tanstack/react-query';
@@ -180,9 +181,7 @@ export function Field({
   hint?: string;
 }) {
   const generatedId = useId();
-  const control = isValidElement<{ id?: string; 'aria-describedby'?: string }>(children)
-    ? children
-    : null;
+  const control = isValidElement<{ id?: string } & AriaAttributes>(children) ? children : null;
   const id = control?.props.id ?? generatedId;
   const describedBy =
     [control?.props['aria-describedby'], hint ? `${id}-hint` : null, error ? `${id}-error` : null]
@@ -191,7 +190,13 @@ export function Field({
   return (
     <div className={`field ${error ? 'field-error' : ''}`}>
       <label htmlFor={id}>{label}</label>
-      {control ? cloneElement(control, { id, 'aria-describedby': describedBy }) : children}
+      {control
+        ? cloneElement(control, {
+            id,
+            'aria-describedby': describedBy,
+            'aria-invalid': error ? true : control.props['aria-invalid'],
+          })
+        : children}
       {hint && <small id={`${id}-hint`}>{hint}</small>}
       {error && (
         <small id={`${id}-error`} role="alert">

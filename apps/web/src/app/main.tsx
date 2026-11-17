@@ -11,7 +11,8 @@ import { api, ApiError, queryClient, setOrganization } from '../lib/api';
 import { Shell } from '../layouts/shell';
 import { SessionContext, useSession } from './session';
 import { Dashboard } from '../features/dashboard';
-import { Settings, applyTheme, type Theme } from '../features/settings';
+import { Settings } from '../features/settings';
+import { applyTheme, readTheme } from '../lib/theme';
 import { OfflineAttendanceHub, AttendanceSyncManager } from '../features/events/offline-attendance';
 import { purgeAttendance, attendanceOwner, preparedAttendance } from '../lib/attendance-offline';
 import { Link } from 'react-router';
@@ -117,9 +118,9 @@ const CommunityDetail = lazy(() =>
   import('../features/community').then((module) => ({ default: module.CommunityDetail })),
 );
 installErrorReporting();
-applyTheme((localStorage.getItem('bnature-theme') as Theme) || 'system');
+applyTheme(readTheme());
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-  if (localStorage.getItem('bnature-theme') === 'system') applyTheme('system');
+  if (readTheme() === 'system') applyTheme('system');
 });
 void shellDatabase.metadata.put({ key: 'schema-version', value: '1' }).catch(() => undefined);
 function Guard({ permission, children }: { permission: Permission; children: ReactNode }) {

@@ -16,23 +16,19 @@ import {
 } from 'lucide-react';
 import { useSession } from '../app/session';
 import { PageHeading } from '../components/ui';
-export type Theme = 'light' | 'dark' | 'system';
-export function applyTheme(theme: Theme) {
-  localStorage.setItem('bnature-theme', theme);
-  document.documentElement.classList.toggle(
-    'dark',
-    theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches),
-  );
-}
+import { applyTheme, readTheme, type Theme } from '../lib/theme';
 export function Settings() {
   const { t, i18n } = useTranslation(),
     { me } = useSession();
-  const [theme, setTheme] = useState<Theme>(
-    (localStorage.getItem('bnature-theme') as Theme) || 'system',
-  );
+  const [theme, setTheme] = useState<Theme>(readTheme);
   const links = [
     { to: '/profile', label: 'profile', icon: UserRound },
-    { to: '/organization', label: 'organization', icon: Building2 },
+    {
+      to: '/organization',
+      label: 'organization',
+      icon: Building2,
+      permission: 'organization:read',
+    },
     { to: '/documents', label: 'documents', icon: FileText, permission: 'documents:read' },
     { to: '/users', label: 'users', icon: Users, permission: 'users:manage' },
     { to: '/audit', label: 'audit', icon: ScrollText, permission: 'audit:read' },

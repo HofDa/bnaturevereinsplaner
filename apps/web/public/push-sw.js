@@ -2,7 +2,8 @@
 self.addEventListener('push', (event) => {
   let data = {};
   try {
-    data = event.data ? event.data.json() : {};
+    const payload = event.data ? event.data.json() : {};
+    if (payload && typeof payload === 'object' && !Array.isArray(payload)) data = payload;
   } catch {
     // A payload that is not JSON still has to produce a notification.
   }
@@ -24,8 +25,19 @@ self.addEventListener('notificationclick', (event) => {
   // Paths are app-relative; resolve them inside the scope and never leave this origin.
   const scope = self.registration.scope;
   const path = String(event.notification.data?.url ?? '/').replace(/^\/+/, '');
-  let target = new URL(path, scope);
-  if (target.origin !== new URL(scope).origin) target = new URL(scope);
+  let target = new URL(scope);
+  try {
+    const candidate = new URL(path, scope);
+    if (
+      candidate.origin === target.origin &&
+      candidate.pathname.startsWith(target.pathname) &&
+      !candidate.username &&
+      !candidate.password
+    )
+      target = candidate;
+  } catch {
+    // Malformed payload URLs fall back to the app instead of losing the click.
+  }
   event.waitUntil(
     (async () => {
       const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });

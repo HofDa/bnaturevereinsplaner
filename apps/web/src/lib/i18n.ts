@@ -1,6 +1,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import de from '../locales/de';
+import { readPreference, writePreference } from './preferences';
 
 export type Language = 'de' | 'it';
 // German is the default and the fallback and ships with the app; other languages are fetched
@@ -9,7 +10,7 @@ const loaders: Record<
   Exclude<Language, 'de'>,
   () => Promise<{ default: Record<string, string> }>
 > = { it: () => import('../locales/it') };
-const saved = localStorage.getItem('bnature-language');
+const saved = readPreference('bnature-language');
 const initial: Language = saved === 'it' ? 'it' : 'de';
 void i18n.use(initReactI18next).init({
   resources: { de: { translation: de } },
@@ -34,7 +35,7 @@ export async function setLanguage(language: Language) {
 export const languageReady: Promise<void> = load(initial).catch(() => undefined);
 i18n.on('languageChanged', (language) => {
   document.documentElement.lang = language;
-  localStorage.setItem('bnature-language', language);
+  writePreference('bnature-language', language);
 });
 document.documentElement.lang = i18n.language;
 export default i18n;

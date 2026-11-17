@@ -31,7 +31,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     const off = () => setOffline(true),
       on = () => {
         setOffline(false);
-        void registration.current?.update();
+        void registration.current?.update().catch(() => undefined);
       },
       ready = (event: Event) => {
         event.preventDefault();
